@@ -1,9 +1,20 @@
 # HeliosView App Template
 
-One repo, one tag per frontend framework: **`master` holds only this index**,
-and every tag is a complete, runnable HeliosView desktop app template —
-a C++ window with an embedded WebView (WebView2) + a Vite frontend,
-pre-configured for a different frontend framework.
+Desktop app templates built on **HeliosView** — a small C++ library that
+embeds a WebView (WebView2) into a native window, with a UI message loop and
+a background I/O thread pool, plus a native ⇄ JS bridge
+(`window.helios.call(...)` → `Promise`).
+
+This repo is the template family for that library: **one tag per frontend
+framework**, `master` holds only this index, and every tag is a complete,
+runnable template — C++ app (window + bridge + dev/prod build modes) + a Vite
+frontend + cross-platform scripts — pre-configured for a different frontend
+framework.
+
+- **HeliosView library** (C++): <https://github.com/CoplenSasbian/HeliosView>
+- **This template repo**: <https://github.com/CoplenSasbian/HeliosView-Template>
+
+Maintained by [CoplenSasbian](https://github.com/CoplenSasbian).
 
 ## Tags
 
