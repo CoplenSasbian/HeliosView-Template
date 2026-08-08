@@ -1,0 +1,13 @@
+# CMake
+build/
+cmake-build-*/
+CMakeLists.txt.user
+.vs/
+
+# IDE
+.idea/
+
+# Node / Vite
+frontend/node_modules/
+frontend/dist/
+frontend/.vite*.log
