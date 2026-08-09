@@ -23,7 +23,7 @@ int main()
     AppContext ctx;
 
     // 2) The main window (bridge bindings are set up in its constructor).
-    MainWindow window(ctx, 960, 640, "HeliosView App");
+    MainWindow window(ctx, 960, 640, L"HeliosView App");
     window.show();
     window.createWebView();   // async; navigate() calls queue until it's ready
     window.loadFrontend();    // dev server URL (dev) or built static files (prod)
