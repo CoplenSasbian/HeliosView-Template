@@ -21,12 +21,8 @@ Maintained by [CoplenSasbian](https://github.com/CoplenSasbian).
 | Tag | Frontend | Status |
 | --- | --- | --- |
 | `vue-js` | Vue 3 (JavaScript, Vite) | ✅ current |
-| `react-js` | React (JavaScript) | planned |
-| `svelte-js` | Svelte (JavaScript) | planned |
-| `solid-js` | Solid (JavaScript) | planned |
-| `preact-js` | Preact (JavaScript) | planned |
-| `lit-js` | Lit (JavaScript) | planned |
-| `vanilla-js` | Vanilla JS (no framework) | planned |
+| `react-js` | React (JavaScript, Vite) | ✅ current |
+| `vanilla-js` | Vanilla JS (no framework, Vite) | ✅ current |
 
 All tags share the same C++ architecture — `AppContext` (UI loop + thread
 pool), `MainWindow` (WebView + native ⇄ JS bridge), dev/prod build modes and
@@ -46,7 +42,7 @@ git clone --branch vue-js https://github.com/CoplenSasbian/HeliosView-Template.g
 ## How this repo is organized
 
 - `master` — this index only (tag list + conventions).
-- `vue-js` — the current template (Vue 3).
+- `vue-js`, `react-js`, `vanilla-js` — the current templates.
 - A new framework gets a new `<framework>-js` tag (TypeScript variants can
   use the built-in `setup` script to re-scaffold as `-ts` templates).
 
