@@ -16,7 +16,7 @@ class MainWindow : public helios::WebViewWindow {
 public:
     // ctx: the application context (UI loop + thread pool) that this window's
     //      native logic runs against. The context must outlive the window.
-    MainWindow(AppContext& ctx, int width, int height, const char* title);
+    MainWindow(AppContext& ctx, int width, int height, const wchar_t* title);
 
     // Load the frontend: the dev server URL in dev builds, the built static
     // files (exe-dir/assets/index.html) in prod builds. Call after
@@ -25,6 +25,8 @@ public:
     // requires a live WebView: bindings set before createWebView() are
     // silently dropped by the C layer).
     void loadFrontend();
+
+    std::execution::task<double> add(double,double);
 
 private:
     void setupBridge();  // native <-> JS bridge bindings (requires the WebView)
