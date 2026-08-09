@@ -10,13 +10,16 @@ const appInfo = ref(null)
 const pong = ref(null)
 const uiEvents = ref([])
 const bridgeError = ref(null)
+const num1 = ref(0)
+const num2 = ref(0)
+const result = ref(0)
 
 async function fetchAppInfo() {
   bridgeError.value = null
   try {
     appInfo.value = await window.helios.call('appInfo', {})
   } catch (e) {
-    bridgeError.value = String(e)
+    appendError(e)
   }
 }
 
@@ -32,6 +35,18 @@ async function ping() {
   }
 }
 
+function appendError(msg) {
+  bridgeError.value = (bridgeError.value ?? '') + String(msg)
+}
+
+async function add() {
+  try {
+    result.value = await window.helios.call('add', num1.value, num2.value)
+  } catch (e) {
+    appendError(e)
+  }
+}
+
 onMounted(() => {
   const channel = new BroadcastChannel('ping')
   channel.addEventListener('message', (e) => uiEvents.value.push(e.data))
@@ -42,6 +57,13 @@ onMounted(() => {
   <main>
     <h1>HeliosView + Vue</h1>
     <p>The native bridge <code>window.helios</code> is injected into every page — try it:</p>
+
+    <div class="row">
+      <input type="number" v-model="num1" />
+      <input type="number" v-model="num2" />
+      = <span>{{ result }}</span>
+      <button @click="add">Add</button>
+    </div>
 
     <div class="row">
       <button @click="fetchAppInfo">appInfo</button>

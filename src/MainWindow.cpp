@@ -17,7 +17,11 @@
 
 #include <nlohmann/json.hpp>
 
-MainWindow::MainWindow(AppContext& ctx, int width, int height, const char* title)
+
+
+
+
+MainWindow::MainWindow(AppContext& ctx, int width, int height, const wchar_t* title)
     : WebViewWindow(width, height, title)
     , m_ctx(ctx)
 {
@@ -69,6 +73,8 @@ void MainWindow::setupBridge()
             { "thread", "pool" },
         }};
     });
+
+    bindJson<double,double>("add",this,&MainWindow::add);
 }
 
 // ---- frontend loading ------------------------------------------------------
@@ -141,4 +147,9 @@ void MainWindow::loadFrontend()
     std::println("[HeliosViewApp] prod mode: loading {}", url);
 #endif
     navigate(url.c_str());
+}
+
+std::execution::task<double> MainWindow::add(double num1,double num2)
+{
+    co_return num1 + num2;
 }
