@@ -5,6 +5,15 @@
 > Get this template with:
 > `git clone --branch react-js https://github.com/CoplenSasbian/HeliosView-Template.git`
 
+This is the **React** template in the HeliosView template family. Its sibling
+templates — `vue-js` (Vue 3) and `vanilla-js` (no framework) — share the
+same C++ backend and scripts; only the checked-in `frontend/` differs, so pick
+the tag whose frontend you want and keep the C++ side identical. You can also
+re-scaffold the frontend to any other framework with `scripts/setup`.
+
+Built on the **HeliosView** C++ library (WebView2 + native ⇄ JS bridge):
+<https://github.com/CoplenSasbian/HeliosView>
+
 A ready-to-hack-on starting point for a **HeliosView** desktop app: one C++
 window with an embedded WebView (WebView2) + a **React** web frontend (Vite).
 Fork it and start building — the plumbing is already wired up:
