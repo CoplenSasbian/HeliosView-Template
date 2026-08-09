@@ -1,12 +1,12 @@
 # HeliosView App Template
 
-> **Repo layout:** this template lives in the **`vue-js`** tag. The `master`
-> branch holds only a tag index (Vue = `vue-js`, future React = `react-js`, …).
+> **Repo layout:** this template lives in the **`react-js`** tag. The `master`
+> branch holds only a tag index (React = `react-js`, Vue = `vue-js`, …).
 > Get this template with:
-> `git clone --branch vue-js https://github.com/CoplenSasbian/HeliosView-Template.git`
+> `git clone --branch react-js https://github.com/CoplenSasbian/HeliosView-Template.git`
 
 A ready-to-hack-on starting point for a **HeliosView** desktop app: one C++
-window with an embedded WebView (WebView2) + a **Vue 3** web frontend (Vite).
+window with an embedded WebView (WebView2) + a **React** web frontend (Vite).
 Fork it and start building — the plumbing is already wired up:
 
 ```
@@ -17,7 +17,7 @@ Fork it and start building — the plumbing is already wired up:
 │    MainWindow    : helios::WebViewWindow (WebView2)      │
 │        │  window.helios.call('appInfo', {}) → Promise    │
 │        ▼                                                 │
-└──── frontend (Vue 3 + Vite) ────────────────────────────┘
+└──── frontend (React + Vite) ───────────────────────────┘
      dev : vite dev server on :5173   (HMR)
      prod: built assets in exe-dir/assets/  (file://)
 ```
@@ -48,7 +48,7 @@ box, and the C++ side builds as soon as HeliosView gains non-Windows backends.
 
 ## Getting started
 
-A Vue 3 frontend is checked in, so the very first run needs nothing but the
+A React frontend is checked in, so the very first run needs nothing but the
 two commands below. `npm install` only runs the first time (the scripts do it
 automatically).
 
@@ -195,7 +195,7 @@ CMakeLists.txt       FetchContent(HeliosView) + the app target + dev/prod mode
 src/AppContext.h     the context: UI loop (helios::App) + thread pool (helios::Async)
 src/MainWindow.h/.cpp  the window: WebViewWindow subclass, bridge bindings, frontend URL
 src/main.cpp         create the context + window, run the UI loop
-frontend/            Vue 3 + Vite project (switch frameworks with scripts/setup)
+frontend/            React + Vite project (switch frameworks with scripts/setup)
 scripts/setup.cmd/.sh          (re)scaffold the frontend (framework picker, -Force/-f to replace)
 scripts/vite.cmd/.sh           run the Vite dev server only (for CLion/IDE workflows)
 scripts/dev.cmd/.sh            dev loop: Vite dev server + C++ app
