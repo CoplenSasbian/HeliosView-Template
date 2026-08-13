@@ -1,15 +1,16 @@
 # HeliosView App Template
 
-> **Repo layout:** this template lives in the **`vue-js`** tag. The `master`
-> branch holds only a tag index (Vue = `vue-js`, future React = `react-js`, …).
-> Get this template with:
-> `git clone --branch vue-js https://github.com/CoplenSasbian/HeliosView-Template.git`
+> **Repo layout:** this template lives in the **`template/vue-js`** branch. The
+> `master` branch holds only a template index (Vue = `template/vue-js`,
+> React = `template/react-js`, …). Get this template with:
+> `git clone --recursive -b template/vue-js https://github.com/CoplenSasbian/HeliosView-Template.git`
 
 This is the **Vue 3** template in the HeliosView template family. Its sibling
-templates — `react-js` (React) and `vanilla-js` (no framework) — share the
-same C++ backend and scripts; only the checked-in `frontend/` differs, so pick
-the tag whose frontend you want and keep the C++ side identical. You can also
-re-scaffold the frontend to any other framework with `scripts/setup`.
+templates — `template/react-js` (React) and `template/vanilla-js` (no
+framework) — share the same C++ backend and scripts; only the checked-in
+`frontend/` differs, so pick the branch whose frontend you want and keep the
+C++ side identical. You can also re-scaffold the frontend to any other
+framework with `scripts/setup`.
 
 Built on the **HeliosView** C++ library (WebView2 + native ⇄ JS bridge):
 <https://github.com/CoplenSasbian/HeliosView>
