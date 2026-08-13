@@ -34,10 +34,13 @@ can switch the frontend to any other framework without changing branches.
 ## Getting started
 
 ```sh
-git clone --branch vue-js https://github.com/CoplenSasbian/HeliosView-Template.git
+git clone --recursive --branch vue-js https://github.com/CoplenSasbian/HeliosView-Template.git
 ```
 
-(Or `git clone` then `git checkout vue-js` — tags are listed above.)
+`--recursive` fetches the **HeliosView** library, which each template checks
+in as a git submodule (`HeliosView/`). (Or `git clone` then
+`git checkout vue-js` and `git submodule update --init` — tags are listed
+above.)
 
 ## How this repo is organized
 
