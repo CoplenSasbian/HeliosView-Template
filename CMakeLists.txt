@@ -36,21 +36,25 @@ set(HELIOSVIEW_TEMPLATE_FRONTEND_DIST "${CMAKE_CURRENT_SOURCE_DIR}/frontend/dist
     "Built frontend output directory (prod mode)")
 
 # ---------------------------------------------------------------------------
-# The HeliosView library, fetched from GitHub (like Electron pulls in its
-# own runtime). Dependencies (stdexec, nlohmann/json, WebView2 SDK) are
-# fetched by the library itself — nothing else is needed.
+# The HeliosView library, checked in as a git submodule (HeliosView/).
+# Dependencies (stdexec, nlohmann/json, WebView2 SDK) are fetched by the
+# library itself — nothing else is needed.
+#
+#   git clone --recursive <this repo>         (or after a plain clone:)
+#   git submodule update --init               (clone + checkout HeliosView/)
+#
+# The submodule is pinned to a specific HeliosView commit (see .gitmodules /
+# the gitlink in the index) for reproducible builds.
 # ---------------------------------------------------------------------------
-include(FetchContent)
-
 set(HELIOSVIEW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)  # skip the library's own demos
 
-FetchContent_Declare(
-    HeliosView
-    GIT_REPOSITORY https://github.com/CoplenSasbian/HeliosView.git
-    GIT_TAG master            # pin to a specific commit for reproducible builds
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(HeliosView)
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/HeliosView/CMakeLists.txt")
+    message(FATAL_ERROR
+        "HeliosView submodule is not checked out.\n"
+        "Run: git submodule update --init  (or clone with --recursive)\n"
+        "in:  ${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+add_subdirectory(HeliosView)
 
 # ---------------------------------------------------------------------------
 # The app: AppContext (UI loop + thread pool) + MainWindow (WebView2 window)
