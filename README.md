@@ -40,9 +40,10 @@ Fork it and start building — the plumbing is already wired up:
 | ninja     | the C++ build on macOS/Linux (Windows falls back to Visual Studio) |
 | Node.js ≥ 20 | the frontend (Vite)      |
 
-The HeliosView library is fetched automatically from GitHub
-(`FetchContent`), including its own dependencies (stdexec, nlohmann/json,
-WebView2 SDK) — no vcpkg/conan.
+The HeliosView library is a **git submodule** (`HeliosView/`, pinned to a
+specific commit), including its own dependencies (stdexec, nlohmann/json,
+WebView2 SDK) — no vcpkg/conan. `git clone --recursive` fetches it for you;
+for an existing checkout run `git submodule update --init`.
 
 ## Platforms
 
@@ -57,9 +58,10 @@ box, and the C++ side builds as soon as HeliosView gains non-Windows backends.
 
 ## Getting started
 
-A React frontend is checked in, so the very first run needs nothing but the
-two commands below. `npm install` only runs the first time (the scripts do it
-automatically).
+A React frontend (and the HeliosView submodule) is checked in, so the very
+first run needs nothing but the two commands below. `git clone --recursive`
+or `git submodule update --init` fetches the library. `npm install` only runs
+the first time (the scripts do it automatically).
 
 ```bat
 REM Windows:
@@ -200,7 +202,8 @@ More from the library README (DTO `Req` types, bidirectional
 ## Project layout
 
 ```
-CMakeLists.txt       FetchContent(HeliosView) + the app target + dev/prod mode
+CMakeLists.txt       add_subdirectory(HeliosView) + the app target + dev/prod mode
+HeliosView/          HeliosView library as a git submodule (pinned commit)
 src/AppContext.h     the context: UI loop (helios::App) + thread pool (helios::Async)
 src/MainWindow.h/.cpp  the window: WebViewWindow subclass, bridge bindings, frontend URL
 src/main.cpp         create the context + window, run the UI loop
@@ -218,8 +221,10 @@ scripts/helios.d.ts            bridge typings template (copied into TS scaffolds
   first argument, `frontend/vite.config.js` and keep
   `HELIOSVIEW_TEMPLATE_DEV_URL` in sync (or pass `-DHELIOSVIEW_TEMPLATE_DEV_URL=…`
   to CMake).
-- **Pin the library** — `CMakeLists.txt` has `GIT_TAG master`; pin a commit
-  for reproducible builds.
+- **Pin the library** — the HeliosView submodule (`HeliosView/`) is pinned to
+  a concrete commit in the index/.gitmodules; update it with
+  `git submodule update --remote` (or bump the pinned commit manually) for a
+  reproducible build.
 - **Window** — size/title in `src/main.cpp`; see the HeliosView README for
   `WindowStyle`, signals/slots, async I/O, coroutines.
 - **Distribution** — copy `build/release/bin/*` (exe + DLLs + `assets/`).

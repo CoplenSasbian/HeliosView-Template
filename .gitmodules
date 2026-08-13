@@ -1,0 +1,4 @@
+[submodule "HeliosView"]
+	path = HeliosView
+	url = https://github.com/CoplenSasbian/HeliosView.git
+	branch = master
