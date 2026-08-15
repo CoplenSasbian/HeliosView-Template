@@ -36,12 +36,13 @@ set(HELIOSVIEW_TEMPLATE_FRONTEND_DIST "${CMAKE_CURRENT_SOURCE_DIR}/frontend/dist
     "Built frontend output directory (prod mode)")
 
 # ---------------------------------------------------------------------------
-# The HeliosView library, checked in as a git submodule (HeliosView/).
-# Dependencies (stdexec, nlohmann/json, WebView2 SDK) are fetched by the
+# The HeliosView library, checked in as a git submodule (HeliosView/), pinned
+# to the v1.0.0 tag. Its own dependencies (stdexec + nlohmann/json as nested
+# submodules, WebView2 SDK from NuGet at configure time) are handled by the
 # library itself — nothing else is needed.
 #
 #   git clone --recursive <this repo>         (or after a plain clone:)
-#   git submodule update --init               (clone + checkout HeliosView/)
+#   git submodule update --init --recursive   (clone + checkout HeliosView/ + nested deps)
 #
 # The submodule is pinned to a specific HeliosView commit (see .gitmodules /
 # the gitlink in the index) for reproducible builds.

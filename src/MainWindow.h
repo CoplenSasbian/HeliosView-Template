@@ -14,9 +14,10 @@ class AppContext;
 
 class MainWindow : public helios::WebViewWindow {
 public:
-    // ctx: the application context (UI loop + thread pool) that this window's
-    //      native logic runs against. The context must outlive the window.
-    MainWindow(AppContext& ctx, int width, int height, const wchar_t* title);
+    // ctx: the application context (UI loop) that this window's native logic
+    //      runs against. The context must outlive the window. The title is
+    //      UTF-8 (HeliosView v1.0.0 switched the C API to UTF-8 strings).
+    MainWindow(AppContext& ctx, int width, int height, const char* title);
 
     // Load the frontend: the dev server URL in dev builds, the built static
     // files (exe-dir/assets/index.html) in prod builds. Call after
