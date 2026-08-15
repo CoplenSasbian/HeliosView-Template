@@ -2,16 +2,23 @@
 
 // AppContext — the application-wide services shared by all windows:
 //
-//   app()        the UI loop: message pump + event queue + idle tasks
-//                (also a std::execution scheduler for UI-thread delivery)
-//   threadPool() the background thread pool: worker tasks + async file/TCP I/O
-//                (IOCP-based; also a std::execution scheduler for workers)
+//   app()   the UI loop: message pump + event queue + idle tasks
+//           (also a std::execution scheduler for UI-thread delivery)
 //
-// The HeliosView library already wraps both (helios::App, helios::Async);
-// this class just owns them for the app. main() creates the context and every
-// window/native service receives an AppContext& — pass it down instead of
-// grabbing globals. AppContext::instance() is the escape hatch for code that
-// has no context reference.
+// The HeliosView library wraps the loop (helios::App); this class just owns it
+// for the app. main() creates the context and every window/native service
+// receives an AppContext& — pass it down instead of grabbing globals.
+// AppContext::instance() is the escape hatch for code that has no context
+// reference.
+//
+// Threading (HeliosView v1.0.0): every window/WebView API must run on the
+// message-loop thread (the thread running app().exec()). The exceptions —
+// safe from any thread — are app().postTask(...) (deliver work to the UI
+// thread), App::quit, and the WebView resolve/reject/broadcast calls. The
+// library no longer ships a background thread pool (helios::Async was removed
+// in v1.0.0): run background work on your own workers and hand results back
+// to the UI thread with app().postTask(...) (see the ping handler in
+// MainWindow.cpp).
 
 #include <HeliosViewCore/HeliosView.h>
 
@@ -31,13 +38,8 @@ public:
     // app().exec(); deliver UI-thread work with app().postTask(...).
     helios::App& app() noexcept { return m_app; }
 
-    // The background thread pool: worker tasks + async file/TCP I/O.
-    // Schedule with threadPool().post(...) or the std::execution scheduler.
-    helios::Async& threadPool() noexcept { return m_threadPool; }
-
 private:
     helios::App m_app;          // UI loop (must outlive every window)
-    helios::Async m_threadPool; // background I/O thread pool
 
     static inline AppContext* s_instance = nullptr;
 };

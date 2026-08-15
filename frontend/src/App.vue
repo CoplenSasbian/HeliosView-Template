@@ -24,9 +24,10 @@ async function fetchAppInfo() {
 }
 
 async function ping() {
-  // Native side: hops to the thread pool, then back to the UI loop; the same
-  // payload also arrives on the 'ping' BroadcastChannel, posted from the UI
-  // thread (see MainWindow::setupBridge in src/MainWindow.cpp).
+  // Native side: background work runs on a plain worker thread (v1.0.0 has
+  // no library thread pool), and the result is broadcast from the worker via
+  // the thread-safe broadcast(); the same payload also arrives on the 'ping'
+  // BroadcastChannel (see MainWindow::setupBridge in src/MainWindow.cpp).
   bridgeError.value = null
   try {
     pong.value = await window.helios.call('ping', { msg: 'hello from Vue' })
@@ -67,7 +68,7 @@ onMounted(() => {
 
     <div class="row">
       <button @click="fetchAppInfo">appInfo</button>
-      <button @click="ping">ping (thread-pool round trip)</button>
+      <button @click="ping">ping (worker round trip)</button>
     </div>
 
     <pre v-if="bridgeError" class="error">{{ bridgeError }}</pre>
