@@ -20,7 +20,7 @@ app.innerHTML = `
 
     <div class="row">
       <button id="appInfo">appInfo</button>
-      <button id="ping">ping (thread-pool round trip)</button>
+      <button id="ping">ping (worker round trip)</button>
     </div>
 
     <pre id="bridgeError" class="error" hidden></pre>
@@ -59,9 +59,10 @@ $('#appInfo').addEventListener('click', async () => {
 })
 
 $('#ping').addEventListener('click', async () => {
-  // Native side: hops to the thread pool, then back to the UI loop; the same
-  // payload also arrives on the 'ping' BroadcastChannel, posted from the UI
-  // thread (see MainWindow::setupBridge in src/MainWindow.cpp).
+  // Native side: background work runs on a plain worker thread (v1.0.0 has no
+  // library thread pool), and the result is broadcast from the worker via the
+  // thread-safe broadcast(); the same payload also arrives on the 'ping'
+  // BroadcastChannel (see MainWindow::setupBridge in src/MainWindow.cpp).
   bridgeError.hidden = true
   bridgeError.textContent = ''
   try {

@@ -14,6 +14,7 @@
 #include <print>
 #include <string>
 #include <string_view>
+#include <thread>
 
 #include <nlohmann/json.hpp>
 
@@ -21,7 +22,7 @@
 
 
 
-MainWindow::MainWindow(AppContext& ctx, int width, int height, const wchar_t* title)
+MainWindow::MainWindow(AppContext& ctx, int width, int height, const char* title)
     : WebViewWindow(width, height, title)
     , m_ctx(ctx)
 {
@@ -38,8 +39,10 @@ MainWindow::MainWindow(AppContext& ctx, int width, int height, const wchar_t* ti
 //
 // Handlers are detached std::execution::task coroutines; the JS Promise is
 // resolved when the task completes (from any thread — resolve is thread-safe).
-// Use the context's thread pool for background work and App::postTask to get
-// back to the UI thread (see the ping handler).
+// Threading (v1.0.0): bind handlers run on the UI thread; resolve/reject/
+// broadcast are thread-safe. The library removed its thread pool
+// (helios::Async), so background work runs on your own workers; hand results
+// back to the UI thread with App::postTask (see the ping handler).
 void MainWindow::setupBridge()
 {
     // Plain binding: runs on the UI thread, returns app info.
@@ -52,25 +55,23 @@ void MainWindow::setupBridge()
         }};
     });
 
-    // Thread-pool round trip: hop to a pool worker, do background work, then
-    // return to the UI thread (App::postTask) and broadcast the result back
-    // to the page's BroadcastChannel('ping').
+    // Worker round trip: run the background work off the UI thread on a plain
+    // std::thread (v1.0.0 has no library thread pool — use your own bounded
+    // pool in a real app), then push the result to the page's
+    // BroadcastChannel('ping'). broadcast() is thread-safe, so the worker can
+    // post directly; co_return resolves the Promise on the UI thread.
     bindJson<nlohmann::json>("ping", [this](nlohmann::json req)
                                  -> std::execution::task<helios::JsonResp<nlohmann::json>> {
-        // 1) Run off the UI thread on the context's thread pool.
-        co_await std::execution::schedule(m_ctx.threadPool().get_scheduler());
+        const std::string msg = req.value("msg", "ping");
 
-        // ... background work goes here ...
-
-        // 2) Back to the UI thread: postTask delivers on the next idle tick.
-        //    (The window must outlive the message loop, as in this template.)
-        m_ctx.app().postTask([this, msg = req.value("msg", "ping")] {
+        std::thread([this, msg] {
+            // ... background work goes here ...
             broadcast("ping", nlohmann::json{ { "msg", msg } }.dump().c_str());
-        });
+        }).detach();
 
         co_return helios::JsonResp<nlohmann::json>{ "pong", {
-            { "msg",    req.value("msg", "ping") },
-            { "thread", "pool" },
+            { "msg",    msg },
+            { "thread", "worker" },
         }};
     });
 
