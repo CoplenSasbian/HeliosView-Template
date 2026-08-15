@@ -2,8 +2,7 @@
 
 Desktop app templates built on **HeliosView** — a small C++ library that
 embeds a WebView (WebView2) into a native window, with a UI message loop and
-a background I/O thread pool, plus a native ⇄ JS bridge
-(`window.helios.call(...)` → `Promise`).
+a native ⇄ JS bridge (`window.helios.call(...)` → `Promise`).
 
 This repo is the template family for that library: **one branch per frontend
 framework**, under the `template/` prefix. `master` holds only this index, and
@@ -24,8 +23,8 @@ Maintained by [CoplenSasbian](https://github.com/CoplenSasbian).
 | `template/react-js` | React (JavaScript, Vite) | ✅ current |
 | `template/vanilla-js` | Vanilla JS (no framework, Vite) | ✅ current |
 
-All templates share the same C++ architecture — `AppContext` (UI loop + thread
-pool), `MainWindow` (WebView + native ⇄ JS bridge), dev/prod build modes and
+All templates share the same C++ architecture — `AppContext` (UI loop),
+`MainWindow` (WebView + native ⇄ JS bridge), dev/prod build modes and
 cross-platform scripts (`scripts/*.cmd` for Windows, `scripts/*.sh` for
 macOS/Linux/Git Bash). The only difference between branches is the checked-in
 frontend. Every template also ships a `scripts/setup` (re)scaffold script, so
@@ -38,9 +37,10 @@ git clone --recursive -b template/vue-js https://github.com/CoplenSasbian/Helios
 ```
 
 (or `-b template/react-js` / `-b template/vanilla-js`). `--recursive` fetches
-the **HeliosView** library, which each template checks in as a git submodule
-(`HeliosView/`). (Or `git clone` then `git checkout template/vue-js` and
-`git submodule update --init`.)
+the **HeliosView** library (pinned to the **v1.0.0** tag), which each template
+checks in as a git submodule (`HeliosView/`, with stdexec + nlohmann/json as
+nested submodules). (Or `git clone` then `git checkout template/vue-js` and
+`git submodule update --init --recursive`.)
 
 ## How this repo is organized
 
