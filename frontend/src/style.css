@@ -68,6 +68,23 @@ ul {
   padding-left: 1.2rem;
 }
 
+footer {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #c9ced6;
+  font-size: 0.85rem;
+  color: #57606a;
+}
+
+footer a {
+  color: #0969da;
+  text-decoration: none;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
 @media (prefers-color-scheme: dark) {
   body {
     background: #14161a;
@@ -86,5 +103,14 @@ ul {
 
   code {
     background: #23262d;
+  }
+
+  footer {
+    border-top-color: #3a3f48;
+    color: #8b949e;
+  }
+
+  footer a {
+    color: #58a6ff;
   }
 }

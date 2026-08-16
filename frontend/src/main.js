@@ -29,6 +29,15 @@ app.innerHTML = `
 
     <h2>BroadcastChannel 'ping' (native → page)</h2>
     <ul id="uiEvents"></ul>
+
+    <footer>
+      <p>
+        Built on <a href="https://github.com/CoplenSasbian/HeliosView" target="_blank" rel="noreferrer">HeliosView</a> —
+        a C++ WebView windowing library (WebView2 + native ⇄ JS bridge, asio-backed
+        background pool). This page is the Vanilla JS template of
+        <a href="https://github.com/CoplenSasbian/HeliosView-Template" target="_blank" rel="noreferrer">HeliosView-Template</a>.
+      </p>
+    </footer>
   </main>
 `
 
