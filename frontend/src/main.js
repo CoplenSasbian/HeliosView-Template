@@ -59,8 +59,8 @@ $('#appInfo').addEventListener('click', async () => {
 })
 
 $('#ping').addEventListener('click', async () => {
-  // Native side: background work runs on a plain worker thread (v1.0.0 has no
-  // library thread pool), and the result is broadcast from the worker via the
+  // Native side: the handler hops onto the background pool (helios::Async,
+  // asio-backed, v1.0.1) and broadcasts the result from the pool via the
   // thread-safe broadcast(); the same payload also arrives on the 'ping'
   // BroadcastChannel (see MainWindow::setupBridge in src/MainWindow.cpp).
   bridgeError.hidden = true

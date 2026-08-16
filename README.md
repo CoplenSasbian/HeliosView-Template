@@ -23,6 +23,7 @@ Fork it and start building — the plumbing is already wired up:
 ┌────────────────────────── C++ ──────────────────────────┐
 │  main()                                                  │
 │    AppContext    UI loop (helios::App)                   │
+│                  + background pool (helios::Async)       │
 │    MainWindow    : helios::WebViewWindow (WebView2)      │
 │        │  window.helios.call('appInfo', {}) → Promise    │
 │        ▼                                                 │
@@ -41,10 +42,18 @@ Fork it and start building — the plumbing is already wired up:
 | Node.js ≥ 20 | the frontend (Vite)      |
 
 The HeliosView library is a **git submodule** (`HeliosView/`, pinned to the
-**v1.0.0** tag), including its own dependencies (stdexec + nlohmann/json as
-nested submodules, WebView2 SDK pulled from NuGet at configure time) — no
-vcpkg/conan. `git clone --recursive` fetches it all; for an existing checkout
-run `git submodule update --init --recursive`.
+**v1.0.1** tag), including its own dependencies (stdexec + nlohmann/json +
+Boost as nested submodules, WebView2 SDK pulled from NuGet at configure time)
+— no vcpkg/conan. `git clone --recursive` fetches it all; for an existing
+checkout run:
+
+```bat
+git submodule update --init                REM HeliosView/
+git -C HeliosView submodule update --init  REM HeliosView's own (stdexec/json/Boost)
+```
+
+The Boost libs HeliosView needs are fetched automatically at CMake configure
+time — a recursive fetch would pull all ~160 Boost libraries.
 
 ## Platforms
 
@@ -152,11 +161,15 @@ frontend. Dev is the default, so no CMake configuration is needed:
    - `app()` — the **UI loop**: message pump, event queue, idle tasks
      (`helios::App`, also a `std::execution` scheduler). Run with
      `app().exec()`; deliver work to the UI thread with `app().postTask(...)`.
-   Threading (HeliosView v1.0.0): every window/WebView API runs on the
+   - `async()` — the **background pool** (`helios::Async`, asio-backed,
+     HeliosView v1.0.1): compute, timers and socket I/O off the UI thread.
+   Threading (HeliosView v1.0.1): every window/WebView API runs on the
    message-loop thread; `postTask`/`quit` and the WebView
-   resolve/reject/broadcast calls are safe from any thread. The library no
-   longer ships a thread pool (`helios::Async` was removed) — run background
-   work on your own workers and hand results back with `app().postTask(...)`.
+   resolve/reject/broadcast calls are safe from any thread. Background work
+   runs on the pool (`async()`): hop off the UI thread with
+   `co_await std::execution::schedule(async().get_scheduler())`, sleep with
+   `async().timer(...)`, and hand results back to the UI thread with
+   `app().postTask(...)` — or resolve/reject/broadcast straight from the pool.
 2. **`MainWindow`** (`src/MainWindow.h/.cpp`) — inherits
    `helios::WebViewWindow`; its constructor registers the native ⇄ JS bridge,
    `loadFrontend()` navigates to the dev server (dev) or the built assets
@@ -187,12 +200,12 @@ bindJson<nlohmann::json>("appInfo", [](nlohmann::json)
 });
 ```
 
-The `ping` binding demonstrates the v1.0.0 threading model: background work
-runs off the UI thread on a plain worker (`std::thread`; v1.0.0 removed the
-library thread pool, so a real app would use its own bounded pool), the
-result is pushed to the page's `BroadcastChannel('ping')` via the
-thread-safe `broadcast()`, and the Promise resolves on the UI thread — one
-round trip through the bridge.
+The `ping` binding demonstrates the v1.0.1 threading model: the handler hops
+off the UI thread onto the background pool (`async()`, asio-backed), sleeps
+briefly, pushes the result to the page's `BroadcastChannel('ping')` via the
+thread-safe `broadcast()`, and the Promise resolves on the pool thread (also
+thread-safe) — one round trip through the bridge. `startAsyncDemo()` adds a
+repeating 1 s timer on the pool that broadcasts `'tick'` to the page.
 
 More from the library README (DTO `Req` types, bidirectional
 `BroadcastChannel`, error shapes, async slots):
@@ -208,7 +221,7 @@ More from the library README (DTO `Req` types, bidirectional
 ```
 CMakeLists.txt       add_subdirectory(HeliosView) + the app target + dev/prod mode
 HeliosView/          HeliosView library as a git submodule (pinned commit)
-src/AppContext.h     the context: UI loop (helios::App)
+src/AppContext.h     the context: UI loop (helios::App) + background pool (helios::Async)
 src/MainWindow.h/.cpp  the window: WebViewWindow subclass, bridge bindings, frontend URL
 src/main.cpp         create the context + window, run the UI loop
 frontend/            Vanilla JS + Vite project (switch frameworks with scripts/setup)
@@ -226,7 +239,7 @@ scripts/helios.d.ts            bridge typings template (copied into TS scaffolds
   `HELIOSVIEW_TEMPLATE_DEV_URL` in sync (or pass `-DHELIOSVIEW_TEMPLATE_DEV_URL=…`
   to CMake).
 - **Pin the library** — the HeliosView submodule (`HeliosView/`) is pinned to
-  the **v1.0.0** tag (a concrete commit in the index); bump it with
+  the **v1.0.1** tag (a concrete commit in the index); bump it with
   `git submodule update --remote` (or move the tag/pin manually) for a
   reproducible build.
 - **Window** — size/title in `src/main.cpp`; see the HeliosView README for

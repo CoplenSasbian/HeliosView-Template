@@ -10,14 +10,16 @@
 
 #include "AppContext.h"
 
+#include <chrono>
 #include <cctype>
+#include <functional>
+#include <memory>
 #include <print>
 #include <string>
 #include <string_view>
 #include <thread>
 
 #include <nlohmann/json.hpp>
-
 
 
 
@@ -39,10 +41,12 @@ MainWindow::MainWindow(AppContext& ctx, int width, int height, const char* title
 //
 // Handlers are detached std::execution::task coroutines; the JS Promise is
 // resolved when the task completes (from any thread — resolve is thread-safe).
-// Threading (v1.0.0): bind handlers run on the UI thread; resolve/reject/
-// broadcast are thread-safe. The library removed its thread pool
-// (helios::Async), so background work runs on your own workers; hand results
-// back to the UI thread with App::postTask (see the ping handler).
+// Threading (v1.0.1): bind handlers start on the UI thread; hop off it onto
+// the background pool with
+// `co_await std::execution::schedule(async().get_scheduler())` (see the ping
+// handler below). resolve/reject/broadcast are thread-safe, so a task may
+// finish on a pool thread without marshalling back; use App::postTask only to
+// touch UI state.
 void MainWindow::setupBridge()
 {
     // Plain binding: runs on the UI thread, returns app info.
@@ -55,27 +59,50 @@ void MainWindow::setupBridge()
         }};
     });
 
-    // Worker round trip: run the background work off the UI thread on a plain
-    // std::thread (v1.0.0 has no library thread pool — use your own bounded
-    // pool in a real app), then push the result to the page's
-    // BroadcastChannel('ping'). broadcast() is thread-safe, so the worker can
-    // post directly; co_return resolves the Promise on the UI thread.
+    // Async round trip (HeliosView v1.0.1): hop off the UI thread onto the
+    // background pool (helios::Async, asio-backed), sleep briefly, then push
+    // the result to the page's BroadcastChannel('ping'). broadcast() is
+    // thread-safe, so the pool thread posts directly; co_return resolves the
+    // Promise (also thread-safe) on the pool thread.
     bindJson<nlohmann::json>("ping", [this](nlohmann::json req)
                                  -> std::execution::task<helios::JsonResp<nlohmann::json>> {
         const std::string msg = req.value("msg", "ping");
 
-        std::thread([this, msg] {
-            // ... background work goes here ...
-            broadcast("ping", nlohmann::json{ { "msg", msg } }.dump().c_str());
-        }).detach();
+        co_await std::execution::schedule(m_ctx.async().get_scheduler());  // pool thread
+        // ... background work goes here ...
+        co_await m_ctx.async().timer(std::chrono::milliseconds(100));      // sleep off the UI thread
+        broadcast("ping", nlohmann::json{ { "msg", msg } }.dump().c_str());
 
         co_return helios::JsonResp<nlohmann::json>{ "pong", {
             { "msg",    msg },
-            { "thread", "worker" },
+            { "thread", "pool" },
         }};
     });
 
     bindJson<double,double>("add",this,&MainWindow::add);
+}
+
+// ---- async demo: a repeating timer from the background pool ----------------
+//
+// Small demo of helios::Async (asio-backed, v1.0.1): every second the pool
+// fires a 'tick' broadcast to the page (BroadcastChannel('tick')) and prints
+// to the console. broadcast() is thread-safe, so the pool thread posts
+// directly — no marshalling back to the UI thread needed. The callback chain
+// re-arms itself via the shared_ptr-held std::function. Delete this (and the
+// pool usage in the ping handler) when you start the real app.
+void MainWindow::startAsyncDemo()
+{
+    auto tick = std::make_shared<std::function<void()>>();
+    *tick = [this, tick] {
+        m_ctx.async().sleep(std::chrono::seconds(1), [this, tick](helios::asio::error_code ec) {
+            if (ec)
+                return;
+            std::println("[HeliosViewApp] async tick from pool thread {}", std::this_thread::get_id());
+            broadcast("tick", nlohmann::json{ { "at", "pool" } }.dump().c_str());
+            (*tick)();  // re-arm
+        });
+    };
+    (*tick)();
 }
 
 // ---- frontend loading ------------------------------------------------------
@@ -148,6 +175,8 @@ void MainWindow::loadFrontend()
     std::println("[HeliosViewApp] prod mode: loading {}", url);
 #endif
     navigate(url.c_str());
+
+    startAsyncDemo();  // async timer demo (background pool → BroadcastChannel 'tick')
 }
 
 std::execution::task<double> MainWindow::add(double num1,double num2)

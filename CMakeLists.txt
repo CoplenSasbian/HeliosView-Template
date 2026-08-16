@@ -37,12 +37,18 @@ set(HELIOSVIEW_TEMPLATE_FRONTEND_DIST "${CMAKE_CURRENT_SOURCE_DIR}/frontend/dist
 
 # ---------------------------------------------------------------------------
 # The HeliosView library, checked in as a git submodule (HeliosView/), pinned
-# to the v1.0.0 tag. Its own dependencies (stdexec + nlohmann/json as nested
-# submodules, WebView2 SDK from NuGet at configure time) are handled by the
-# library itself — nothing else is needed.
+# to the v1.0.1 tag. Its own dependencies (stdexec + nlohmann/json + Boost as
+# nested submodules, WebView2 SDK from NuGet at configure time) are handled by
+# the library itself — nothing else is needed.
 #
 #   git clone --recursive <this repo>         (or after a plain clone:)
-#   git submodule update --init --recursive   (clone + checkout HeliosView/ + nested deps)
+#   git submodule update --init               (checkout HeliosView/)
+#   git -C HeliosView submodule update --init (checkout stdexec/json/Boost)
+#
+# The Boost libs HeliosView needs are initialized automatically at CMake
+# configure time (HeliosView v1.0.1 vendors a Boost superproject; do NOT run
+# `git submodule update --init --recursive` — it would fetch all ~160 Boost
+# libraries).
 #
 # The submodule is pinned to a specific HeliosView commit (see .gitmodules /
 # the gitlink in the index) for reproducible builds.
@@ -58,7 +64,7 @@ endif()
 add_subdirectory(HeliosView)
 
 # ---------------------------------------------------------------------------
-# The app: AppContext (UI loop + thread pool) + MainWindow (WebView2 window)
+# The app: AppContext (UI loop + asio-backed background pool) + MainWindow
 # ---------------------------------------------------------------------------
 add_executable(HeliosViewApp
     src/main.cpp
