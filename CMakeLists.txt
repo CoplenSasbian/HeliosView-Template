@@ -64,9 +64,13 @@ endif()
 add_subdirectory(HeliosView)
 
 # ---------------------------------------------------------------------------
-# The app: AppContext (UI loop + asio-backed background pool) + MainWindow
+# The app: AppContext (UI loop + asio-backed background pool) + MainWindow.
+# entry.cpp provides the process entry (WinMain on Windows — WIN32/GUI
+# subsystem, no console — main elsewhere) and forwards to AppMain() in
+# main.cpp, which holds the actual app logic.
 # ---------------------------------------------------------------------------
-add_executable(HeliosViewApp
+add_executable(HeliosViewApp WIN32
+    src/entry.cpp
     src/main.cpp
     src/AppContext.h
     src/MainWindow.cpp
