@@ -154,7 +154,9 @@ frontend. Dev is the default, so no CMake configuration is needed:
 
 ## Architecture
 
-`main()` wires up exactly three things:
+`AppMain()` (`src/main.cpp`, called from the platform entry in
+`src/entry.cpp` — `WinMain` on Windows, `main` elsewhere) wires up exactly
+three things:
 
 1. **`AppContext`** (`src/AppContext.h`) — the application-wide services,
    created first so it outlives every window:
@@ -223,7 +225,8 @@ CMakeLists.txt       add_subdirectory(HeliosView) + the app target + dev/prod mo
 HeliosView/          HeliosView library as a git submodule (pinned commit)
 src/AppContext.h     the context: UI loop (helios::App) + background pool (helios::Async)
 src/MainWindow.h/.cpp  the window: WebViewWindow subclass, bridge bindings, frontend URL
-src/main.cpp         create the context + window, run the UI loop
+src/entry.cpp        the process entry: WinMain (Windows) / main (elsewhere) → AppMain
+src/main.cpp         AppMain: create the context + window, run the UI loop
 frontend/            Vanilla JS + Vite project (switch frameworks with scripts/setup)
 scripts/setup.cmd/.sh          (re)scaffold the frontend (framework picker, -Force/-f to replace)
 scripts/vite.cmd/.sh           run the Vite dev server only (for CLion/IDE workflows)

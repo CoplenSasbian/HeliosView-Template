@@ -1,10 +1,16 @@
-// HeliosView application template — main entry.
+// HeliosView application template — app entry (platform-independent).
 //
 // Wire-up is intentionally thin: create the AppContext (the UI loop + the
 // asio-backed background pool, wrapped by the HeliosView library), create the
 // MainWindow (a WebViewWindow subclass that owns the native <-> JS bridge and
 // frontend loading), then run the UI loop. The window is destroyed before the
 // context, so no binding or pending task can outlive the loop or the pool.
+//
+// This file defines AppMain(), the platform-independent app entry. The actual
+// process entry point lives in entry.cpp, which just forwards to AppMain():
+//   - Windows: WinMain (the Win32 GUI entry — the exe is built with the WIN32
+//     CMake flag, i.e. the GUI subsystem, so no console window appears)
+//   - macOS / Linux: main
 //
 // Build modes (selected by CMake):
 //   - Dev  (HELIOSVIEW_TEMPLATE_DEV=ON):  the WebView loads the frontend dev
@@ -17,8 +23,13 @@
 
 #include <print>
 
-int main()
+// Platform-independent app entry, called by entry.cpp (WinMain on Windows,
+// main elsewhere). argc/argv are the parsed command line (ANSI on Windows).
+int AppMain(int argc, char* argv[])
 {
+    (void)argc;
+    (void)argv;
+
     // 1) The context: the UI loop (app) + the background pool (async, v1.0.1).
     AppContext ctx;
 
