@@ -79,5 +79,14 @@ onMounted(() => {
     <ul>
       <li v-for="(e, i) in uiEvents" :key="i">{{ JSON.stringify(e) }}</li>
     </ul>
+
+    <footer>
+      <p>
+        Built on <a href="https://github.com/CoplenSasbian/HeliosView" target="_blank" rel="noreferrer">HeliosView</a> —
+        a C++ WebView windowing library (WebView2 + native ⇄ JS bridge, asio-backed
+        background pool). This page is the Vue 3 template of
+        <a href="https://github.com/CoplenSasbian/HeliosView-Template" target="_blank" rel="noreferrer">HeliosView-Template</a>.
+      </p>
+    </footer>
   </main>
 </template>
