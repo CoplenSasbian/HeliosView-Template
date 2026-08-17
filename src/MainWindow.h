@@ -14,10 +14,9 @@ class AppContext;
 
 class MainWindow : public helios::WebViewWindow {
 public:
-    // ctx: the application context (UI loop + background pool) that this
-    //      window's native logic runs against. The context must outlive the
-    //      window. The title is UTF-8 (HeliosView v1.0.0 switched the C API
-    //      to UTF-8 strings).
+    // ctx: the application context (UI loop) that this window's native logic
+    //      runs against. The context must outlive the window. The title is
+    //      UTF-8 (HeliosView v1.0.0 switched the C API to UTF-8 strings).
     MainWindow(AppContext& ctx, int width, int height, const char* title);
 
     // Load the frontend: the dev server URL in dev builds, the built static
@@ -32,11 +31,6 @@ public:
 
 private:
     void setupBridge();  // native <-> JS bridge bindings (requires the WebView)
-
-    // Async demo (HeliosView v1.0.1): a repeating timer on the background
-    // pool that broadcasts 'tick' to the page. Delete it (with the ping
-    // handler's pool usage) when you start the real app.
-    void startAsyncDemo();
 
     AppContext& m_ctx;
 };

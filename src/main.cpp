@@ -1,10 +1,10 @@
 // HeliosView application template — app entry (platform-independent).
 //
-// Wire-up is intentionally thin: create the AppContext (the UI loop + the
-// asio-backed background pool, wrapped by the HeliosView library), create the
-// MainWindow (a WebViewWindow subclass that owns the native <-> JS bridge and
-// frontend loading), then run the UI loop. The window is destroyed before the
-// context, so no binding or pending task can outlive the loop or the pool.
+// Wire-up is intentionally thin: create the AppContext (the UI loop, wrapped
+// by the HeliosView library), create the MainWindow (a WebViewWindow subclass
+// that owns the native <-> JS bridge and frontend loading), then run the UI
+// loop. The window is destroyed before the context, so no binding or pending
+// task can outlive the loop.
 //
 // This file defines AppMain(), the platform-independent app entry. The actual
 // process entry point lives in entry.cpp, which just forwards to AppMain():
@@ -30,7 +30,7 @@ int AppMain(int argc, char* argv[])
     (void)argc;
     (void)argv;
 
-    // 1) The context: the UI loop (app) + the background pool (async, v1.0.1).
+    // 1) The context: the UI loop (v1.0.0 has no library thread pool).
     AppContext ctx;
 
     // 2) The main window (bridge bindings are set up in its constructor).
