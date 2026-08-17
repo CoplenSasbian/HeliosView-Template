@@ -23,13 +23,12 @@ Maintained by [CoplenSasbian](https://github.com/CoplenSasbian).
 | `template/react-js` | React (JavaScript, Vite) | ✅ current |
 | `template/vanilla-js` | Vanilla JS (no framework, Vite) | ✅ current |
 
-All templates share the same C++ architecture — `AppContext` (UI loop +
-asio-backed background pool), `MainWindow` (WebView + native ⇄ JS bridge),
-dev/prod build modes and cross-platform scripts (`scripts/*.cmd` for Windows,
-`scripts/*.sh` for macOS/Linux/Git Bash). The only difference between branches
-is the checked-in frontend. Every template also ships a `scripts/setup`
-(re)scaffold script, so you can switch the frontend to any other framework
-without changing branches.
+All templates share the same C++ architecture — `AppContext` (UI loop),
+`MainWindow` (WebView + native ⇄ JS bridge), dev/prod build modes and
+cross-platform scripts (`scripts/*.cmd` for Windows, `scripts/*.sh` for
+macOS/Linux/Git Bash). The only difference between branches is the checked-in
+frontend. Every template also ships a `scripts/setup` (re)scaffold script, so
+you can switch the frontend to any other framework without changing branches.
 
 ## Getting started
 
@@ -38,12 +37,17 @@ git clone --recursive -b template/vue-js https://github.com/CoplenSasbian/Helios
 ```
 
 (or `-b template/react-js` / `-b template/vanilla-js`). `--recursive` fetches
-the **HeliosView** library (pinned to the **v1.0.1** tag), which each template
-checks in as a git submodule (`HeliosView/`, with stdexec + nlohmann/json +
-Boost as nested submodules — the Boost libs the library needs are initialized
-automatically at CMake configure time). (Or `git clone` then
-`git checkout template/vue-js` and
-`git submodule update --init` + `git -C HeliosView submodule update --init`.)
+the **HeliosView** library (pinned to the **v1.0.0** tag), which each template
+checks in as a git submodule (`HeliosView/`, with stdexec + nlohmann/json as
+nested submodules, WebView2 SDK pulled from NuGet at configure time). (Or
+`git clone`, then `git checkout template/vue-js` + `git submodule update
+--init` + `git -C HeliosView submodule update --init`.)
+
+The templates **auto-configure**: their `CMakeLists.txt` runs
+`ensure-submodule.cmake`, which initializes any missing submodules (HeliosView
+and then its nested stdexec/json) at configure time — so `git clone` (even
+without `--recursive`) followed by a build works out of the box. Init is one
+level deep only, so it never pulls a recursive Boost superproject.
 
 ## How this repo is organized
 
