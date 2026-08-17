@@ -46,6 +46,7 @@ find_package(Git REQUIRED)
 execute_process(
         COMMAND ${GIT_EXECUTABLE} submodule update --init -- HeliosView
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMAND_ECHO STDOUT
         RESULT_VARIABLE git_result
         ERROR_VARIABLE git_error
 )
@@ -54,6 +55,7 @@ if(NOT git_result EQUAL 0)
     execute_process(
             COMMAND ${GIT_EXECUTABLE} submodule update --init --depth=1 -- HeliosView
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMAND_ECHO STDOUT
             RESULT_VARIABLE git_result
             ERROR_VARIABLE git_error
     )
@@ -68,6 +70,7 @@ endif()
 execute_process(
         COMMAND ${GIT_EXECUTABLE} submodule update --init
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/HeliosView
+        COMMAND_ECHO STDOUT
         RESULT_VARIABLE nested_result
         ERROR_VARIABLE nested_error
 )
@@ -76,6 +79,7 @@ if(NOT nested_result EQUAL 0)
     execute_process(
             COMMAND ${GIT_EXECUTABLE} submodule update --init --depth=1
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/HeliosView
+            COMMAND_ECHO STDOUT
             RESULT_VARIABLE nested_result
             ERROR_VARIABLE nested_error
     )
