@@ -3,8 +3,9 @@ setlocal
 REM setup.cmd - scaffold the frontend with your framework of choice.
 REM (Windows, pure cmd - no PowerShell involved; macOS/Linux: setup.sh)
 REM
-REM The repo ships with a Vue frontend in frontend/ (works out of the box); run
-REM this script to switch frameworks. Uses the official Vite templates (react /
+REM The repo ships with a vanilla JS frontend in frontend/ (works out of the
+REM box); run this script to switch frameworks. Uses the official Vite templates
+REM (react /
 REM vue / svelte / solid / preact / lit / vanilla, each in JS or TS), so every
 REM scaffold stays up to date.
 REM
@@ -47,7 +48,7 @@ where npm  >nul 2>&1 || ( echo [setup] ERROR: npm not found ^(it ships with Node
 
 if exist "%FRONTEND%\package.json" (
     if not defined FORCE (
-        echo [setup] ERROR: frontend/ already exists ^(ships with a Vue app^). 1>&2
+        echo [setup] ERROR: frontend/ already exists ^(ships with a vanilla JS app^). 1>&2
         echo           Re-scaffold it with -Force ^(this deletes frontend/^). 1>&2
         exit /b 1
     )

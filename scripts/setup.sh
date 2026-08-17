@@ -2,8 +2,9 @@
 # setup.sh — scaffold the frontend with your framework of choice.
 # (macOS/Linux, or Git Bash on Windows; cmd users: setup.cmd)
 #
-# The repo ships with a Vue frontend in frontend/ (works out of the box); run
-# this script to switch frameworks. Uses the official Vite templates (react /
+# The repo ships with a vanilla JS frontend in frontend/ (works out of the
+# box); run this script to switch frameworks. Uses the official Vite templates
+# (react /
 # vue / svelte / solid / preact / lit / vanilla, each in JS or TS), so every
 # scaffold stays up to date.
 #
@@ -43,7 +44,7 @@ command -v npm  >/dev/null 2>&1 || fail "npm not found (it ships with Node.js)."
 
 if [[ -f "$FRONTEND/package.json" ]]; then
     if [[ $FORCE -ne 1 ]]; then
-        fail "frontend/ already exists (ships with a Vue app). Re-scaffold it with -f (this deletes frontend/)."
+        fail "frontend/ already exists (ships with a vanilla JS app). Re-scaffold it with -f (this deletes frontend/)."
     fi
     echo "[setup] -f: removing existing frontend/..."
     rm -rf "$FRONTEND"

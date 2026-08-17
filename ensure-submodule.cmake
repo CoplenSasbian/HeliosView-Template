@@ -13,7 +13,7 @@
 option(HELIOSVIEW_TEMPLATE_DEV "Run against the frontend dev server instead of the built assets" ON)
 
 set(HELIOSVIEW_TEMPLATE_DEV_URL "http://localhost:5173" CACHE STRING
-        "Frontend dev server URL (dev mode; keep in sync with the Vite port in scripts/dev.ps1)")
+        "Frontend dev server URL (dev mode; keep in sync with the Vite port in scripts/dev.cmd / dev.sh)")
 
 set(HELIOSVIEW_TEMPLATE_FRONTEND_DIST "${CMAKE_CURRENT_SOURCE_DIR}/frontend/dist" CACHE PATH
         "Built frontend output directory (prod mode)")
