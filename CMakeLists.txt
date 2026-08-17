@@ -15,56 +15,12 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-# ---------------------------------------------------------------------------
-# Build mode
-#   Dev  (default):                     the WebView loads the frontend dev
-#         server (Vite, HMR). Start it with scripts/vite.cmd (or dev.cmd).
-#   Prod (HELIOSVIEW_TEMPLATE_DEV=OFF): the WebView loads the built frontend,
-#         copied next to the exe as assets/. Packaging only - set
-#         automatically by scripts/build.cmd / build.sh.
-#
-# Note: the option is cached per build dir. Changing the default here does
-# not touch existing build directories - reconfigure them (or clear the
-# cache) to pick up a new value.
-# ---------------------------------------------------------------------------
-option(HELIOSVIEW_TEMPLATE_DEV "Run against the frontend dev server instead of the built assets" ON)
+include(ensure-submodule.cmake)
 
-set(HELIOSVIEW_TEMPLATE_DEV_URL "http://localhost:5173" CACHE STRING
-    "Frontend dev server URL (dev mode; keep in sync with the Vite port in scripts/dev.ps1)")
-
-set(HELIOSVIEW_TEMPLATE_FRONTEND_DIST "${CMAKE_CURRENT_SOURCE_DIR}/frontend/dist" CACHE PATH
-    "Built frontend output directory (prod mode)")
-
-# ---------------------------------------------------------------------------
-# The HeliosView library, checked in as a git submodule (HeliosView/), pinned
-# to the v1.0.1 tag. Its own dependencies (stdexec + nlohmann/json + Boost as
-# nested submodules, WebView2 SDK from NuGet at configure time) are handled by
-# the library itself — nothing else is needed.
-#
-#   git clone --recursive <this repo>         (or after a plain clone:)
-#   git submodule update --init               (checkout HeliosView/)
-#   git -C HeliosView submodule update --init (checkout stdexec/json/Boost)
-#
-# The Boost libs HeliosView needs are initialized automatically at CMake
-# configure time (HeliosView v1.0.1 vendors a Boost superproject; do NOT run
-# `git submodule update --init --recursive` — it would fetch all ~160 Boost
-# libraries).
-#
-# The submodule is pinned to a specific HeliosView commit (see .gitmodules /
-# the gitlink in the index) for reproducible builds.
-# ---------------------------------------------------------------------------
-set(HELIOSVIEW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)  # skip the library's own demos
-
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/HeliosView/CMakeLists.txt")
-    message(FATAL_ERROR
-        "HeliosView submodule is not checked out.\n"
-        "Run: git submodule update --init  (or clone with --recursive)\n"
-        "in:  ${CMAKE_CURRENT_SOURCE_DIR}")
-endif()
 add_subdirectory(HeliosView)
 
 # ---------------------------------------------------------------------------
-# The app: AppContext (UI loop + asio-backed background pool) + MainWindow.
+# The app: AppContext (UI loop) + MainWindow.
 # entry.cpp provides the process entry (WinMain on Windows — WIN32/GUI
 # subsystem, no console — main elsewhere) and forwards to AppMain() in
 # main.cpp, which holds the actual app logic.
