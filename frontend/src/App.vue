@@ -24,8 +24,8 @@ async function fetchAppInfo() {
 }
 
 async function ping() {
-  // Native side: the handler hops onto the background pool (helios::Async,
-  // asio-backed, v1.0.1) and broadcasts the result from the pool via the
+  // Native side: background work runs on a plain worker thread (v1.0.0 has no
+  // library thread pool), and the result is broadcast from the worker via the
   // thread-safe broadcast(); the same payload also arrives on the 'ping'
   // BroadcastChannel (see MainWindow::setupBridge in src/MainWindow.cpp).
   bridgeError.value = null
@@ -83,8 +83,7 @@ onMounted(() => {
     <footer>
       <p>
         Built on <a href="https://github.com/CoplenSasbian/HeliosView" target="_blank" rel="noreferrer">HeliosView</a> —
-        a C++ WebView windowing library (WebView2 + native ⇄ JS bridge, asio-backed
-        background pool). This page is the Vue 3 template of
+        a C++ WebView windowing library (WebView2 + native ⇄ JS bridge). This page is the Vue 3 template of
         <a href="https://github.com/CoplenSasbian/HeliosView-Template" target="_blank" rel="noreferrer">HeliosView-Template</a>.
       </p>
     </footer>
