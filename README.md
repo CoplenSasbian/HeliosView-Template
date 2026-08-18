@@ -40,10 +40,13 @@ Fork it and start building — the plumbing is already wired up:
 | ninja     | the C++ build on macOS/Linux (Windows falls back to Visual Studio) |
 | Node.js ≥ 20 | the frontend (Vite)      |
 
-The HeliosView library is a **git submodule** (`HeliosView/`, pinned to the
-**v1.0.0** tag), including its own dependencies (stdexec + nlohmann/json as
-nested submodules, WebView2 SDK pulled from NuGet at configure time) — no
-vcpkg/conan. `git clone --recursive` fetches it all.
+The HeliosView library is a **git submodule** (`HeliosView/`) tracking the
+**master** branch (no release tag is published yet — the v1.0.0 tag is one
+commit behind master, and that commit only touches the CMake submodule
+bootstrap, so the code is identical), including its own dependencies (stdexec
++ nlohmann/json + the Boost superproject as nested submodules, WebView2 SDK
+pulled from NuGet at configure time) — no vcpkg/conan. `git clone --recursive`
+fetches it all.
 
 > **Auto-configure:** a fresh clone builds out of the box. `CMakeLists.txt`
 > runs `ensure-submodule.cmake`, which initializes any missing submodules at
@@ -55,8 +58,10 @@ vcpkg/conan. `git clone --recursive` fetches it all.
 > git -C HeliosView submodule update --init              REM stdexec + json
 > ```
 >
-> This stays one level deep (it never recurses), so it won't pull the Boost
-> superproject that newer HeliosView tags vendor.
+> This stays one level deep (it never recurses into the Boost superproject's
+> ~160 libraries). HeliosView's own `cmake/ensure-submodule.cmake` then
+> initializes just the Boost libs it needs (each `--depth 1`) at configure
+> time.
 
 ## Platforms
 
@@ -221,8 +226,8 @@ More from the library README (DTO `Req` types, bidirectional
 
 ```
 CMakeLists.txt       ensure-submodule + add_subdirectory(HeliosView) + the app target + dev/prod mode
-ensure-submodule.cmake  auto-fetch the HeliosView submodule (and its stdexec/json) at configure time
-HeliosView/          HeliosView library as a git submodule (pinned commit)
+ensure-submodule.cmake  auto-fetch the HeliosView submodule (and its nested deps) at configure time
+HeliosView/          HeliosView library as a git submodule (tracks master; concrete commit in the index)
 src/AppContext.h     the context: UI loop (helios::App)
 src/MainWindow.h/.cpp  the window: WebViewWindow subclass, bridge bindings, frontend URL
 src/entry.cpp        the process entry: WinMain (Windows) / main (elsewhere) → AppMain
@@ -241,10 +246,10 @@ scripts/helios.d.ts            bridge typings template (copied into TS scaffolds
   first argument, `frontend/vite.config.js` and keep
   `HELIOSVIEW_TEMPLATE_DEV_URL` in sync (or pass `-DHELIOSVIEW_TEMPLATE_DEV_URL=…`
   to CMake).
-- **Pin the library** — the HeliosView submodule (`HeliosView/`) is pinned to
-  the **v1.0.0** tag (a concrete commit in the index); bump it with
-  `git submodule update --remote` (or move the tag/pin manually) for a
-  reproducible build.
+- **Track the library** — the HeliosView submodule (`HeliosView/`) follows the
+  **master** branch (set in `.gitmodules`); update it with
+  `git submodule update --remote HeliosView`. The gitlink in the index still
+  records a concrete commit, so every build stays reproducible.
 - **Window** — size/title in `src/main.cpp`; see the HeliosView README for
   `WindowStyle`, signals/slots, coroutines.
 - **Distribution** — copy `build/release/bin/*` (exe + DLLs + `assets/`).
