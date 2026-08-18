@@ -22,27 +22,19 @@ set(HELIOSVIEW_TEMPLATE_FRONTEND_DIST "${CMAKE_CURRENT_SOURCE_DIR}/frontend/dist
 # The HeliosView library, checked in as a git submodule (HeliosView/) tracking
 # the master branch. Its own dependencies (stdexec + nlohmann/json + the Boost
 # superproject as nested submodules, WebView2 SDK pulled from NuGet at
-# configure time) are handled by the library itself — this include only makes
-# sure everything is checked out so a freshly cloned repository builds without
-# a manual `git submodule update`.
+# configure time) are handled entirely by the library itself.
 #
-# Auto-configure: clone with --recursive, or let this script fetch what's
-# missing at configure time. `git submodule update --init` is idempotent, so
-# it runs unconditionally on every configure — no existence checks, no
-# retries; it converges to the commits recorded in the index whether the
-# checkout is fresh, partial or already complete:
+# This script only ensures that the HeliosView source tree itself is checked
+# out (by initializing the top-level submodule) so that add_subdirectory()
+# can be called. Anything deeper is left to HeliosView's own CMake logic.
 #
-#   git submodule update --init -- HeliosView            (HeliosView/)
-#   git -C HeliosView submodule update --init            (HeliosView's nested: stdexec + json + Boost)
+# `git submodule update --init` is idempotent, so it runs unconditionally on
+# every configure — no existence checks, no retries; it converges to the
+# commit recorded in the index whether the checkout is fresh, partial or
+# already complete.
 #
-# NOTE: do NOT use `git submodule update --init --recursive` here. One level
-# is exactly right: it checks out HeliosView's direct submodules (stdexec +
-# nlohmann/json + the Boost superproject, no libs). HeliosView's own
-# cmake/ensure-submodule.cmake then fetches only the Boost libs it needs
-# (each `--depth 1`) at configure time.
-#
-# The submodule is recorded as a specific HeliosView commit (see .gitmodules /
-# the gitlink in the index) for reproducible builds.
+# IMPORTANT: Do NOT use `--recursive` here. One level is exactly right:
+# only HeliosView itself is fetched. Nested submodules are not handled here.
 # ---------------------------------------------------------------------------
 set(HELIOSVIEW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)  # skip the library's own demos
 
@@ -59,17 +51,7 @@ if(NOT git_result EQUAL 0)
     message(FATAL_ERROR "Failed to init HeliosView: ${git_error}")
 endif()
 
-# HeliosView's own nested submodules (stdexec + nlohmann/json + the Boost
-# superproject, checked out at the commits recorded in HeliosView's index).
-# One level deep only — do not recurse (the Boost libs are fetched
-# individually, `--depth 1`, by HeliosView's own cmake at configure time).
-execute_process(
-        COMMAND ${GIT_EXECUTABLE} submodule update --init
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/HeliosView
-        COMMAND_ECHO STDOUT
-        RESULT_VARIABLE nested_result
-        ERROR_VARIABLE nested_error
-)
-if(NOT nested_result EQUAL 0)
-    message(FATAL_ERROR "Failed to init HeliosView's submodules: ${nested_error}")
-endif()
+# HeliosView's nested submodules are NOT initialized here.
+# They will be taken care of by HeliosView's own build system
+# (e.g., its cmake/ensure-submodule.cmake or similar scripts)
+# when add_subdirectory(HeliosView) is processed.
