@@ -27,11 +27,13 @@ set(HELIOSVIEW_TEMPLATE_FRONTEND_DIST "${CMAKE_CURRENT_SOURCE_DIR}/frontend/dist
 # a manual `git submodule update`.
 #
 # Auto-configure: clone with --recursive, or let this script fetch what's
-# missing at configure time. It is safe to skip `git submodule update` by
-# hand entirely — CMake does it for you:
+# missing at configure time. `git submodule update --init` is idempotent, so
+# it runs unconditionally on every configure — no existence checks, no
+# retries; it converges to the commits recorded in the index whether the
+# checkout is fresh, partial or already complete:
 #
 #   git submodule update --init -- HeliosView            (HeliosView/)
-#   git -C HeliosView submodule update --init            (HeliosView's nested: stdexec + json)
+#   git -C HeliosView submodule update --init            (HeliosView's nested: stdexec + json + Boost)
 #
 # NOTE: do NOT use `git submodule update --init --recursive` here. One level
 # is exactly right: it checks out HeliosView's direct submodules (stdexec +
@@ -54,16 +56,6 @@ execute_process(
         ERROR_VARIABLE git_error
 )
 if(NOT git_result EQUAL 0)
-    message(STATUS "Retrying with --depth=1...")
-    execute_process(
-            COMMAND ${GIT_EXECUTABLE} submodule update --init --depth=1 -- HeliosView
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-            COMMAND_ECHO STDOUT
-            RESULT_VARIABLE git_result
-            ERROR_VARIABLE git_error
-    )
-endif()
-if(NOT git_result EQUAL 0)
     message(FATAL_ERROR "Failed to init HeliosView: ${git_error}")
 endif()
 
@@ -78,16 +70,6 @@ execute_process(
         RESULT_VARIABLE nested_result
         ERROR_VARIABLE nested_error
 )
-if(NOT nested_result EQUAL 0)
-    message(STATUS "Retrying nested with --depth=1...")
-    execute_process(
-            COMMAND ${GIT_EXECUTABLE} submodule update --init --depth=1
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/HeliosView
-            COMMAND_ECHO STDOUT
-            RESULT_VARIABLE nested_result
-            ERROR_VARIABLE nested_error
-    )
-endif()
 if(NOT nested_result EQUAL 0)
     message(FATAL_ERROR "Failed to init HeliosView's submodules: ${nested_error}")
 endif()
