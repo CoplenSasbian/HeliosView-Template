@@ -25,10 +25,11 @@ export default function App() {
   }
 
   async function ping() {
-    // Native side: background work runs on a plain worker thread (v1.0.0 has no
-    // library thread pool), and the result is broadcast from the worker via the
-    // thread-safe broadcast(); the same payload also arrives on the 'ping'
-    // BroadcastChannel (see MainWindow::setupBridge in src/MainWindow.cpp).
+    // Native side: the handler hops off the UI thread onto the app's background
+    // pool (AppContext::async(), helios::Async) and broadcasts the result from
+    // the pool thread via the thread-safe broadcast(); the same payload also
+    // arrives on the 'ping' BroadcastChannel (see MainWindow::setupBridge in
+    // src/MainWindow.cpp).
     setBridgeError(null)
     try {
       setPong(await window.helios.call('ping', { msg: 'hello from React' }))
