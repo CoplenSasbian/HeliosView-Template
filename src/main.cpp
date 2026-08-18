@@ -30,7 +30,8 @@ int AppMain(int argc, char* argv[])
     (void)argc;
     (void)argv;
 
-    // 1) The context: the UI loop (v1.0.0 has no library thread pool).
+    // 1) The context: the UI loop + the app-scoped background pool
+    //    (AppContext::async(), see AppContext.h).
     AppContext ctx;
 
     // 2) The main window (bridge bindings are set up in its constructor).
