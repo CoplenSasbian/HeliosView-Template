@@ -14,9 +14,24 @@
 #include <print>
 #include <string>
 #include <string_view>
-#include <thread>
 
-#include <nlohmann/json.hpp>
+#include <boost/json.hpp>
+
+namespace {
+
+// boost::json::value has no j.value("key", default) accessor (nlohmann::json
+// did); jget provides the equivalent: value_to<T>(j["key"]) or `fallback`
+// when the key is missing.
+template <class T>
+T jget(const boost::json::value& j, std::string_view key, T fallback)
+{
+    if (const auto* obj = j.if_object())
+        if (const auto* it = obj->if_contains(key))
+            return boost::json::value_to<T>(*it);
+    return fallback;
+}
+
+} // namespace
 
 MainWindow::MainWindow(AppContext& ctx, int width, int height, const char* title)
     : WebViewWindow(width, height, title)
@@ -34,44 +49,48 @@ MainWindow::MainWindow(AppContext& ctx, int width, int height, const char* title
 //   const pong = await window.helios.call('ping', {...});   → {"pong": {...}}
 //
 // Handlers are detached std::execution::task coroutines; the JS Promise is
-// resolved when the task completes (from any thread — resolve is thread-safe).
-// Threading (v1.0.0): bind handlers run on the UI thread; resolve/reject/
-// broadcast are thread-safe. The library removed its thread pool
-// (helios::Async), so background work runs on your own workers; hand results
-// back to the UI thread with App::postTask (see the ping handler).
+// resolved when the task completes. Arguments and return values are
+// Boost.JSON: bindJson deserializes each JS call argument with
+// boost::json::value_to and serializes the handler's task<Resp> completion
+// value with boost::json::value_from.
+//
+// Threading: bind handlers start on the UI thread. Off-UI-thread work runs on
+// the app's background pool (AppContext::async(), an asio-backed helios::Async
+// thread pool) via `co_await schedule(async().get_scheduler())`; resolve /
+// reject / broadcast are thread-safe, so the task may complete on a pool
+// thread without marshalling back (see the ping handler).
 void MainWindow::setupBridge()
 {
     // Plain binding: runs on the UI thread, returns app info.
-    bindJson<nlohmann::json>("appInfo", [](nlohmann::json)
-                                 -> std::execution::task<helios::JsonResp<nlohmann::json>> {
-        co_return helios::JsonResp<nlohmann::json>{ "app", {
+    bindJson<boost::json::value>("appInfo", [](boost::json::value)
+                                     -> std::execution::task<boost::json::value> {
+        co_return boost::json::value{{ "app", {
             { "name",    "HeliosViewApp" },
             { "version", HELIOSVIEW_TEMPLATE_VERSION },
             { "helios",  helios::version() },
-        }};
+        }}};
     });
 
-    // Worker round trip: run the background work off the UI thread on a plain
-    // std::thread (v1.0.0 has no library thread pool — use your own bounded
-    // pool in a real app), then push the result to the page's
-    // BroadcastChannel('ping'). broadcast() is thread-safe, so the worker can
-    // post directly; co_return resolves the Promise on the UI thread.
-    bindJson<nlohmann::json>("ping", [this](nlohmann::json req)
-                                 -> std::execution::task<helios::JsonResp<nlohmann::json>> {
-        const std::string msg = req.value("msg", "ping");
+    // Worker round trip: hop off the UI thread onto the app's background pool,
+    // push the result to the page's BroadcastChannel('ping'), and resolve the
+    // Promise. broadcast()/resolve are thread-safe, so completing on a pool
+    // thread needs no marshalling back.
+    bindJson<boost::json::value>("ping", [this](boost::json::value req)
+                                     -> std::execution::task<boost::json::value> {
+        const std::string msg = jget(req, "msg", std::string("ping"));
 
-        std::thread([this, msg] {
-            // ... background work goes here ...
-            broadcast("ping", nlohmann::json{ { "msg", msg } }.dump().c_str());
-        }).detach();
+        co_await std::execution::schedule(m_ctx.async().get_scheduler());
 
-        co_return helios::JsonResp<nlohmann::json>{ "pong", {
+        // ... background work goes here ...
+        broadcast("ping", boost::json::serialize(boost::json::value{{ "msg", msg }}).c_str());
+
+        co_return boost::json::value{{ "pong", {
             { "msg",    msg },
             { "thread", "worker" },
-        }};
+        }}};
     });
 
-    bindJson<double,double>("add",this,&MainWindow::add);
+    bindJson<double, double>("add", this, &MainWindow::add);
 }
 
 // ---- frontend loading ------------------------------------------------------
