@@ -28,7 +28,7 @@ Fork it and start building — the plumbing is already wired up:
 │        ▼                                                 │
 └──── frontend (Vanilla JS + Vite) ──────────────────────┘
      dev : vite dev server on :5173   (HMR)
-     prod: built assets in exe-dir/assets/  (file://)
+     prod: built assets served from exe-dir/assets/ via https://app.local/
 ```
 
 ## Prerequisites
@@ -111,11 +111,13 @@ The scripts run the official `npm create vite` scaffold. Without
 | | Dev (default) | Prod (`build.cmd`) |
 | --- | --- | --- |
 | frontend | `vite dev --port 5173 --strictPort` (HMR) | `vite build` → `frontend/dist` |
-| C++ | `navigate("http://localhost:5173")` | `HELIOSVIEW_TEMPLATE_DEV=OFF` → `navigate("file:///…/assets/index.html")` |
+| C++ | `navigate("http://localhost:5173")` | `HELIOSVIEW_TEMPLATE_DEV=OFF` → maps `assets/` to `https://app.local/` and navigates there |
 | assets | served by Vite | copied next to the exe as `assets/` on every build |
 
-`base: './'` in `vite.config.js` makes Vite emit relative asset paths, so the
-built page works over `file://` without any custom protocol handler. All DLLs
+The built page is served from the `assets\` folder next to the exe through a
+WebView2 virtual-host mapping (`https://app.local/`, see `mapLocalFolder` in
+`src/MainWindow.cpp`) — file:// cannot serve the Vite ES-module output, so
+`app.local` is the supported scheme the prod build navigates to. All DLLs
 (`HeliosView.dll`, `WebView2Loader.dll`, the OpenSSL dlls), `cacert.pem` and
 `assets/` sit in `build/*/bin` next to the exe. `scripts\build.cmd` assembles
 **`dist\`** with `cmake --install` from the install rules (top-level

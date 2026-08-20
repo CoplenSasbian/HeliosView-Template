@@ -107,48 +107,24 @@ static const char* startUrl()
 
 #include <filesystem>
 
-// Percent-encode the characters that would break a URL (path is UTF-8;
-// backslashes become URL separators).
-static std::string urlEncodePath(std::string_view s)
+// The directory holding the built frontend (exe-dir/assets). GetModuleFileNameW
+// is argv-independent: the exe may be launched from anywhere.
+static std::string assetsDir()
 {
-    static const char kHex[] = "0123456789ABCDEF";
-    std::string out;
-    out.reserve(s.size());
-    for (const unsigned char c : s) {
-        if (c == '\\') {
-            out += '/';
-        } else if (std::isalnum(c) || c == '/' || c == ':' || c == '.' || c == '-'
-                   || c == '_' || c == '~' || c == '+') {
-            out += static_cast<char>(c);
-        } else {
-            out += '%';
-            out += kHex[c >> 4];
-            out += kHex[c & 0xF];
-        }
-    }
-    return out;
-}
-
-static std::string startUrl()
-{
-    // Locate assets/ next to the executable (GetModuleFileNameW is
-    // argv-independent: the exe may be launched from anywhere).
     std::wstring buf(512, L'\0');
     for (;;) {
         const DWORD n = GetModuleFileNameW(nullptr, buf.data(), static_cast<DWORD>(buf.size()));
         if (n == 0)
-            return "about:blank";
+            return {};
         if (n < buf.size()) {
             buf.resize(n);
             break;
         }
         buf.resize(buf.size() * 2);
     }
-
-    const auto p = std::filesystem::path(buf).parent_path() / "assets" / "index.html";
+    const auto p = std::filesystem::path(buf).parent_path() / "assets";
     const auto u8 = p.u8string();
-    return "file:///" + urlEncodePath(
-        std::string_view(reinterpret_cast<const char*>(u8.data()), u8.size()));
+    return std::string(reinterpret_cast<const char*>(u8.data()), u8.size());
 }
 #endif
 
@@ -156,14 +132,23 @@ void MainWindow::loadFrontend()
 {
     setupBridge();  // must run after createWebView(): binds are dropped otherwise
 
-    const std::string url = startUrl();
 #ifdef HELIOSVIEW_TEMPLATE_DEV
+    const std::string url = startUrl();
     std::println("[HeliosViewApp] dev mode:  loading {}", url);
 #else
     // Prod builds are packaged for end users: keep WebView2 DevTools
     // (F12, right-click Inspect) closed. The setting is stored on the
     // webview and applied when it becomes ready.
     setDevToolsEnabled(false);
+
+    // The Vite output is ES modules; WebView2 blocks module scripts from
+    // file:// with a CORS error (file is not a supported scheme), so a
+    // file:// URL would show a blank page. Instead map the built frontend
+    // to the virtual host "app.local" (WebView2 restricts mappings to the
+    // .local suffix) and load it over https://, a supported scheme. The
+    // mapping is queued by the library until the WebView is initialized.
+    mapLocalFolder("app.local", assetsDir().c_str());
+    const std::string url = "https://app.local/index.html";
     std::println("[HeliosViewApp] prod mode: loading {}", url);
 #endif
     navigate(url.c_str());
