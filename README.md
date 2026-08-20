@@ -37,9 +37,10 @@ git clone --recursive -b template/vue-js https://github.com/CoplenSasbian/Helios
 ```
 
 (or `-b template/react-js` / `-b template/vanilla-js`). `--recursive` fetches
-the **HeliosView** library (pinned to the **v1.0.0** tag), which each template
-checks in as a git submodule (`HeliosView/`, with stdexec + nlohmann/json as
-nested submodules, WebView2 SDK pulled from NuGet at configure time). (Or
+the **HeliosView** library (a git submodule tracking the **master** branch),
+which each template checks in as a git submodule (`HeliosView/`, with stdexec
++ nlohmann/json as nested submodules, WebView2 SDK pulled from NuGet at
+configure time). (Or
 `git clone`, then `git checkout template/vue-js` + `git submodule update
 --init` + `git -C HeliosView submodule update --init`.)
 
