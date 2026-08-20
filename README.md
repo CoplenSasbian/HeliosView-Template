@@ -1,22 +1,22 @@
 # HeliosView App Template
 
-> **Repo layout:** this template lives in the **`template/vanilla-js`** branch.
-> The `master` branch holds only a template index (Vanilla =
-> `template/vanilla-js`, Vue = `template/vue-js`, …). Get this template with:
-> `git clone --recursive -b template/vanilla-js https://github.com/CoplenSasbian/HeliosView-Template.git`
+> **Repo layout:** this template lives in the **`template/react-js`** branch.
+> The `master` branch holds only a template index (React = `template/react-js`,
+> Vue = `template/vue-js`, …). Get this template with:
+> `git clone --recursive -b template/react-js https://github.com/CoplenSasbian/HeliosView-Template.git`
 
-This is the **vanilla JS** template in the HeliosView template family — the
-lightest of the set, with no framework. Its sibling templates —
-`template/vue-js` (Vue 3) and `template/react-js` (React) — share the same
-C++ backend and scripts; only the checked-in `frontend/` differs, so pick the
-branch whose frontend you want and keep the C++ side identical. You can also
-re-scaffold the frontend to any other framework with `scripts/setup`.
+This is the **React** template in the HeliosView template family. Its sibling
+templates — `template/vue-js` (Vue 3) and `template/vanilla-js` (no framework)
+— share the same C++ backend and scripts; only the checked-in `frontend/`
+differs, so pick the branch whose frontend you want and keep the C++ side
+identical. You can also re-scaffold the frontend to any other framework with
+`scripts/setup`.
 
 Built on the **HeliosView** C++ library (WebView2 + native ⇄ JS bridge):
 <https://github.com/CoplenSasbian/HeliosView>
 
 A ready-to-hack-on starting point for a **HeliosView** desktop app: one C++
-window with an embedded WebView (WebView2) + a **vanilla JS** web frontend (Vite).
+window with an embedded WebView (WebView2) + a **React** web frontend (Vite).
 Fork it and start building — the plumbing is already wired up:
 
 ```
@@ -26,7 +26,7 @@ Fork it and start building — the plumbing is already wired up:
 │    MainWindow    : helios::WebViewWindow (WebView2)      │
 │        │  window.helios.call('appInfo', {}) → Promise    │
 │        ▼                                                 │
-└──── frontend (Vanilla JS + Vite) ────────────────────┘
+└──── frontend (React + Vite) ───────────────────────────┘
      dev : vite dev server on :5173   (HMR)
      prod: built assets in exe-dir/assets/  (file://)
 ```
@@ -45,8 +45,8 @@ The HeliosView library is a **git submodule** (`HeliosView/`) tracking the
 commit behind master, and that commit only touches the CMake submodule
 bootstrap, so the code is identical), including its own dependencies (stdexec
 + nlohmann/json + the Boost superproject as nested submodules, WebView2 SDK
-pulled from NuGet at configure time) — no vcpkg/conan. `git clone --recursive`
-fetches it all.
+  pulled from NuGet at configure time) — no vcpkg/conan. `git clone --recursive`
+  fetches it all.
 
 > **Auto-configure:** a fresh clone builds out of the box. `CMakeLists.txt`
 > runs `ensure-submodule.cmake`, which initializes any missing submodules at
@@ -67,17 +67,17 @@ fetches it all.
 
 | | Windows | macOS / Linux |
 | --- | --- | --- |
-| scripts | `scripts/*.cmd` (pure cmd batch — no PowerShell, no execution policy involved) | `scripts/*.sh` (bash), also works under Git Bash on Windows |
+| scripts | `scripts/*.cmd` (pure cmd batch — no PowerShell, no execution policy involved) | not shipped yet — cross-platform scripts are deferred |
 | C++ backend | Win32 + WebView2 | not shipped yet — the library only has a Win32 backend today |
 
-The scripts come in two flavors (dev/build/setup behave identically). On
-macOS/Linux the frontend tooling (dev server, `vite build`) works out of the
-box, and the C++ side builds as soon as HeliosView gains non-Windows backends.
+The scripts are Windows-only for now. The frontend tooling (dev server,
+`vite build`) works on any OS, and the C++ side builds as soon as HeliosView
+gains non-Windows backends — the `*.sh` variants will come back then.
 
 ## Getting started
 
-A vanilla JS frontend (and the HeliosView submodule) is checked in, so the
-very first run needs nothing but the two commands below. Configure-time
+A React frontend (and the HeliosView submodule) is checked in, so the very
+first run needs nothing but the two commands below. Configure-time
 `ensure-submodule.cmake` fetches the library automatically. `npm install` only
 runs the first time (the scripts do it automatically).
 
@@ -88,14 +88,7 @@ scripts\dev.cmd
 
 REM 1b. Build for distribution (C++ + compiled frontend)
 scripts\build.cmd
-build\release\bin\HeliosViewApp.exe
-```
-
-```sh
-# macOS / Linux (or Git Bash on Windows):
-./scripts/dev.sh          # develop (HMR)
-./scripts/build.sh        # release build
-build/release/bin/HeliosViewApp
+dist\bin\HeliosViewApp.exe
 ```
 
 ### Switching the frontend framework (React, Svelte, ...)
@@ -106,30 +99,28 @@ official template (react, vue, svelte, solid, preact, lit, vanilla — JS or TS)
 ```bat
 scripts\setup.cmd -Template react-ts -Force    REM replaces frontend/
 ```
-```sh
-./scripts/setup.sh -t react-ts -f          # replaces frontend/
-```
 
 The scripts run the official `npm create vite` scaffold. TS templates also
 get `frontend/src/helios.d.ts` with typings for the native bridge. Without
-`-Force`/`-f` the scripts refuse to touch an existing `frontend/`.
+`-Force` the scripts refuse to touch an existing `frontend/`.
 
 ## How the two build modes work
 
 **Dev is the CMake default** — only packaging switches to prod
-(`scripts/build.cmd` / `build.sh` set `-DHELIOSVIEW_TEMPLATE_DEV=OFF`
-themselves):
+(`scripts/build.cmd` sets `-DHELIOSVIEW_TEMPLATE_DEV=OFF` itself):
 
-| | Dev (default) | Prod (`build.cmd` / `build.sh`) |
+| | Dev (default) | Prod (`build.cmd`) |
 | --- | --- | --- |
 | frontend | `vite dev --port 5173 --strictPort` (HMR) | `vite build` → `frontend/dist` |
 | C++ | `navigate("http://localhost:5173")` | `HELIOSVIEW_TEMPLATE_DEV=OFF` → `navigate("file:///…/assets/index.html")` |
 | assets | served by Vite | copied next to the exe as `assets/` on every build |
 
 `base: './'` in `vite.config.js` makes Vite emit relative asset paths, so the
-built page works over `file://` without any custom protocol handler. All DLLs
-(`HeliosView.dll`, `WebView2Loader.dll`) and `assets/` sit in `build/*/bin`
-next to the exe, so the whole folder is directly distributable.
+built page works over `file://` without any custom protocol handler. All
+runtime artifacts are routed to `dist\` (see the top-level CMakeLists.txt):
+`dist\bin` holds the exe, `HeliosView.dll`, `WebView2Loader.dll`, the OpenSSL
+dlls and `assets/`, `dist\plugins` holds the plugin dlls — the whole `dist\`
+folder is directly distributable.
 
 The mode is a CMake option (cached per build dir) — you can also configure
 manually:
@@ -143,6 +134,24 @@ If an existing build dir was configured before the default flip, it still
 holds the old cached value — reconfigure it explicitly (`-DHELIOSVIEW_TEMPLATE_DEV=ON`)
 or clear the cache.
 
+### App name & window title
+
+Both are CMake cache variables (defaults shown):
+
+| Variable | Default | Used for |
+| --- | --- | --- |
+| `HELIOSVIEW_TEMPLATE_APP_NAME` | `HeliosViewApp` | executable/target name; also the app name reported by the `appInfo` bridge call |
+| `HELIOSVIEW_TEMPLATE_APP_TITLE` | `HeliosView App` | window title |
+
+```sh
+cmake -S . -B build -DHELIOSVIEW_TEMPLATE_APP_NAME=MyApp -DHELIOSVIEW_TEMPLATE_APP_TITLE="My App"
+```
+
+`scripts\dev.cmd` / `scripts\build.cmd` pass their own `APP_NAME` default
+(`HeliosViewApp`) to CMake — edit the `set "APP_NAME=..."` line in the script,
+or override with `-DHELIOSVIEW_TEMPLATE_APP_NAME=...` on the cmake command
+line (the scripts then run the matching `%APP_NAME%.exe`).
+
 ### CLion workflow (IDE builds/runs the C++ app)
 
 If you develop in CLion (or another IDE), you don't need the full dev loop —
@@ -153,12 +162,8 @@ frontend. Dev is the default, so no CMake configuration is needed:
    ```bat
    scripts\vite.cmd
    ```
-   ```sh
-   ./scripts/vite.sh
-   ```
 2. Run `HeliosViewApp` from CLion — it loads `http://localhost:5173` (HMR).
-3. Packaging: `scripts\build.cmd` (or `build.sh`) — it flips to prod
-   automatically.
+3. Packaging: `scripts\build.cmd` — it flips to prod automatically.
 
 ## Architecture
 
@@ -168,15 +173,15 @@ three things:
 
 1. **`AppContext`** (`src/AppContext.h`) — the application-wide services,
    created first so it outlives every window:
-   - `app()` — the **UI loop**: message pump, event queue, idle tasks
-     (`helios::App`, also a `std::execution` scheduler). Run with
-     `app().exec()`; deliver work to the UI thread with `app().postTask(...)`.
-   Threading (HeliosView v1.0.0): every window/WebView API runs on the
-   message-loop thread; `postTask`/`quit` and the WebView
-   resolve/reject/broadcast calls are safe from any thread. The library no
-   longer ships a thread pool (`helios::Async` was removed in v1.0.0) — run
-   background work on your own workers and hand results back with
-   `app().postTask(...)` (see the `ping` binding).
+    - `app()` — the **UI loop**: message pump, event queue, idle tasks
+      (`helios::App`, also a `std::execution` scheduler). Run with
+      `app().exec()`; deliver work to the UI thread with `app().postTask(...)`.
+      Threading (HeliosView v1.0.0): every window/WebView API runs on the
+      message-loop thread; `postTask`/`quit` and the WebView
+      resolve/reject/broadcast calls are safe from any thread. The library no
+      longer ships a thread pool (`helios::Async` was removed in v1.0.0) — run
+      background work on your own workers and hand results back with
+      `app().postTask(...)` (see the `ping` binding).
 2. **`MainWindow`** (`src/MainWindow.h/.cpp`) — inherits
    `helios::WebViewWindow`; its constructor registers the native ⇄ JS bridge,
    `loadFrontend()` navigates to the dev server (dev) or the built assets
@@ -232,18 +237,19 @@ src/AppContext.h     the context: UI loop (helios::App)
 src/MainWindow.h/.cpp  the window: WebViewWindow subclass, bridge bindings, frontend URL
 src/entry.cpp        the process entry: WinMain (Windows) / main (elsewhere) → AppMain
 src/main.cpp         AppMain: create the context + window, run the UI loop
-frontend/            Vanilla JS + Vite project (switch frameworks with scripts/setup)
-scripts/setup.cmd/.sh          (re)scaffold the frontend (framework picker, -Force/-f to replace)
-scripts/vite.cmd/.sh           run the Vite dev server only (for CLion/IDE workflows)
-scripts/dev.cmd/.sh            dev loop: Vite dev server + C++ app
-scripts/build.cmd/.sh          release: vite build + C++ prod build
+frontend/            React + Vite project (switch frameworks with scripts/setup)
+scripts/setup.cmd            (re)scaffold the frontend (framework picker, -Force to replace)
+scripts/vite.cmd             run the Vite dev server only (for CLion/IDE workflows)
+scripts/dev.cmd              dev loop: Vite dev server + C++ app
+scripts/build.cmd            release: vite build + C++ prod build
+scripts/_toolchain.cmd       internal: MSVC env + cmake/ninja discovery (used by dev/build)
 scripts/helios.d.ts            bridge typings template (copied into TS scaffolds)
 ```
 
 ## Customizing
 
-- **Dev server port** — change `scripts/dev.cmd`'s `-Port` / `scripts/dev.sh`'s
-  first argument, `frontend/vite.config.js` and keep
+- **Dev server port** — change `scripts/dev.cmd`'s `-Port`,
+  `frontend/vite.config.js` and keep
   `HELIOSVIEW_TEMPLATE_DEV_URL` in sync (or pass `-DHELIOSVIEW_TEMPLATE_DEV_URL=…`
   to CMake).
 - **Track the library** — the HeliosView submodule (`HeliosView/`) follows the
@@ -252,5 +258,6 @@ scripts/helios.d.ts            bridge typings template (copied into TS scaffolds
   records a concrete commit, so every build stays reproducible.
 - **Window** — size/title in `src/main.cpp`; see the HeliosView README for
   `WindowStyle`, signals/slots, coroutines.
-- **Distribution** — copy `build/release/bin/*` (exe + DLLs + `assets/`).
-  A WiX/MSIX installer can be added later; the folder is already self-contained.
+- **Distribution** — copy the whole `dist\` folder (exe + DLLs + `assets/` in
+  `dist\bin`, plugin dlls in `dist\plugins`). A WiX/MSIX installer can be added
+  later; the folder is already self-contained.

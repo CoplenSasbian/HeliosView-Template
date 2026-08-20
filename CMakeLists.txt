@@ -25,32 +25,45 @@ add_subdirectory(HeliosView)
 # subsystem, no console — main elsewhere) and forwards to AppMain() in
 # main.cpp, which holds the actual app logic.
 # ---------------------------------------------------------------------------
-add_executable(HeliosViewApp WIN32
+
+# Executable (target) name and window title. Override per project, e.g.:
+#   cmake -S . -B build -DHELIOSVIEW_TEMPLATE_APP_NAME=MyApp
+#                       -DHELIOSVIEW_TEMPLATE_APP_TITLE="My App"
+# (scripts\dev.cmd / build.cmd pass their own APP_NAME default - edit it there
+# or pass -DHELIOSVIEW_TEMPLATE_APP_NAME on the cmake command line.)
+set(HELIOSVIEW_TEMPLATE_APP_NAME "HeliosViewApp" CACHE STRING
+    "Executable (target) name of the application")
+set(HELIOSVIEW_TEMPLATE_APP_TITLE "HeliosView App" CACHE STRING
+    "Window title of the application")
+
+add_executable(${HELIOSVIEW_TEMPLATE_APP_NAME} WIN32
     src/entry.cpp
     src/main.cpp
     src/AppContext.h
     src/MainWindow.cpp
     src/MainWindow.h
 )
-target_link_libraries(HeliosViewApp PRIVATE HeliosView::Core)
+target_link_libraries(${HELIOSVIEW_TEMPLATE_APP_NAME} PRIVATE HeliosView::Core)
 
-target_compile_definitions(HeliosViewApp PRIVATE
+target_compile_definitions(${HELIOSVIEW_TEMPLATE_APP_NAME} PRIVATE
     HELIOSVIEW_TEMPLATE_VERSION="${PROJECT_VERSION}"
+    HELIOSVIEW_TEMPLATE_APP_NAME="${HELIOSVIEW_TEMPLATE_APP_NAME}"
+    HELIOSVIEW_TEMPLATE_APP_TITLE="${HELIOSVIEW_TEMPLATE_APP_TITLE}"
 )
 
 if(HELIOSVIEW_TEMPLATE_DEV)
-    target_compile_definitions(HeliosViewApp PRIVATE
+    target_compile_definitions(${HELIOSVIEW_TEMPLATE_APP_NAME} PRIVATE
         HELIOSVIEW_TEMPLATE_DEV
         HELIOSVIEW_TEMPLATE_DEV_URL="${HELIOSVIEW_TEMPLATE_DEV_URL}"
     )
     message(STATUS "HeliosViewTemplate: DEV mode (frontend: ${HELIOSVIEW_TEMPLATE_DEV_URL})")
 else()
     # Prod: copy the built frontend next to the exe on every build.
-    add_custom_command(TARGET HeliosViewApp POST_BUILD
+    add_custom_command(TARGET ${HELIOSVIEW_TEMPLATE_APP_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${HELIOSVIEW_TEMPLATE_FRONTEND_DIST}"
-            "$<TARGET_FILE_DIR:HeliosViewApp>/assets"
-        COMMENT "Copying frontend build output to $<TARGET_FILE_DIR:HeliosViewApp>/assets"
+            "$<TARGET_FILE_DIR:${HELIOSVIEW_TEMPLATE_APP_NAME}>/assets"
+        COMMENT "Copying frontend build output to $<TARGET_FILE_DIR:${HELIOSVIEW_TEMPLATE_APP_NAME}>/assets"
         VERBATIM)
     message(STATUS "HeliosViewTemplate: PROD mode (assets: ${HELIOSVIEW_TEMPLATE_FRONTEND_DIST})")
     message(STATUS "HeliosViewTemplate: hint: PROD is for packaging - build with scripts/build.cmd / build.sh")
