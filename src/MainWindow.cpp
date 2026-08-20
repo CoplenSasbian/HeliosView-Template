@@ -160,6 +160,10 @@ void MainWindow::loadFrontend()
 #ifdef HELIOSVIEW_TEMPLATE_DEV
     std::println("[HeliosViewApp] dev mode:  loading {}", url);
 #else
+    // Prod builds are packaged for end users: keep WebView2 DevTools
+    // (F12, right-click Inspect) closed. The setting is stored on the
+    // webview and applied when it becomes ready.
+    setDevToolsEnabled(false);
     std::println("[HeliosViewApp] prod mode: loading {}", url);
 #endif
     navigate(url.c_str());
