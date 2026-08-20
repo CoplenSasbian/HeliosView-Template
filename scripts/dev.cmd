@@ -6,6 +6,9 @@ REM   2. builds and runs the C++ app, which loads the dev server URL
 REM
 REM Closing the app window (or Ctrl+C) stops the dev server too.
 REM
+REM The MSVC environment and cmake/ninja are set up automatically (see
+REM _toolchain.cmd) - run this from any cmd, no Developer prompt needed.
+REM
 REM   scripts\dev.cmd [-Port 5173]
 
 set "PORT=5173"
@@ -23,7 +26,9 @@ echo usage: dev.cmd [-Port 5173] 1>&2
 exit /b 1
 :args_done
 
-REM Anchor to the script's own directory first.
+REM Anchor to the script's own directory first: %~dp0 can be a relative path
+REM depending on how the script is invoked, so nothing below may rely on the
+REM caller's working directory.
 cd /d "%~dp0" >nul 2>&1
 pushd ".." >nul
 set "ROOT=%CD%"
@@ -45,7 +50,7 @@ REM ---- toolchain: MSVC env + cmake/ninja discovery ---------------------------
 call "%~dp0_toolchain.cmd"
 if errorlevel 1 exit /b 1
 
-REM ---- frontend dependencies --------------------------------------------------------
+REM ---- frontend dependencies --------------------------------------------------
 if not exist "%FRONTEND%\node_modules" (
     echo [dev] Installing frontend dependencies...
     pushd "%FRONTEND%"
@@ -55,7 +60,7 @@ if not exist "%FRONTEND%\node_modules" (
     if not "%FE_RC%"=="0" ( echo [dev] ERROR: npm install failed. 1>&2 & exit /b 1 )
 )
 
-REM ---- start the Vite dev server (background, minimized console) ---------------------
+REM ---- start the Vite dev server (background, minimized console) ---------------
 REM start /d sets the working directory (no cd/pushd inside the child command,
 REM which would break on cmd's quote-stripping rules). The console window is
 REM titled "HeliosView-Vite" so it can be found and killed with
@@ -75,7 +80,7 @@ exit /b 1
 :vite_ready
 echo [dev] Dev server ready: %DEV_URL%
 
-REM ---- configure + build the C++ app in dev mode --------------------------------------
+REM ---- configure + build the C++ app in dev mode --------------------------------
 if defined NINJA (
     "%CMAKE%" -S "%ROOT%" -B "%BUILD%" -G Ninja -DCMAKE_MAKE_PROGRAM="%NINJA%" -DCMAKE_BUILD_TYPE=Debug -DHELIOSVIEW_TEMPLATE_DEV=ON -DHELIOSVIEW_TEMPLATE_DEV_URL=%DEV_URL%
 ) else (
@@ -85,7 +90,7 @@ if errorlevel 1 ( echo [dev] ERROR: CMake configure failed. 1>&2 & set "APP_RC=1
 "%CMAKE%" --build "%BUILD%" --config Debug -j 8
 if errorlevel 1 ( echo [dev] ERROR: CMake build failed. 1>&2 & set "APP_RC=1" & goto cleanup )
 
-REM ---- run ----------------------------------------------------------------------------
+REM ---- run ------------------------------------------------------------------------
 REM The executable name comes from app-config.cmake; find it in the build
 REM output (bin\ holds exactly one .exe - the app).
 for /f "delims=" %%E in ('dir /b "%BUILD%\bin\*.exe" 2^>nul') do set "APP_EXE=%%E"

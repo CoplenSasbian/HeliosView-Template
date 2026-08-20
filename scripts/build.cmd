@@ -1,17 +1,19 @@
 @echo off
 setlocal
-REM build.cmd - release build for distribution (Windows only for now):
-REM   1. builds the frontend (vite build)         -> frontend/dist
-REM   2. builds the C++ app in prod mode           -> build\release\bin
+REM build.cmd - release build (Windows, pure cmd - no PowerShell involved):
+REM   1. builds the frontend (vite build)  -> frontend/dist
+REM      (base: './' is set in vite.config.js, so the page works over file://)
+REM   2. builds the C++ app in prod mode, which copies dist -> exe-dir/assets
 REM
-REM All runtime artifacts land in build\release\bin (see the top-level
-REM CMakeLists.txt): the exe, HeliosView.dll, WebView2/OpenSSL dlls and
-REM assets/. Copy the whole bin\ folder to distribute.
+REM The MSVC environment and cmake/ninja are set up automatically (see
+REM _toolchain.cmd) - run this from any cmd, no Developer prompt needed.
 REM
 REM   scripts\build.cmd
 REM   Then run:  build\release\bin\HeliosViewApp.exe
 
-REM Anchor to the script's own directory first.
+REM Anchor to the script's own directory first: %~dp0 can be a relative path
+REM depending on how the script is invoked, so nothing below may rely on the
+REM caller's working directory.
 cd /d "%~dp0" >nul 2>&1
 pushd ".." >nul
 set "ROOT=%CD%"
@@ -24,11 +26,11 @@ if not exist "%FRONTEND%\package.json" (
     exit /b 1
 )
 
-REM ---- toolchain: MSVC env + cmake/ninja discovery -------------------------------
+REM ---- toolchain: MSVC env + cmake/ninja discovery ----------------------------------
 call "%~dp0_toolchain.cmd"
 if errorlevel 1 exit /b 1
 
-REM ---- frontend -------------------------------------------------------------------
+REM ---- frontend --------------------------------------------------------------------
 echo [build] Building frontend (vite build)...
 pushd "%FRONTEND%"
 call npm run build
@@ -36,25 +38,7 @@ set "FE_RC=%ERRORLEVEL%"
 popd
 if not "%FE_RC%"=="0" ( echo [build] ERROR: Frontend build failed. 1>&2 & exit /b 1 )
 
-REM ---- OpenSSL: reuse an existing download instead of re-fetching 22 MB -----------
-REM HeliosView downloads the openssl.vcpkg nuget package at configure time and
-REM caches it under the build dir. When the target build dir is new (e.g. a fresh
-REM clone or a build\release created after cmake-build-debug), seed the cache from
-REM any other build dir that already has it - saves bandwidth and works offline.
-if not exist "%BUILD%\openssl\build\native\include\openssl\ssl.h" (
-    if exist "%ROOT%\cmake-build-debug\openssl\build\native\include\openssl\ssl.h" (
-        echo [build] Reusing OpenSSL cache from cmake-build-debug
-        xcopy /e /i /q /y "%ROOT%\cmake-build-debug\openssl" "%BUILD%\openssl" >nul
-    ) else if exist "%ROOT%\cmake-build-release\openssl\build\native\include\openssl\ssl.h" (
-        echo [build] Reusing OpenSSL cache from cmake-build-release
-        xcopy /e /i /q /y "%ROOT%\cmake-build-release\openssl" "%BUILD%\openssl" >nul
-    ) else if exist "%ROOT%\build\dev\openssl\build\native\include\openssl\ssl.h" (
-        echo [build] Reusing OpenSSL cache from build\dev
-        xcopy /e /i /q /y "%ROOT%\build\dev\openssl" "%BUILD%\openssl" >nul
-    )
-)
-
-REM ---- configure + build the C++ app in prod mode ----------------------------------
+REM ---- C++ app in prod mode ------------------------------------------------------------
 if defined NINJA (
     "%CMAKE%" -S "%ROOT%" -B "%BUILD%" -G Ninja -DCMAKE_MAKE_PROGRAM="%NINJA%" -DCMAKE_BUILD_TYPE=Release -DHELIOSVIEW_TEMPLATE_DEV=OFF
 ) else (
@@ -76,7 +60,6 @@ if defined APP_EXE (
     echo     "%BUILD%\bin\HeliosViewApp.exe"
 )
 echo.
-echo The whole %BUILD%\bin\ folder is the distributable:
-echo   exe + HeliosView.dll + WebView2/OpenSSL dlls + assets\
-echo.
+echo HeliosView.dll, WebView2Loader.dll and assets/ ^(the built frontend^)
+echo all sit next to the exe - copy the whole bin/ folder to distribute.
 exit /b 0
