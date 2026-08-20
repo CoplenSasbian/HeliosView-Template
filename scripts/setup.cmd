@@ -107,13 +107,6 @@ set "RC=%ERRORLEVEL%"
 popd
 if not "%RC%"=="0" ( echo [setup] ERROR: npm install failed. 1>&2 & exit /b 1 )
 
-REM ---- bridge typings (TypeScript templates only) -----------------------------
-set "SUFFIX=%TEMPLATE:~-3%"
-if /i "%SUFFIX%"=="-ts" (
-    copy /y "%~dp0helios.d.ts" "%FRONTEND%\src\helios.d.ts" >nul
-    echo [setup] Wrote frontend/src/helios.d.ts ^(bridge typings^).
-)
-
 echo.
 echo [setup] Done. Next steps:
 echo   1. Dev loop :  scripts\dev.cmd     ^(C++ app + Vite dev server, HMR^)
