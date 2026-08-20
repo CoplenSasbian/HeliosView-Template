@@ -37,11 +37,20 @@ int AppMain(int argc, char* argv[])
     // 2) The main window (bridge bindings are set up in its constructor).
     //    Title is UTF-8 since HeliosView v1.0.0.
     MainWindow window(ctx, 960, 640, "HeliosView App");
-    window.show();
-    window.createWebView();   // async; navigate() calls queue until it's ready
-    window.loadFrontend();    // dev server URL (dev) or built static files (prod)
 
-    // 3) Run the UI loop; exits when the last window closes.
+    // 3) Window::ready fires once, on the first show() — the native window is
+    //    created in the constructor (HeliosView 49e8884) and is now visible.
+    //    Connect before show(); it is the right moment to wire up the WebView
+    //    and load the frontend (both need the live native window).
+    window.ready.connect([&window] {
+        window.createWebView();   // async; navigate() calls queue until it's ready
+        window.loadFrontend();    // dev server URL (dev) or built static files (prod)
+    });
+
+    // 4) Show the window; the first show() fires Window::ready.
+    window.show();
+
+    // 5) Run the UI loop; exits when the last window closes.
     std::println("[HeliosViewApp] entering UI loop (close the window to exit)");
     return ctx.app().exec();
 }
