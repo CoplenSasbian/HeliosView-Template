@@ -37,9 +37,6 @@ set "BUILD=%ROOT%\build\dev"
 set "FRONTEND=%ROOT%\frontend"
 set "LOGFILE=%FRONTEND%\.vite.log"
 set "DEV_URL=http://localhost:%PORT%"
-REM Executable name - passed to CMake as HELIOSVIEW_TEMPLATE_APP_NAME
-REM (change it here or override with -DHELIOSVIEW_TEMPLATE_APP_NAME=...).
-set "APP_NAME=HeliosViewApp"
 
 if not exist "%FRONTEND%\package.json" (
     echo [dev] ERROR: frontend/ is not scaffolded yet. Run scripts\setup.cmd first. 1>&2
@@ -82,17 +79,25 @@ echo [dev] Dev server ready: %DEV_URL%
 REM ---- configure + build the C++ app in dev mode --------------------------------
 where ninja >nul 2>&1 && set "HAS_NINJA=1"
 if defined HAS_NINJA (
-    cmake -S "%ROOT%" -B "%BUILD%" -G Ninja -DCMAKE_BUILD_TYPE=Debug -DHELIOSVIEW_TEMPLATE_DEV=ON -DHELIOSVIEW_TEMPLATE_DEV_URL=%DEV_URL% -DHELIOSVIEW_TEMPLATE_APP_NAME=%APP_NAME%
+    cmake -S "%ROOT%" -B "%BUILD%" -G Ninja -DCMAKE_BUILD_TYPE=Debug -DHELIOSVIEW_TEMPLATE_DEV=ON -DHELIOSVIEW_TEMPLATE_DEV_URL=%DEV_URL%
 ) else (
-    cmake -S "%ROOT%" -B "%BUILD%" -A x64 -DHELIOSVIEW_TEMPLATE_DEV=ON -DHELIOSVIEW_TEMPLATE_DEV_URL=%DEV_URL% -DHELIOSVIEW_TEMPLATE_APP_NAME=%APP_NAME%
+    cmake -S "%ROOT%" -B "%BUILD%" -A x64 -DHELIOSVIEW_TEMPLATE_DEV=ON -DHELIOSVIEW_TEMPLATE_DEV_URL=%DEV_URL%
 )
 if errorlevel 1 ( echo [dev] ERROR: CMake configure failed. 1>&2 & set "RC=1" & goto cleanup )
 cmake --build "%BUILD%"
 if errorlevel 1 ( echo [dev] ERROR: CMake build failed. 1>&2 & set "RC=1" & goto cleanup )
 
 REM ---- run ------------------------------------------------------------------------
-echo [dev] Running "%BUILD%\bin\%APP_NAME%.exe" (close the window to stop)...
-"%BUILD%\bin\%APP_NAME%.exe"
+REM The executable name comes from app-config.cmake; find it in the build
+REM output (bin\ holds exactly one .exe - the app).
+for /f "delims=" %%E in ('dir /b "%BUILD%\bin\*.exe" 2^>nul') do set "APP_EXE=%%E"
+if not defined APP_EXE (
+    echo [dev] ERROR: no .exe found in %BUILD%\bin - did the build fail? 1>&2
+    set "RC=1"
+    goto cleanup
+)
+echo [dev] Running "%BUILD%\bin\%APP_EXE%" (close the window to stop)...
+"%BUILD%\bin\%APP_EXE%"
 set "RC=%ERRORLEVEL%"
 
 :cleanup
