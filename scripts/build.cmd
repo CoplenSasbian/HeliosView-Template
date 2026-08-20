@@ -1,10 +1,12 @@
 @echo off
 setlocal
-REM build.cmd - release build (Windows, pure cmd - no PowerShell involved;
-REM macOS/Linux: build.sh):
+REM build.cmd - release build (Windows, pure cmd - no PowerShell involved):
 REM   1. builds the frontend (vite build)  -> frontend/dist
 REM      (base: './' is set in vite.config.js, so the page works over file://)
 REM   2. builds the C++ app in prod mode, which copies dist -> exe-dir/assets
+REM
+REM The MSVC environment and cmake/ninja are set up automatically (see
+REM _toolchain.cmd) - run this from any cmd, no Developer prompt needed.
 REM
 REM   scripts\build.cmd
 REM   Then run:  build\release\bin\HeliosViewApp.exe
@@ -23,25 +25,27 @@ if not exist "%FRONTEND%\package.json" (
     echo [build] ERROR: frontend/ is not scaffolded yet. Run scripts\setup.cmd first. 1>&2
     exit /b 1
 )
-where cmake >nul 2>&1 || ( echo [build] ERROR: cmake is required ^(https://cmake.org^). 1>&2 & exit /b 1 )
+
+REM ---- toolchain: MSVC env + cmake/ninja discovery ----------------------------------
+call "%~dp0_toolchain.cmd"
+if errorlevel 1 exit /b 1
 
 REM ---- frontend --------------------------------------------------------------------
 echo [build] Building frontend (vite build)...
 pushd "%FRONTEND%"
 call npm run build
-set "RC=%ERRORLEVEL%"
+set "FE_RC=%ERRORLEVEL%"
 popd
-if not "%RC%"=="0" ( echo [build] ERROR: Frontend build failed. 1>&2 & exit /b 1 )
+if not "%FE_RC%"=="0" ( echo [build] ERROR: Frontend build failed. 1>&2 & exit /b 1 )
 
 REM ---- C++ app in prod mode ------------------------------------------------------------
-where ninja >nul 2>&1 && set "HAS_NINJA=1"
-if defined HAS_NINJA (
-    cmake -S "%ROOT%" -B "%BUILD%" -G Ninja -DCMAKE_BUILD_TYPE=Release -DHELIOSVIEW_TEMPLATE_DEV=OFF
+if defined NINJA (
+    "%CMAKE%" -S "%ROOT%" -B "%BUILD%" -G Ninja -DCMAKE_MAKE_PROGRAM="%NINJA%" -DCMAKE_BUILD_TYPE=Release -DHELIOSVIEW_TEMPLATE_DEV=OFF
 ) else (
-    cmake -S "%ROOT%" -B "%BUILD%" -A x64 -DHELIOSVIEW_TEMPLATE_DEV=OFF
+    "%CMAKE%" -S "%ROOT%" -B "%BUILD%" -A x64 -DHELIOSVIEW_TEMPLATE_DEV=OFF
 )
 if errorlevel 1 ( echo [build] ERROR: CMake configure failed. 1>&2 & exit /b 1 )
-cmake --build "%BUILD%"
+"%CMAKE%" --build "%BUILD%" --config Release -j 8
 if errorlevel 1 ( echo [build] ERROR: CMake build failed. 1>&2 & exit /b 1 )
 
 REM The executable name comes from app-config.cmake; find it in the build

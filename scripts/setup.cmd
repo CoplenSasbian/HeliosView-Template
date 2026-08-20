@@ -1,7 +1,7 @@
 @echo off
 setlocal
 REM setup.cmd - scaffold the frontend with your framework of choice.
-REM (Windows, pure cmd - no PowerShell involved; macOS/Linux: setup.sh)
+REM (Windows, pure cmd - no PowerShell involved)
 REM
 REM The repo ships with a Vue frontend in frontend/ (works out of the box); run
 REM this script to switch frameworks. Uses the official Vite templates (react /
