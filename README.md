@@ -88,7 +88,7 @@ scripts\dev.cmd
 
 REM 1b. Build for distribution (C++ + compiled frontend)
 scripts\build.cmd
-build\release\bin\HeliosViewApp.exe
+dist\bin\HeliosViewApp.exe
 ```
 
 ### Switching the frontend framework (React, Svelte, ...)
@@ -116,8 +116,10 @@ The scripts run the official `npm create vite` scaffold. Without
 
 `base: './'` in `vite.config.js` makes Vite emit relative asset paths, so the
 built page works over `file://` without any custom protocol handler. All DLLs
-(`HeliosView.dll`, `WebView2Loader.dll`) and `assets/` sit in `build/*/bin`
-next to the exe, so the whole folder is directly distributable.
+(`HeliosView.dll`, `WebView2Loader.dll`, the OpenSSL dlls), `cacert.pem` and
+`assets/` sit in `build/*/bin` next to the exe. `scripts\build.cmd` stages
+just those runtime files into a clean **`dist\`** folder — the whole `dist\`
+folder is directly distributable.
 
 The mode is a CMake option (cached per build dir) — you can also configure
 manually:
@@ -251,5 +253,7 @@ scripts/build.cmd            release: vite build + C++ prod build
   records a concrete commit, so every build stays reproducible.
 - **Window** — size/title in `src/main.cpp`; see the HeliosView README for
   `WindowStyle`, signals/slots, coroutines.
-- **Distribution** — copy `build/release/bin/*` (exe + DLLs + `assets/`).
-  A WiX/MSIX installer can be added later; the folder is already self-contained.
+- **Distribution** — run `scripts\build.cmd`: it stages `dist\` with exactly
+  the runtime files (`dist\bin`: exe + HeliosView.dll + WebView2/OpenSSL dlls
+  + `assets\`). The whole `dist\` folder is self-contained and directly
+  distributable; a WiX/MSIX installer can be added later.

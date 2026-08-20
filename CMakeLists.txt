@@ -60,5 +60,5 @@ else()
         COMMENT "Copying frontend build output to $<TARGET_FILE_DIR:${HELIOSVIEW_TEMPLATE_APP_NAME}>/assets"
         VERBATIM)
     message(STATUS "HeliosViewTemplate: PROD mode (assets: ${HELIOSVIEW_TEMPLATE_FRONTEND_DIST})")
-    message(STATUS "HeliosViewTemplate: hint: PROD is for packaging - build with scripts/build.cmd / build.sh")
+    message(STATUS "HeliosViewTemplate: hint: PROD is for packaging - build with scripts/build.cmd")
 endif()

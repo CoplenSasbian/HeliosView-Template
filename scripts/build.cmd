@@ -1,15 +1,22 @@
 @echo off
 setlocal
-REM build.cmd - release build (Windows, pure cmd - no PowerShell involved):
+REM build.cmd - release build for distribution (Windows, pure cmd - no PowerShell involved):
 REM   1. builds the frontend (vite build)  -> frontend/dist
 REM      (base: './' is set in vite.config.js, so the page works over file://)
-REM   2. builds the C++ app in prod mode, which copies dist -> exe-dir/assets
+REM   2. builds the C++ app in prod mode    -> build\release\bin
+REM   3. stages a clean distributable       -> dist\  (runtime files only)
+REM
+REM The CMake build tree (build\release) also holds build internals (lib\,
+REM CMakeFiles\, openssl\, webview2-sdk\, ...) that the app does not need at
+REM runtime. Everything the app needs sits in bin\ - the exe, HeliosView.dll,
+REM WebView2Loader.dll, the OpenSSL dlls, cacert.pem and assets\ - so build.cmd
+REM copies just that into dist\; the whole dist\ folder is directly distributable.
 REM
 REM The MSVC environment and cmake/ninja are set up automatically (see
 REM _toolchain.cmd) - run this from any cmd, no Developer prompt needed.
 REM
 REM   scripts\build.cmd
-REM   Then run:  build\release\bin\HeliosViewApp.exe
+REM   Then run:  dist\bin\HeliosViewApp.exe
 
 REM Anchor to the script's own directory first: %~dp0 can be a relative path
 REM depending on how the script is invoked, so nothing below may rely on the
@@ -20,6 +27,7 @@ set "ROOT=%CD%"
 popd >nul
 set "BUILD=%ROOT%\build\release"
 set "FRONTEND=%ROOT%\frontend"
+set "DIST=%ROOT%\dist"
 
 if not exist "%FRONTEND%\package.json" (
     echo [build] ERROR: frontend/ is not scaffolded yet. Run scripts\setup.cmd first. 1>&2
@@ -52,14 +60,21 @@ REM The executable name comes from app-config.cmake; find it in the build
 REM output (bin\ holds exactly one .exe - the app).
 for /f "delims=" %%E in ('dir /b "%BUILD%\bin\*.exe" 2^>nul') do set "APP_EXE=%%E"
 
+REM ---- stage dist\ (runtime files only) ----------------------------------------------
+echo [build] Staging dist\ (runtime files only)...
+if exist "%DIST%" rmdir /s /q "%DIST%"
+xcopy /e /i /q /y "%BUILD%\bin" "%DIST%\bin" >nul
+if errorlevel 1 ( echo [build] ERROR: staging dist\ failed. 1>&2 & exit /b 1 )
+
 echo.
 echo [build] Done. Run the app:
 if defined APP_EXE (
-    echo     "%BUILD%\bin\%APP_EXE%"
+    echo     "%DIST%\bin\%APP_EXE%"
 ) else (
-    echo     "%BUILD%\bin\HeliosViewApp.exe"
+    echo     "%DIST%\bin\HeliosViewApp.exe"
 )
 echo.
-echo HeliosView.dll, WebView2Loader.dll and assets/ ^(the built frontend^)
-echo all sit next to the exe - copy the whole bin/ folder to distribute.
+echo The whole %DIST%\ folder is the distributable:
+echo   %DIST%\bin       exe + HeliosView.dll + WebView2/OpenSSL dlls + assets\
+echo.
 exit /b 0
