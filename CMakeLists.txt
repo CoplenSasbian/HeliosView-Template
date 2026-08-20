@@ -72,3 +72,15 @@ endif()
 # picked up automatically.
 install(TARGETS ${HELIOSVIEW_TEMPLATE_APP_NAME} RUNTIME DESTINATION bin)
 install(DIRECTORY "${HELIOSVIEW_TEMPLATE_FRONTEND_DIST}/" DESTINATION bin/assets)
+
+# The library's install rules also install its dev files (headers into
+# include\, static libs + cmake config into lib\) - the app does not need
+# them at runtime, so drop them from the dist\ staging. Only these two
+# freshly-installed directories are removed; nothing else in the prefix is
+# touched. If you add your own install rules that put files into include\
+# or lib\, remove this block.
+install(CODE "
+    file(REMOVE_RECURSE
+        \"\${CMAKE_INSTALL_PREFIX}/include\"
+        \"\${CMAKE_INSTALL_PREFIX}/lib\")
+")
