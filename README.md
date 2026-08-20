@@ -67,12 +67,12 @@ fetches it all.
 
 | | Windows | macOS / Linux |
 | --- | --- | --- |
-| scripts | `scripts/*.cmd` (pure cmd batch — no PowerShell, no execution policy involved) | `scripts/*.sh` (bash), also works under Git Bash on Windows |
+| scripts | `scripts/*.cmd` (pure cmd batch — no PowerShell, no execution policy involved) | not shipped yet — Windows-only for now |
 | C++ backend | Win32 + WebView2 | not shipped yet — the library only has a Win32 backend today |
 
-The scripts come in two flavors (dev/build/setup behave identically). On
-macOS/Linux the frontend tooling (dev server, `vite build`) works out of the
-box, and the C++ side builds as soon as HeliosView gains non-Windows backends.
+The scripts are Windows-only for now. The frontend tooling (dev server,
+`vite build`) works on any OS, and the C++ side builds as soon as HeliosView
+gains non-Windows backends — the `*.sh` variants will come back then.
 
 ## Getting started
 
@@ -91,13 +91,6 @@ scripts\build.cmd
 build\release\bin\HeliosViewApp.exe
 ```
 
-```sh
-# macOS / Linux (or Git Bash on Windows):
-./scripts/dev.sh          # develop (HMR)
-./scripts/build.sh        # release build
-build/release/bin/HeliosViewApp
-```
-
 ### Switching the frontend framework (React, Svelte, ...)
 
 The frontend is a plain Vite project, so you can re-scaffold it with any
@@ -105,9 +98,6 @@ official template (react, vue, svelte, solid, preact, lit, vanilla — JS or TS)
 
 ```bat
 scripts\setup.cmd -Template react-ts -Force    REM replaces frontend/
-```
-```sh
-./scripts/setup.sh -t react-ts -f          # replaces frontend/
 ```
 
 The scripts run the official `npm create vite` scaffold. TS templates also
@@ -117,10 +107,9 @@ get `frontend/src/helios.d.ts` with typings for the native bridge. Without
 ## How the two build modes work
 
 **Dev is the CMake default** — only packaging switches to prod
-(`scripts/build.cmd` / `build.sh` set `-DHELIOSVIEW_TEMPLATE_DEV=OFF`
-themselves):
+(`scripts/build.cmd` sets `-DHELIOSVIEW_TEMPLATE_DEV=OFF` itself):
 
-| | Dev (default) | Prod (`build.cmd` / `build.sh`) |
+| | Dev (default) | Prod (`build.cmd`) |
 | --- | --- | --- |
 | frontend | `vite dev --port 5173 --strictPort` (HMR) | `vite build` → `frontend/dist` |
 | C++ | `navigate("http://localhost:5173")` | `HELIOSVIEW_TEMPLATE_DEV=OFF` → `navigate("file:///…/assets/index.html")` |
@@ -145,21 +134,18 @@ or clear the cache.
 
 ### App name & window title
 
-Both are CMake cache variables (defaults shown):
+Configured in **one file**: `app-config.cmake` at the repo root (included by
+`CMakeLists.txt`). Edit the values there and rebuild — nothing else needs to
+change:
 
-| Variable | Default | Used for |
+| Variable in `app-config.cmake` | Default | Used for |
 | --- | --- | --- |
-| `HELIOSVIEW_TEMPLATE_APP_NAME` | `HeliosViewApp` | executable/target name; also the app name reported by the `appInfo` bridge call |
+| `HELIOSVIEW_TEMPLATE_APP_NAME` | `HeliosViewApp` | executable/target name (the `.exe` file name); also the app name reported by the `appInfo` bridge call |
 | `HELIOSVIEW_TEMPLATE_APP_TITLE` | `HeliosView App` | window title |
 
-```sh
-cmake -S . -B build -DHELIOSVIEW_TEMPLATE_APP_NAME=MyApp -DHELIOSVIEW_TEMPLATE_APP_TITLE="My App"
-```
-
-`scripts\dev.cmd` / `scripts\build.cmd` pass their own `APP_NAME` default
-(`HeliosViewApp`) to CMake — edit the `set "APP_NAME=..."` line in the script,
-or override with `-DHELIOSVIEW_TEMPLATE_APP_NAME=...` on the cmake command
-line (the scripts then run the matching `%APP_NAME%.exe`).
+The C++ side and the build pick the values up automatically, and
+`scripts\dev.cmd` / `scripts\build.cmd` find the executable by scanning the
+build output — no other place to keep in sync.
 
 ### CLion workflow (IDE builds/runs the C++ app)
 
@@ -171,12 +157,8 @@ frontend. Dev is the default, so no CMake configuration is needed:
    ```bat
    scripts\vite.cmd
    ```
-   ```sh
-   ./scripts/vite.sh
-   ```
 2. Run `HeliosViewApp` from CLion — it loads `http://localhost:5173` (HMR).
-3. Packaging: `scripts\build.cmd` (or `build.sh`) — it flips to prod
-   automatically.
+3. Packaging: `scripts\build.cmd` — it flips to prod automatically.
 
 ## Architecture
 
@@ -244,6 +226,7 @@ More from the library README (DTO `Req` types, bidirectional
 
 ```
 CMakeLists.txt       ensure-submodule + add_subdirectory(HeliosView) + the app target + dev/prod mode
+app-config.cmake     app identity: program name, window title (edit these)
 ensure-submodule.cmake  auto-fetch the HeliosView submodule (and its nested deps) at configure time
 HeliosView/          HeliosView library as a git submodule (tracks master; concrete commit in the index)
 src/AppContext.h     the context: UI loop (helios::App)
@@ -251,17 +234,17 @@ src/MainWindow.h/.cpp  the window: WebViewWindow subclass, bridge bindings, fron
 src/entry.cpp        the process entry: WinMain (Windows) / main (elsewhere) → AppMain
 src/main.cpp         AppMain: create the context + window, run the UI loop
 frontend/            Vue 3 + Vite project (switch frameworks with scripts/setup)
-scripts/setup.cmd/.sh          (re)scaffold the frontend (framework picker, -Force/-f to replace)
-scripts/vite.cmd/.sh           run the Vite dev server only (for CLion/IDE workflows)
-scripts/dev.cmd/.sh            dev loop: Vite dev server + C++ app
-scripts/build.cmd/.sh          release: vite build + C++ prod build
+scripts/setup.cmd            (re)scaffold the frontend (framework picker, -Force to replace)
+scripts/vite.cmd             run the Vite dev server only (for CLion/IDE workflows)
+scripts/dev.cmd              dev loop: Vite dev server + C++ app
+scripts/build.cmd            release: vite build + C++ prod build
 scripts/helios.d.ts            bridge typings template (copied into TS scaffolds)
 ```
 
 ## Customizing
 
-- **Dev server port** — change `scripts/dev.cmd`'s `-Port` / `scripts/dev.sh`'s
-  first argument, `frontend/vite.config.js` and keep
+- **Dev server port** — change `scripts/dev.cmd`'s `-Port`,
+  `frontend/vite.config.js` and keep
   `HELIOSVIEW_TEMPLATE_DEV_URL` in sync (or pass `-DHELIOSVIEW_TEMPLATE_DEV_URL=…`
   to CMake).
 - **Track the library** — the HeliosView submodule (`HeliosView/`) follows the
