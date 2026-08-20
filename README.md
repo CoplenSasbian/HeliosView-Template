@@ -1,13 +1,13 @@
 # HeliosView App Template
 
-> **Repo layout:** this template lives in the **`template/react-js`** branch.
-> The `master` branch holds only a template index (React = `template/react-js`,
+> **Repo layout:** this template lives in the **`template/vanilla-js`** branch.
+> The `master` branch holds only a template index (Vanilla = `template/vanilla-js`,
 > Vue = `template/vue-js`, …). Get this template with:
-> `git clone --recursive -b template/react-js https://github.com/CoplenSasbian/HeliosView-Template.git`
+> `git clone --recursive -b template/vanilla-js https://github.com/CoplenSasbian/HeliosView-Template.git`
 
-This is the **React** template in the HeliosView template family. Its sibling
-templates — `template/vue-js` (Vue 3) and `template/vanilla-js` (no framework)
-— share the same C++ backend and scripts; only the checked-in `frontend/`
+This is the **vanilla JS** template in the HeliosView template family. Its
+sibling templates — `template/vue-js` (Vue 3) and `template/react-js` (React) —
+share the same C++ backend and scripts; only the checked-in `frontend/`
 differs, so pick the branch whose frontend you want and keep the C++ side
 identical. You can also re-scaffold the frontend to any other framework with
 `scripts/setup`.
@@ -16,7 +16,7 @@ Built on the **HeliosView** C++ library (WebView2 + native ⇄ JS bridge):
 <https://github.com/CoplenSasbian/HeliosView>
 
 A ready-to-hack-on starting point for a **HeliosView** desktop app: one C++
-window with an embedded WebView (WebView2) + a **React** web frontend (Vite).
+window with an embedded WebView (WebView2) + a **vanilla JS** web frontend (Vite).
 Fork it and start building — the plumbing is already wired up:
 
 ```
@@ -26,7 +26,7 @@ Fork it and start building — the plumbing is already wired up:
 │    MainWindow    : helios::WebViewWindow (WebView2)      │
 │        │  window.helios.call('appInfo', {}) → Promise    │
 │        ▼                                                 │
-└──── frontend (React + Vite) ───────────────────────────┘
+└──── frontend (Vanilla JS + Vite) ──────────────────────┘
      dev : vite dev server on :5173   (HMR)
      prod: built assets in exe-dir/assets/  (file://)
 ```
@@ -45,8 +45,8 @@ The HeliosView library is a **git submodule** (`HeliosView/`) tracking the
 commit behind master, and that commit only touches the CMake submodule
 bootstrap, so the code is identical), including its own dependencies (stdexec
 + nlohmann/json + the Boost superproject as nested submodules, WebView2 SDK
-  pulled from NuGet at configure time) — no vcpkg/conan. `git clone --recursive`
-  fetches it all.
+pulled from NuGet at configure time) — no vcpkg/conan. `git clone --recursive`
+fetches it all.
 
 > **Auto-configure:** a fresh clone builds out of the box. `CMakeLists.txt`
 > runs `ensure-submodule.cmake`, which initializes any missing submodules at
@@ -67,7 +67,7 @@ bootstrap, so the code is identical), including its own dependencies (stdexec
 
 | | Windows | macOS / Linux |
 | --- | --- | --- |
-| scripts | `scripts/*.cmd` (pure cmd batch — no PowerShell, no execution policy involved) | not shipped yet — cross-platform scripts are deferred |
+| scripts | `scripts/*.cmd` (pure cmd batch — no PowerShell, no execution policy involved) | not shipped yet — Windows-only for now |
 | C++ backend | Win32 + WebView2 | not shipped yet — the library only has a Win32 backend today |
 
 The scripts are Windows-only for now. The frontend tooling (dev server,
@@ -76,7 +76,7 @@ gains non-Windows backends — the `*.sh` variants will come back then.
 
 ## Getting started
 
-A React frontend (and the HeliosView submodule) is checked in, so the very
+A vanilla JS frontend (and the HeliosView submodule) is checked in, so the very
 first run needs nothing but the two commands below. Configure-time
 `ensure-submodule.cmake` fetches the library automatically. `npm install` only
 runs the first time (the scripts do it automatically).
@@ -88,7 +88,7 @@ scripts\dev.cmd
 
 REM 1b. Build for distribution (C++ + compiled frontend)
 scripts\build.cmd
-dist\bin\HeliosViewApp.exe
+build\release\bin\HeliosViewApp.exe
 ```
 
 ### Switching the frontend framework (React, Svelte, ...)
@@ -101,7 +101,7 @@ scripts\setup.cmd -Template react-ts -Force    REM replaces frontend/
 ```
 
 The scripts run the official `npm create vite` scaffold. Without
-`-Force` the scripts refuse to touch an existing `frontend/`.
+`-Force`/`-f` the scripts refuse to touch an existing `frontend/`.
 
 ## How the two build modes work
 
@@ -115,11 +115,9 @@ The scripts run the official `npm create vite` scaffold. Without
 | assets | served by Vite | copied next to the exe as `assets/` on every build |
 
 `base: './'` in `vite.config.js` makes Vite emit relative asset paths, so the
-built page works over `file://` without any custom protocol handler. All
-runtime artifacts are routed to `dist\` (see the top-level CMakeLists.txt):
-`dist\bin` holds the exe, `HeliosView.dll`, `WebView2Loader.dll`, the OpenSSL
-dlls and `assets/`, `dist\plugins` holds the plugin dlls — the whole `dist\`
-folder is directly distributable.
+built page works over `file://` without any custom protocol handler. All DLLs
+(`HeliosView.dll`, `WebView2Loader.dll`) and `assets/` sit in `build/*/bin`
+next to the exe, so the whole folder is directly distributable.
 
 The mode is a CMake option (cached per build dir) — you can also configure
 manually:
@@ -169,15 +167,15 @@ three things:
 
 1. **`AppContext`** (`src/AppContext.h`) — the application-wide services,
    created first so it outlives every window:
-    - `app()` — the **UI loop**: message pump, event queue, idle tasks
-      (`helios::App`, also a `std::execution` scheduler). Run with
-      `app().exec()`; deliver work to the UI thread with `app().postTask(...)`.
-      Threading (HeliosView v1.0.0): every window/WebView API runs on the
-      message-loop thread; `postTask`/`quit` and the WebView
-      resolve/reject/broadcast calls are safe from any thread. The library no
-      longer ships a thread pool (`helios::Async` was removed in v1.0.0) — run
-      background work on your own workers and hand results back with
-      `app().postTask(...)` (see the `ping` binding).
+   - `app()` — the **UI loop**: message pump, event queue, idle tasks
+     (`helios::App`, also a `std::execution` scheduler). Run with
+     `app().exec()`; deliver work to the UI thread with `app().postTask(...)`.
+   Threading (HeliosView v1.0.0): every window/WebView API runs on the
+   message-loop thread; `postTask`/`quit` and the WebView
+   resolve/reject/broadcast calls are safe from any thread. The library no
+   longer ships a thread pool (`helios::Async` was removed in v1.0.0) — run
+   background work on your own workers and hand results back with
+   `app().postTask(...)` (see the `ping` binding).
 2. **`MainWindow`** (`src/MainWindow.h/.cpp`) — inherits
    `helios::WebViewWindow`; its constructor registers the native ⇄ JS bridge,
    `loadFrontend()` navigates to the dev server (dev) or the built assets
@@ -227,18 +225,18 @@ More from the library README (DTO `Req` types, bidirectional
 
 ```
 CMakeLists.txt       ensure-submodule + add_subdirectory(HeliosView) + the app target + dev/prod mode
+app-config.cmake     app identity: program name, window title (edit these)
 ensure-submodule.cmake  auto-fetch the HeliosView submodule (and its nested deps) at configure time
 HeliosView/          HeliosView library as a git submodule (tracks master; concrete commit in the index)
 src/AppContext.h     the context: UI loop (helios::App)
 src/MainWindow.h/.cpp  the window: WebViewWindow subclass, bridge bindings, frontend URL
 src/entry.cpp        the process entry: WinMain (Windows) / main (elsewhere) → AppMain
 src/main.cpp         AppMain: create the context + window, run the UI loop
-frontend/            React + Vite project (switch frameworks with scripts/setup)
+frontend/            Vanilla JS + Vite project (switch frameworks with scripts/setup)
 scripts/setup.cmd            (re)scaffold the frontend (framework picker, -Force to replace)
 scripts/vite.cmd             run the Vite dev server only (for CLion/IDE workflows)
 scripts/dev.cmd              dev loop: Vite dev server + C++ app
 scripts/build.cmd            release: vite build + C++ prod build
-scripts/_toolchain.cmd       internal: MSVC env + cmake/ninja discovery (used by dev/build)
 ```
 
 ## Customizing
@@ -253,6 +251,5 @@ scripts/_toolchain.cmd       internal: MSVC env + cmake/ninja discovery (used by
   records a concrete commit, so every build stays reproducible.
 - **Window** — size/title in `src/main.cpp`; see the HeliosView README for
   `WindowStyle`, signals/slots, coroutines.
-- **Distribution** — copy the whole `dist\` folder (exe + DLLs + `assets/` in
-  `dist\bin`, plugin dlls in `dist\plugins`). A WiX/MSIX installer can be added
-  later; the folder is already self-contained.
+- **Distribution** — copy `build/release/bin/*` (exe + DLLs + `assets/`).
+  A WiX/MSIX installer can be added later; the folder is already self-contained.
