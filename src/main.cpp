@@ -35,8 +35,9 @@ int AppMain(int argc, char* argv[])
     AppContext ctx;
 
     // 2) The main window (bridge bindings are set up in its constructor).
-    //    Title is UTF-8 since HeliosView v1.0.0.
-    MainWindow window(ctx, 960, 640, "HeliosView App");
+    //    Title comes from CMake (HELIOSVIEW_TEMPLATE_APP_TITLE, UTF-8 since
+    //    HeliosView v1.0.0).
+    MainWindow window(ctx, 960, 640, HELIOSVIEW_TEMPLATE_APP_TITLE);
 
     // 3) Window::ready fires once, on the first show() — the native window is
     //    created in the constructor (HeliosView 49e8884) and is now visible.

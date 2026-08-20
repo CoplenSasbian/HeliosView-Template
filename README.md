@@ -143,6 +143,24 @@ If an existing build dir was configured before the default flip, it still
 holds the old cached value — reconfigure it explicitly (`-DHELIOSVIEW_TEMPLATE_DEV=ON`)
 or clear the cache.
 
+### App name & window title
+
+Both are CMake cache variables (defaults shown):
+
+| Variable | Default | Used for |
+| --- | --- | --- |
+| `HELIOSVIEW_TEMPLATE_APP_NAME` | `HeliosViewApp` | executable/target name; also the app name reported by the `appInfo` bridge call |
+| `HELIOSVIEW_TEMPLATE_APP_TITLE` | `HeliosView App` | window title |
+
+```sh
+cmake -S . -B build -DHELIOSVIEW_TEMPLATE_APP_NAME=MyApp -DHELIOSVIEW_TEMPLATE_APP_TITLE="My App"
+```
+
+`scripts\dev.cmd` / `scripts\build.cmd` pass their own `APP_NAME` default
+(`HeliosViewApp`) to CMake — edit the `set "APP_NAME=..."` line in the script,
+or override with `-DHELIOSVIEW_TEMPLATE_APP_NAME=...` on the cmake command
+line (the scripts then run the matching `%APP_NAME%.exe`).
+
 ### CLion workflow (IDE builds/runs the C++ app)
 
 If you develop in CLion (or another IDE), you don't need the full dev loop —
