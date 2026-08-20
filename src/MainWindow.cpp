@@ -65,7 +65,7 @@ void MainWindow::setupBridge()
     bindJson<boost::json::value>("appInfo", [](boost::json::value)
                                      -> std::execution::task<boost::json::value> {
         co_return boost::json::value{{ "app", {
-            { "name",    "HeliosViewApp" },
+            { "name",    HELIOSVIEW_TEMPLATE_APP_NAME },
             { "version", HELIOSVIEW_TEMPLATE_VERSION },
             { "helios",  helios::version() },
         }}};
