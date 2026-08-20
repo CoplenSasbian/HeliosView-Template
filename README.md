@@ -7,7 +7,7 @@ a native ⇄ JS bridge (`window.helios.call(...)` → `Promise`).
 This repo is the template family for that library: **one branch per frontend
 framework**, under the `template/` prefix. `master` holds only this index, and
 every `template/*` branch is a complete, runnable template — C++ app (window +
-bridge + dev/prod build modes) + a Vite frontend + cross-platform scripts —
+bridge + dev/prod build modes) + a Vite frontend + Windows scripts —
 pre-configured for a different frontend framework.
 
 - **HeliosView library** (C++): <https://github.com/CoplenSasbian/HeliosView>
@@ -25,8 +25,9 @@ Maintained by [CoplenSasbian](https://github.com/CoplenSasbian).
 
 All templates share the same C++ architecture — `AppContext` (UI loop),
 `MainWindow` (WebView + native ⇄ JS bridge), dev/prod build modes and
-cross-platform scripts (`scripts/*.cmd` for Windows, `scripts/*.sh` for
-macOS/Linux/Git Bash). The only difference between branches is the checked-in
+Windows scripts (`scripts/*.cmd`; the `*.sh` variants were removed —
+Windows-only for now, they'll come back with non-Windows backends). The
+only difference between branches is the checked-in
 frontend. Every template also ships a `scripts/setup` (re)scaffold script, so
 you can switch the frontend to any other framework without changing branches.
 
