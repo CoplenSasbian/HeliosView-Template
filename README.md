@@ -117,9 +117,11 @@ The scripts run the official `npm create vite` scaffold. Without
 `base: './'` in `vite.config.js` makes Vite emit relative asset paths, so the
 built page works over `file://` without any custom protocol handler. All DLLs
 (`HeliosView.dll`, `WebView2Loader.dll`, the OpenSSL dlls), `cacert.pem` and
-`assets/` sit in `build/*/bin` next to the exe. `scripts\build.cmd` stages
-just those runtime files into a clean **`dist\`** folder — the whole `dist\`
-folder is directly distributable.
+`assets/` sit in `build/*/bin` next to the exe. `scripts\build.cmd` assembles
+**`dist\`** with `cmake --install` (non-destructive — it follows the install
+rules in the top-level `CMakeLists.txt` and HeliosView's own, and never
+deletes anything in `dist\`). `dist\bin` holds everything needed to run the
+app — the whole `dist\` folder is directly distributable.
 
 The mode is a CMake option (cached per build dir) — you can also configure
 manually:
@@ -253,7 +255,10 @@ scripts/build.cmd            release: vite build + C++ prod build
   records a concrete commit, so every build stays reproducible.
 - **Window** — size/title in `src/main.cpp`; see the HeliosView README for
   `WindowStyle`, signals/slots, coroutines.
-- **Distribution** — run `scripts\build.cmd`: it stages `dist\` with exactly
-  the runtime files (`dist\bin`: exe + HeliosView.dll + WebView2/OpenSSL dlls
-  + `assets\`). The whole `dist\` folder is self-contained and directly
-  distributable; a WiX/MSIX installer can be added later.
+- **Distribution** — run `scripts\build.cmd`: it assembles `dist\` with
+  `cmake --install`. `dist\bin` is everything the app needs to run (exe +
+  HeliosView.dll + WebView2/OpenSSL dlls + `cacert.pem` + `assets\`);
+  `dist\include` and `dist\lib` are the HeliosView library's headers/libs
+  (only needed when building against the installed library — omit them if
+  you ship just the app). The whole `dist\` folder is self-contained and
+  directly distributable; a WiX/MSIX installer can be added later.
