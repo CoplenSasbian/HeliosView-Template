@@ -4,6 +4,9 @@ cmake-build-*/
 CMakeLists.txt.user
 .vs/
 
+# Staged distributable (scripts\build.cmd output)
+dist/
+
 # IDE
 .idea/
 
