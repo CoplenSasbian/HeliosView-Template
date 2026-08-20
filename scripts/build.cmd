@@ -4,13 +4,13 @@ REM build.cmd - release build for distribution (Windows, pure cmd - no PowerShel
 REM   1. builds the frontend (vite build)  -> frontend/dist
 REM      (base: './' is set in vite.config.js, so the page works over file://)
 REM   2. builds the C++ app in prod mode    -> build\release\bin
-REM   3. stages a clean distributable       -> dist\  (runtime files only)
+REM   3. assembles the distributable        -> dist\  (cmake --install)
 REM
-REM The CMake build tree (build\release) also holds build internals (lib\,
+REM The CMake build tree (build\release) holds build internals (lib\,
 REM CMakeFiles\, openssl\, webview2-sdk\, ...) that the app does not need at
-REM runtime. Everything the app needs sits in bin\ - the exe, HeliosView.dll,
-REM WebView2Loader.dll, the OpenSSL dlls, cacert.pem and assets\ - so build.cmd
-REM copies just that into dist\; the whole dist\ folder is directly distributable.
+REM runtime. dist\ is assembled by `cmake --install` from the install rules
+REM (top-level CMakeLists.txt + HeliosView's own) - it is non-destructive
+REM (nothing in dist\ is deleted) and picks up new install rules automatically.
 REM
 REM The MSVC environment and cmake/ninja are set up automatically (see
 REM _toolchain.cmd) - run this from any cmd, no Developer prompt needed.
@@ -60,11 +60,13 @@ REM The executable name comes from app-config.cmake; find it in the build
 REM output (bin\ holds exactly one .exe - the app).
 for /f "delims=" %%E in ('dir /b "%BUILD%\bin\*.exe" 2^>nul') do set "APP_EXE=%%E"
 
-REM ---- stage dist\ (runtime files only) ----------------------------------------------
-echo [build] Staging dist\ (runtime files only)...
-if exist "%DIST%" rmdir /s /q "%DIST%"
-xcopy /e /i /q /y "%BUILD%\bin" "%DIST%\bin" >nul
-if errorlevel 1 ( echo [build] ERROR: staging dist\ failed. 1>&2 & exit /b 1 )
+REM ---- stage dist\ via cmake --install (non-destructive) ----------------------------
+REM The install rules (top-level CMakeLists.txt + HeliosView's own) decide what
+REM lands in dist\; nothing in dist\ is ever deleted, and new install rules
+REM (own targets, library updates) are picked up automatically.
+echo [build] Installing to dist\ (cmake --install)...
+"%CMAKE%" --install "%BUILD%" --prefix "%DIST%"
+if errorlevel 1 ( echo [build] ERROR: cmake --install failed. 1>&2 & exit /b 1 )
 
 echo.
 echo [build] Done. Run the app:
@@ -74,7 +76,8 @@ if defined APP_EXE (
     echo     "%DIST%\bin\HeliosViewApp.exe"
 )
 echo.
-echo The whole %DIST%\ folder is the distributable:
-echo   %DIST%\bin       exe + HeliosView.dll + WebView2/OpenSSL dlls + assets\
+echo dist\ is assembled by cmake --install (see the install rules in the
+echo top-level CMakeLists.txt) - run the app from dist\bin\, and distribute
+echo the whole dist\ folder.
 echo.
 exit /b 0

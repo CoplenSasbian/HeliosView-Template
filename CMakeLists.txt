@@ -62,3 +62,13 @@ else()
     message(STATUS "HeliosViewTemplate: PROD mode (assets: ${HELIOSVIEW_TEMPLATE_FRONTEND_DIST})")
     message(STATUS "HeliosViewTemplate: hint: PROD is for packaging - build with scripts/build.cmd")
 endif()
+
+# ---- install: assemble the distributable (scripts/build.cmd runs
+#      `cmake --install build/release --prefix dist`) -----------------------
+# Installs the app exe + the built frontend; HeliosView's own install rules
+# bring its runtime files (HeliosView.dll, WebView2Loader.dll, the OpenSSL
+# dlls and cacert.pem) into bin/. Non-destructive: nothing in the prefix is
+# ever deleted, and new install rules (own targets, library updates) are
+# picked up automatically.
+install(TARGETS ${HELIOSVIEW_TEMPLATE_APP_NAME} RUNTIME DESTINATION bin)
+install(DIRECTORY "${HELIOSVIEW_TEMPLATE_FRONTEND_DIST}/" DESTINATION bin/assets)
