@@ -26,15 +26,9 @@ add_subdirectory(HeliosView)
 # main.cpp, which holds the actual app logic.
 # ---------------------------------------------------------------------------
 
-# Executable (target) name and window title. Override per project, e.g.:
-#   cmake -S . -B build -DHELIOSVIEW_TEMPLATE_APP_NAME=MyApp
-#                       -DHELIOSVIEW_TEMPLATE_APP_TITLE="My App"
-# (scripts\dev.cmd / build.cmd pass their own APP_NAME default - edit it there
-# or pass -DHELIOSVIEW_TEMPLATE_APP_NAME on the cmake command line.)
-set(HELIOSVIEW_TEMPLATE_APP_NAME "HeliosViewApp" CACHE STRING
-    "Executable (target) name of the application")
-set(HELIOSVIEW_TEMPLATE_APP_TITLE "HeliosView App" CACHE STRING
-    "Window title of the application")
+# App identity: program name, window title, ... — edit app-config.cmake
+# (the single place to configure these).
+include(app-config.cmake)
 
 add_executable(${HELIOSVIEW_TEMPLATE_APP_NAME} WIN32
     src/entry.cpp

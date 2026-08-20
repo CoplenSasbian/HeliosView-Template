@@ -1,17 +1,15 @@
 @echo off
 setlocal
 REM build.cmd - release build for distribution (Windows only for now):
-REM   1. builds the frontend (vite build)          -> frontend/dist
-REM   2. builds the C++ app in prod mode            -> dist\ (see below)
+REM   1. builds the frontend (vite build)         -> frontend/dist
+REM   2. builds the C++ app in prod mode           -> build\release\bin
 REM
-REM The CMake build tree lives in build\release, but all runtime artifacts are
-REM routed to <repo>\dist (see the top-level CMakeLists.txt): the exe, HeliosView
-REM dll, WebView2/OpenSSL dlls and assets/ land in dist\bin, the plugin dlls in
-REM dist\plugins, and settings/logs are created next to them at runtime. The
-REM whole dist\ folder is self-contained and directly distributable.
+REM All runtime artifacts land in build\release\bin (see the top-level
+REM CMakeLists.txt): the exe, HeliosView.dll, WebView2/OpenSSL dlls and
+REM assets/. Copy the whole bin\ folder to distribute.
 REM
 REM   scripts\build.cmd
-REM   Then run:  dist\bin\HeliosViewApp.exe
+REM   Then run:  build\release\bin\HeliosViewApp.exe
 
 REM Anchor to the script's own directory first.
 cd /d "%~dp0" >nul 2>&1
@@ -20,10 +18,6 @@ set "ROOT=%CD%"
 popd >nul
 set "BUILD=%ROOT%\build\release"
 set "FRONTEND=%ROOT%\frontend"
-set "DIST=%ROOT%\dist"
-REM Executable name - passed to CMake as HELIOSVIEW_TEMPLATE_APP_NAME
-REM (change it here or override with -DHELIOSVIEW_TEMPLATE_APP_NAME=...).
-set "APP_NAME=HeliosViewApp"
 
 if not exist "%FRONTEND%\package.json" (
     echo [build] ERROR: frontend/ is not scaffolded yet. Run scripts\setup.cmd first. 1>&2
@@ -62,20 +56,27 @@ if not exist "%BUILD%\openssl\build\native\include\openssl\ssl.h" (
 
 REM ---- configure + build the C++ app in prod mode ----------------------------------
 if defined NINJA (
-    "%CMAKE%" -S "%ROOT%" -B "%BUILD%" -G Ninja -DCMAKE_MAKE_PROGRAM="%NINJA%" -DCMAKE_BUILD_TYPE=Release -DHELIOSVIEW_TEMPLATE_DEV=OFF -DHELIOSVIEW_TEMPLATE_APP_NAME=%APP_NAME%
+    "%CMAKE%" -S "%ROOT%" -B "%BUILD%" -G Ninja -DCMAKE_MAKE_PROGRAM="%NINJA%" -DCMAKE_BUILD_TYPE=Release -DHELIOSVIEW_TEMPLATE_DEV=OFF
 ) else (
-    "%CMAKE%" -S "%ROOT%" -B "%BUILD%" -A x64 -DHELIOSVIEW_TEMPLATE_DEV=OFF -DHELIOSVIEW_TEMPLATE_APP_NAME=%APP_NAME%
+    "%CMAKE%" -S "%ROOT%" -B "%BUILD%" -A x64 -DHELIOSVIEW_TEMPLATE_DEV=OFF
 )
 if errorlevel 1 ( echo [build] ERROR: CMake configure failed. 1>&2 & exit /b 1 )
 "%CMAKE%" --build "%BUILD%" --config Release -j 8
 if errorlevel 1 ( echo [build] ERROR: CMake build failed. 1>&2 & exit /b 1 )
 
+REM The executable name comes from app-config.cmake; find it in the build
+REM output (bin\ holds exactly one .exe - the app).
+for /f "delims=" %%E in ('dir /b "%BUILD%\bin\*.exe" 2^>nul') do set "APP_EXE=%%E"
+
 echo.
 echo [build] Done. Run the app:
-echo     "%DIST%\bin\%APP_NAME%.exe"
+if defined APP_EXE (
+    echo     "%BUILD%\bin\%APP_EXE%"
+) else (
+    echo     "%BUILD%\bin\HeliosViewApp.exe"
+)
 echo.
-echo The whole %DIST%\ folder is the distributable:
-echo   %DIST%\bin       exe + HeliosView.dll + WebView2/OpenSSL dlls + assets
-echo   %DIST%\plugins   plugin dlls ^(loaded at runtime^)
+echo The whole %BUILD%\bin\ folder is the distributable:
+echo   exe + HeliosView.dll + WebView2/OpenSSL dlls + assets\
 echo.
 exit /b 0

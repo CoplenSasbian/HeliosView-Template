@@ -136,21 +136,18 @@ or clear the cache.
 
 ### App name & window title
 
-Both are CMake cache variables (defaults shown):
+Configured in **one file**: `app-config.cmake` at the repo root (included by
+`CMakeLists.txt`). Edit the values there and rebuild — nothing else needs to
+change:
 
-| Variable | Default | Used for |
+| Variable in `app-config.cmake` | Default | Used for |
 | --- | --- | --- |
-| `HELIOSVIEW_TEMPLATE_APP_NAME` | `HeliosViewApp` | executable/target name; also the app name reported by the `appInfo` bridge call |
+| `HELIOSVIEW_TEMPLATE_APP_NAME` | `HeliosViewApp` | executable/target name (the `.exe` file name); also the app name reported by the `appInfo` bridge call |
 | `HELIOSVIEW_TEMPLATE_APP_TITLE` | `HeliosView App` | window title |
 
-```sh
-cmake -S . -B build -DHELIOSVIEW_TEMPLATE_APP_NAME=MyApp -DHELIOSVIEW_TEMPLATE_APP_TITLE="My App"
-```
-
-`scripts\dev.cmd` / `scripts\build.cmd` pass their own `APP_NAME` default
-(`HeliosViewApp`) to CMake — edit the `set "APP_NAME=..."` line in the script,
-or override with `-DHELIOSVIEW_TEMPLATE_APP_NAME=...` on the cmake command
-line (the scripts then run the matching `%APP_NAME%.exe`).
+The C++ side and the build pick the values up automatically, and
+`scripts\dev.cmd` / `scripts\build.cmd` find the executable by scanning the
+build output — no other place to keep in sync.
 
 ### CLion workflow (IDE builds/runs the C++ app)
 
