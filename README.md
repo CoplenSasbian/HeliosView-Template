@@ -100,8 +100,7 @@ official template (react, vue, svelte, solid, preact, lit, vanilla — JS or TS)
 scripts\setup.cmd -Template react-ts -Force    REM replaces frontend/
 ```
 
-The scripts run the official `npm create vite` scaffold. TS templates also
-get `frontend/src/helios.d.ts` with typings for the native bridge. Without
+The scripts run the official `npm create vite` scaffold. Without
 `-Force`/`-f` the scripts refuse to touch an existing `frontend/`.
 
 ## How the two build modes work
@@ -238,7 +237,6 @@ scripts/setup.cmd            (re)scaffold the frontend (framework picker, -Force
 scripts/vite.cmd             run the Vite dev server only (for CLion/IDE workflows)
 scripts/dev.cmd              dev loop: Vite dev server + C++ app
 scripts/build.cmd            release: vite build + C++ prod build
-scripts/helios.d.ts            bridge typings template (copied into TS scaffolds)
 ```
 
 ## Customizing
