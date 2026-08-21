@@ -40,6 +40,13 @@ MainWindow::MainWindow(AppContext& ctx, int width, int height, const char* title
     // Note: the bridge bindings are NOT registered here - bind requires a
     // live WebView, which only exists after createWebView(). loadFrontend()
     // calls setupBridge() first, then navigates.
+
+    // Close button (×) / Alt+F4 does NOT auto-close anymore — it only emits
+    // closeRequested. Connect here and call close() to actually close.
+    closeRequested.connect([this] {
+        std::println("[MainWindow] close requested -> closing");
+        close();
+    });
 }
 
 // ---- native <-> JS bridge --------------------------------------------------
