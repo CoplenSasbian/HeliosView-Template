@@ -39,16 +39,16 @@ int AppMain(int argc, char* argv[])
     //    HeliosView v1.0.0).
     MainWindow window(ctx, 960, 640, HELIOSVIEW_TEMPLATE_APP_TITLE);
 
-    // 3) Window::ready fires once, on the first show() — the native window is
-    //    created in the constructor (HeliosView 49e8884) and is now visible.
+    // 3) Window::firstShown fires once, on the first show() — the native window
+    //    is created in the constructor (HeliosView 49e8884) and is now visible.
     //    Connect before show(); it is the right moment to wire up the WebView
     //    and load the frontend (both need the live native window).
-    window.ready.connect([&window] {
+    window.firstShown.connect([&window] {
         window.createWebView();   // async; navigate() calls queue until it's ready
         window.loadFrontend();    // dev server URL (dev) or built static files (prod)
     });
 
-    // 4) Show the window; the first show() fires Window::ready.
+    // 4) Show the window; the first show() fires Window::firstShown.
     window.show();
 
     // 5) Run the UI loop; exits when the last window closes.
