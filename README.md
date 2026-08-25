@@ -28,7 +28,7 @@ Fork it and start building — the plumbing is already wired up:
 │        ▼                                                 │
 └──── frontend (React + Vite) ───────────────────────────┘
      dev : vite dev server on :5173   (HMR)
-     prod: built assets served from exe-dir/assets/ via https://app.local/
+     prod: built assets served from software-root/assets/ via https://app.local/
 ```
 
 ## Prerequisites
@@ -112,18 +112,27 @@ The scripts run the official `npm create vite` scaffold. Without
 | --- | --- | --- |
 | frontend | `vite dev --port 5173 --strictPort` (HMR) | `vite build` → `frontend/dist` |
 | C++ | `navigate("http://localhost:5173")` | `HELIOSVIEW_TEMPLATE_DEV=OFF` → maps `assets/` to `https://app.local/` and navigates there |
-| assets | served by Vite | copied next to the exe as `assets/` on every build |
+| assets | served by Vite | copied to the software root as `assets/` (a sibling of `bin\`) on every build |
 
-The built page is served from the `assets\` folder next to the exe through a
-WebView2 virtual-host mapping (`https://app.local/`, see `mapLocalFolder` in
-`src/MainWindow.cpp`) — file:// cannot serve the Vite ES-module output, so
-`app.local` is the supported scheme the prod build navigates to. All DLLs
-(`HeliosView.dll`, `WebView2Loader.dll`, the OpenSSL dlls), `cacert.pem` and
-`assets/` sit in `build/*/bin` next to the exe. `scripts\build.cmd` assembles
-**`dist\`** with `cmake --install` from the install rules (top-level
-`CMakeLists.txt` + HeliosView's own); the library's dev files (headers/libs)
-are dropped, so `dist\` holds only what the app needs to run — the whole
-folder is directly distributable.
+The built page is served from the `assets\` folder at the software root — a
+sibling of `bin\`, which holds the exe — through a WebView2 virtual-host
+mapping (`https://app.local/`, see `mapLocalFolder` in `src/MainWindow.cpp`):
+file:// cannot serve the Vite ES-module output, so `app.local` is the
+supported scheme the prod build navigates to. All DLLs (`HeliosView.dll`,
+`WebView2Loader.dll`, the OpenSSL dlls) and `cacert.pem` sit in `bin\` next to
+the exe. `scripts\build.cmd` assembles **`dist\`** with `cmake --install` from
+the install rules (top-level `CMakeLists.txt` + HeliosView's own): `dist\bin`
+(exe + DLLs + `cacert.pem`) and `dist\assets` (the frontend) are siblings. The
+library's dev files (headers/libs) are dropped, so `dist\` holds only what the
+app needs to run — the whole folder is directly distributable.
+
+Two runtime details baked into the template: the WebView2 user data folder
+(profile, cache, cookies) lives under the user's app data directory
+(`%LOCALAPPDATA%\<AppName>`, see `webviewUserDataFolder()` in
+`src/main.cpp`) instead of a `<exe>.WebView2` folder next to the exe; and the
+window stays hidden until the initial page load completes — `MainWindow`
+shows itself from its `navigationCompleted` signal (see its constructor), so
+no blank window flashes while the frontend loads.
 
 The mode is a CMake option (cached per build dir) — you can also configure
 manually:
@@ -260,6 +269,6 @@ scripts/build.cmd            release: vite build + C++ prod build
 - **Distribution** — run `scripts\build.cmd`: it assembles `dist\` with
   `cmake --install` and drops the library's dev files (headers/libs). `dist\`
   holds only what the app needs to run (`dist\bin`: exe + HeliosView.dll +
-  WebView2/OpenSSL dlls + `cacert.pem` + `assets\`). The whole folder is
-  self-contained and directly distributable; a WiX/MSIX installer can be
-  added later.
+  WebView2/OpenSSL dlls + `cacert.pem`; `dist\assets`: the built frontend —
+  bin and assets are siblings). The whole folder is self-contained and
+  directly distributable; a WiX/MSIX installer can be added later.
