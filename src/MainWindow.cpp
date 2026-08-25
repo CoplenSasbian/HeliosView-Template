@@ -4,7 +4,8 @@
 //   - Dev  (HELIOSVIEW_TEMPLATE_DEV=ON):  the WebView loads the frontend dev
 //     server (Vite, default http://localhost:5173). HMR works.
 //   - Prod (default):                     the WebView loads the built frontend
-//     from exe-dir/assets/index.html (copied there by the build).
+//     from software-root/assets/index.html (a sibling of bin\, where the exe
+//     lives; copied there by the build).
 
 #include "MainWindow.h"
 
@@ -46,6 +47,18 @@ MainWindow::MainWindow(AppContext& ctx, int width, int height, const char* title
     closeRequested.connect([this] {
         std::println("[MainWindow] close requested -> closing");
         close();
+    });
+
+    // The window is shown only once the page has actually loaded: the WebView
+    // fills the client area, so showing the window first would flash a blank
+    // window while the frontend loads. navigationCompleted fires when the
+    // initial page load finishes (error == 0 on success, otherwise a negated
+    // platform error code) — that is the cue to call show(). show() is
+    // idempotent, so later navigations (SPA route changes, reloads) are
+    // harmless.
+    navigationCompleted.connect([this](int error) {
+        std::println("[MainWindow] initial page load finished (error={}); showing window", error);
+        show();
     });
 }
 
@@ -109,13 +122,14 @@ static const char* startUrl()
     return HELIOSVIEW_TEMPLATE_DEV_URL;   // e.g. "http://localhost:5173"
 }
 #else
-// ---------------- prod mode: built assets next to the exe -------------------
+// ---------------- prod mode: built assets at the software root -------------
 #include <windows.h>
 
 #include <filesystem>
 
-// The directory holding the built frontend (exe-dir/assets). GetModuleFileNameW
-// is argv-independent: the exe may be launched from anywhere.
+// The directory holding the built frontend (software-root/assets, a sibling of
+// bin\ where the exe lives: bin\HeliosViewApp.exe + assets\index.html).
+// GetModuleFileNameW is argv-independent: the exe may be launched from anywhere.
 static std::string assetsDir()
 {
     std::wstring buf(512, L'\0');
@@ -129,7 +143,7 @@ static std::string assetsDir()
         }
         buf.resize(buf.size() * 2);
     }
-    const auto p = std::filesystem::path(buf).parent_path() / "assets";
+    const auto p = std::filesystem::path(buf).parent_path().parent_path() / "assets";
     const auto u8 = p.u8string();
     return std::string(reinterpret_cast<const char*>(u8.data()), u8.size());
 }

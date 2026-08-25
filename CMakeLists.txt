@@ -11,6 +11,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # HeliosView.dll, WebView2Loader.dll and the app exe all land in build/bin
 # together (same layout as the library), so no PATH setup is needed at runtime.
+# The built frontend goes to the software root (build/assets in prod mode) —
+# a sibling of bin/, so bin + assets share one top-level directory.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -52,12 +54,14 @@ if(HELIOSVIEW_TEMPLATE_DEV)
     )
     message(STATUS "HeliosViewTemplate: DEV mode (frontend: ${HELIOSVIEW_TEMPLATE_DEV_URL})")
 else()
-    # Prod: copy the built frontend next to the exe on every build.
+    # Prod: copy the built frontend to the software root (a sibling of the
+    # bin\ directory that holds the exe) on every build: bin + assets live in
+    # the same folder, so the whole thing is one distributable directory.
     add_custom_command(TARGET ${HELIOSVIEW_TEMPLATE_APP_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${HELIOSVIEW_TEMPLATE_FRONTEND_DIST}"
-            "$<TARGET_FILE_DIR:${HELIOSVIEW_TEMPLATE_APP_NAME}>/assets"
-        COMMENT "Copying frontend build output to $<TARGET_FILE_DIR:${HELIOSVIEW_TEMPLATE_APP_NAME}>/assets"
+            "${CMAKE_BINARY_DIR}/assets"
+        COMMENT "Copying frontend build output to ${CMAKE_BINARY_DIR}/assets"
         VERBATIM)
     message(STATUS "HeliosViewTemplate: PROD mode (assets: ${HELIOSVIEW_TEMPLATE_FRONTEND_DIST})")
     message(STATUS "HeliosViewTemplate: hint: PROD is for packaging - build with scripts/build.cmd")
@@ -65,13 +69,14 @@ endif()
 
 # ---- install: assemble the distributable (scripts/build.cmd runs
 #      `cmake --install build/release --prefix dist`) -----------------------
-# Installs the app exe + the built frontend; HeliosView's own install rules
-# bring its runtime files (HeliosView.dll, WebView2Loader.dll, the OpenSSL
-# dlls and cacert.pem) into bin/. Non-destructive: nothing in the prefix is
-# ever deleted, and new install rules (own targets, library updates) are
-# picked up automatically.
+# Installs the app exe into bin\ and the built frontend into assets\ — bin and
+# assets end up as siblings in the software root (dist\). HeliosView's own
+# install rules bring its runtime files (HeliosView.dll, WebView2Loader.dll,
+# the OpenSSL dlls and cacert.pem) into bin/. Non-destructive: nothing in the
+# prefix is ever deleted, and new install rules (own targets, library updates)
+# are picked up automatically.
 install(TARGETS ${HELIOSVIEW_TEMPLATE_APP_NAME} RUNTIME DESTINATION bin)
-install(DIRECTORY "${HELIOSVIEW_TEMPLATE_FRONTEND_DIST}/" DESTINATION bin/assets)
+install(DIRECTORY "${HELIOSVIEW_TEMPLATE_FRONTEND_DIST}/" DESTINATION assets)
 
 # The library's install rules also install its dev files (headers into
 # include\, static libs + cmake config into lib\) - the app does not need
