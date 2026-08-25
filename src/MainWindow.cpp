@@ -981,7 +981,18 @@ std::execution::task<void> MainWindow::InitAsync()
 
     // WebView: create it and load the frontend. navigate() is queued by the
     // library until the WebView finishes initializing.
-    createWebView();
+    //
+    // WebView2's browser data (profile, cache, cookies) goes to the per-user
+    // folder reported by WebView2DataDir() instead of the default
+    // "<exe>.WebView2" next to the executable — required once the exe lives in
+    // a read-only location (Program Files, ...). The folder is locked in at
+    // environment creation, so it must be passed here, before navigation.
+    if (const std::filesystem::path udf = WebView2DataDir(); !udf.empty()) {
+        const auto u8 = udf.u8string();
+        createWebView(std::string(reinterpret_cast<const char*>(u8.data()), u8.size()).c_str());
+    } else {
+        createWebView();  // no per-user dir available: keep the runtime default
+    }
     loadFrontend();
 
     // Background pool: settings (file I/O), then plugins (DLL loading). Both

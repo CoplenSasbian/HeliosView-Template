@@ -9,11 +9,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Runtime artifacts (HeliosView.dll, WebView2Loader.dll, the OpenSSL DLLs, the
-# app exe) all land in build/bin - one complete, runnable folder for both IDE
-# debugging and distribution, no PATH setup needed. Plugin dlls are built into
-# build/plugins and staged to dist/plugins by cmake --install (kept apart from
-# the exe's bin/); AppFilePath::PluginDir resolves them relative to the app root.
+# HeliosView.dll, WebView2Loader.dll and the app exe all land in build/bin
+# together (same layout as the library), so no PATH setup is needed at runtime.
+# The built frontend goes to the software root (build/assets in prod mode) —
+# a sibling of bin/, so bin + assets share one top-level directory.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_PLUGINS_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugins)
@@ -134,8 +133,9 @@ if(HELIOSVIEW_TEMPLATE_DEV)
     )
     message(STATUS "HeliosViewTemplate: DEV mode (frontend: ${HELIOSVIEW_TEMPLATE_DEV_URL})")
 else()
-    # Prod: copy the built frontend to the app root on every build — the app
-    # serves AppRoot()/assets at runtime (../assets from the exe's bin/).
+    # Prod: copy the built frontend to the software root (a sibling of the
+    # bin\ directory that holds the exe) on every build: bin + assets live in
+    # the same folder, so the whole thing is one distributable directory.
     add_custom_command(TARGET ${HELIOSVIEW_TEMPLATE_APP_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${HELIOSVIEW_TEMPLATE_FRONTEND_DIST}"
@@ -150,9 +150,9 @@ add_subdirectory(plugins)
 
 # ---- install: assemble the distributable (scripts/build.cmd runs
 #      `cmake --install build/release --prefix dist`) -----------------------
-# Installs the app exe into bin/ and the built frontend into assets/ (the app
-# root, next to bin/) — the app serves AppRoot()/assets at runtime. HeliosView's
-# own install rules bring its runtime files (HeliosView.dll, WebView2Loader.dll,
+# Installs the app exe into bin\ and the built frontend into assets\ — bin and
+# assets end up as siblings in the software root (dist\). HeliosView's own
+# install rules bring its runtime files (HeliosView.dll, WebView2Loader.dll,
 # the OpenSSL dlls and cacert.pem) into bin/. Non-destructive: nothing in the
 # prefix is ever deleted, and new install rules (own targets, library updates)
 # are picked up automatically.

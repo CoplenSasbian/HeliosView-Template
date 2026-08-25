@@ -21,30 +21,15 @@
 
 #include "AppContext.h"
 #include "MainWindow.h"
-#include "utils/AppFilePath.h"
 #include "utils/SingleInstanceGuard.h"
 
-#include <filesystem>
 #include <print>
 #include <string_view>
-#ifdef _WIN32
-#include <windows.h>
-#endif
 // Platform-independent app entry, called by entry.cpp (WinMain on Windows,
 // main elsewhere). argc/argv are the parsed command line (ANSI on Windows).
 int AppMain(int argc, char* argv[])
 {
 
-
-    // Move WebView2's browser data out of the exe directory: the runtime's
-    // default (<exe>.WebView2) breaks once the exe lives in a read-only
-    // location (Program Files, ...). The loader honors the
-    // WEBVIEW2_USER_DATA_FOLDER environment variable when no explicit folder
-    // is passed (HeliosView passes nullptr to
-    // CreateCoreWebView2EnvironmentWithOptions) - set it before the first
-    // WebView is created.
-    if (const std::filesystem::path udf = WebView2DataDir(); !udf.empty())
-        SetEnvironmentVariableW(L"WEBVIEW2_USER_DATA_FOLDER", udf.c_str());
 
     // Parse --silent: start minimized to tray, no window shown.
     bool silent = false;

@@ -3,9 +3,10 @@
 #   Dev  (default):                     the WebView loads the frontend dev
 #         server (Vite, HMR). Start it with scripts/vite.cmd (or dev.cmd).
 #   Prod (HELIOSVIEW_TEMPLATE_DEV=OFF): the WebView loads the built frontend,
-#         copied to the app root as assets\ (../ from the exe's bin\). Packaging
-#         only - set
-#         automatically by scripts/build.cmd / build.sh.
+#   Prod (HELIOSVIEW_TEMPLATE_DEV=OFF): the WebView loads the built frontend,
+#         copied to the software root as assets/ (a sibling of bin\), where
+#         the exe lives. Packaging only - set automatically by
+#         scripts/build.cmd / build.sh.
 #
 # Note: the option is cached per build dir. Changing the default here does
 # not touch existing build directories - reconfigure them (or clear the
