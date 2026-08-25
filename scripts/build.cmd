@@ -78,6 +78,6 @@ if defined APP_EXE (
 echo.
 echo dist\ is assembled by cmake --install (see the install rules in the
 echo top-level CMakeLists.txt) - run the app from dist\bin\, and distribute
-echo the whole dist\ folder.
+echo the whole dist\ folder (dist\assets is the frontend, a sibling of bin\).
 echo.
 exit /b 0

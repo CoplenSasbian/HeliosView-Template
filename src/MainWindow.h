@@ -20,11 +20,12 @@ public:
     MainWindow(AppContext& ctx, int width, int height, const char* title);
 
     // Load the frontend: the dev server URL in dev builds, the built static
-    // files (exe-dir/assets/index.html) in prod builds. Call after
-    // createWebView(); navigation is queued automatically while the WebView
-    // is still initializing. Registers the bridge bindings first (bind
-    // requires a live WebView: bindings set before createWebView() are
-    // silently dropped by the C layer).
+    // files (software-root/assets/index.html — assets is a sibling of bin\,
+    // where the exe lives) in prod builds. Call after createWebView();
+    // navigation is queued automatically while the WebView is still
+    // initializing. Registers the bridge bindings first (bind requires a live
+    // WebView: bindings set before createWebView() are silently dropped by the
+    // C layer).
     void loadFrontend();
 
     std::execution::task<double> add(double,double);
