@@ -15,3 +15,13 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 frontend/.vite*.log
+
+# App icon source art at the repo root (regenerable; kept out of git status)
+assets/
+
+# Local probe leftovers / crash dumps
+probe*.obj
+crashdumps/
+
+# WebView2 user data folders (now under %LOCALAPPDATA%; legacy copies)
+*.WebView2/

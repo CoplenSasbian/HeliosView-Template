@@ -1,116 +1,2195 @@
-:root {
-  color-scheme: light dark;
-}
+/* style.css — global styles + UI components. All values come from theme.css
+   variables; nothing here is hardcoded. Import theme first. */
+
+@import './theme.css';
 
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================================
+   Utilities
+   ============================================================ */
+
+/* Film-grain noise overlay — adds a soft-light noise texture via
+   ::before.  Use on any glass-surface element (cards, modals,
+   sidebar) for a consistent photographic grain. */
+.has-noise {
+  position: relative;
+  overflow: hidden;
+}
+.has-noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--noise-svg);
+  background-size: 180px 180px;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.35;
+}
+.has-noise > * {
+  position: relative;
+  z-index: 1;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--c-border-strong);
+  border-radius: var(--r-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--c-text-faint);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 body {
-  margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  background: #f6f7f9;
-  color: #1f2328;
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-normal);
+  line-height: var(--lh-snug);
+  color: var(--c-text);
+  background: var(--c-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+  user-select: none;
 }
 
-main {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
+/* Text selection follows the accent instead of the OS default blue. */
+::selection {
+  background: var(--c-accent-glass);
+  color: var(--c-text);
 }
 
-h1 {
-  font-size: 1.6rem;
-  margin-top: 0;
+/* Keyboard focus ring: :focus-visible only fires for Tab navigation, so mouse
+   clicks stay clean. Inputs/selects/dropdowns are excluded — they already draw
+   their own accent ring via box-shadow on :focus. */
+:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
 }
-
-.row {
-  display: flex;
-  gap: 0.5rem;
-  margin: 1rem 0;
+.input:focus-visible,
+.dropdown:focus-visible {
+  outline: none;
 }
 
 button {
   font: inherit;
-  padding: 0.4rem 0.9rem;
-  border: 1px solid #c9ced6;
-  border-radius: 6px;
-  background: #fff;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+  color: var(--c-text);
+}
+
+/* ============================================================
+   App shell
+   ============================================================ */
+
+.app {
+  position: relative;
+  display: flex;
+  height: 100%;
+  /* Multi-colour aurora behind the translucent glass surfaces. Swap the
+     background-image for <url(...)> to use a real photo instead (see theme.css). */
+  background-image: var(--bg-base);
+  background-size: 200% 200%;
+  background-attachment: fixed;
+  background-color: var(--c-bg);
+}
+
+/* A blurred, vivid blob layer under the glass so the translucent surfaces have
+   colour to sample. Fixed so scrolling content doesn't drag the aurora. */
+.app::before {
+  content: "";
+  position: fixed;
+  inset: -10%;
+  z-index: 0;
+  background-image: var(--bg-blobs);
+  background-size: 160% 160%;
+  background-position: center;
+  filter: blur(70px) saturate(1.3);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.app > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* A real Bing wallpaper is applied to the .app shell (inline style by
+   js/wallpaper.js). .has-wallpaper turns off the aurora blob layer so the
+   photo is the base; the glass surfaces still blur over it. */
+.app.has-wallpaper {
+  background-image: none;   /* replaced by the inline backgroundImage in JS */
+  background-color: transparent;
+}
+.app.has-wallpaper::before {
+  display: none;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* anchor for the floating title bar (see .header) */
+  position: relative;
+}
+
+/* full-width scroll container: the scrollbar stays at the window's right edge
+   while the content column below scrolls under the floating title bar.
+   padding-top reserves the header's height so content starts just below the
+   floating bar and scrolls UP *behind* it, where the bar's backdrop-filter
+   blurs it. */
+.app-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: var(--header-h);
+}
+
+.app-content {
+  width: 100%;
+  /* Full-bleed content: no centered max-width column — cards stretch
+     edge-to-edge (minus the padding) so the window reads as a native
+     app instead of a webpage centered in a frame. */
+  padding: var(--sp-xl) var(--sp-xl) var(--sp-2xl);
+}
+
+/* Route change transition: App.jsx re-mounts .route-view per page (keyed by
+   pathname), so this animation plays once per navigation — a quick fade+rise
+   instead of a hard cut between pages. */
+.route-view {
+  animation: routeIn var(--transition-slow) ease-out;
+}
+@keyframes routeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   Sidebar
+   ============================================================ */
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-right: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight);
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-lg) 0;
+  transition: width var(--transition-slow);
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: 0 var(--sp-lg) var(--sp-lg);
+}
+
+.sidebar-brand__dot {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--c-accent), var(--c-accent-strong));
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-accent);
+  flex-shrink: 0;
+}
+
+.sidebar-brand__name {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.3px;
+}
+
+.sidebar-brand__sub {
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+}
+
+.sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2xs);
+  padding: 0 var(--sp-sm);
+}
+
+.sidebar-nav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  height: 42px;
+  padding: 0 var(--sp-md);
+  border-radius: var(--r-sm);
+  color: var(--c-text-muted);
+  font-weight: var(--fw-medium);
+  text-align: left;
+  text-decoration: none;
+  transition: background var(--transition), color var(--transition),
+    transform var(--transition);
+  position: relative;
+}
+
+/* Glass hover block slides up behind the row (scale-out animation) — the
+   frosted "where will I land" cue. */
+.sidebar-nav__item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-sm);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  opacity: 0;
+  transform: scaleX(0.9);
+  transform-origin: left center;
+  transition: opacity var(--transition), transform var(--transition);
+  pointer-events: none;
+}
+
+.sidebar-nav__item:hover {
+  color: var(--c-text);
+  transform: translateX(2px);
+}
+.sidebar-nav__item:hover::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+/* Accent indicator bar slides in on hover (ghosted) so navigation feels guided. */
+.sidebar-nav__item:hover::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: var(--r-pill);
+  background: var(--c-accent);
+  box-shadow: var(--shadow-accent);
+  opacity: 0.6;
+}
+
+.sidebar-nav__item.is-active {
+  background: var(--c-accent-glass);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  color: var(--c-accent);
+  box-shadow: var(--glass-highlight);
+}
+
+.sidebar-nav__item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: var(--r-pill);
+  background: var(--c-accent);
+  box-shadow: var(--shadow-accent);
+}
+
+.sidebar-nav__icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  transition: transform var(--transition);
+}
+.sidebar-nav__item:hover .sidebar-nav__icon {
+  transform: scale(1.18);
+}
+
+.sidebar-foot {
+  padding: var(--sp-md) var(--sp-lg) 0;
+  border-top: 1px solid var(--c-border);
+  margin: var(--sp-md) var(--sp-lg) 0;
+}
+
+.sidebar-foot__status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+}
+
+.zoom-reset {
+  display: block;
+  width: 100%;
+  margin-top: var(--sp-sm);
+  padding: 4px 0;
+  border: 1px dashed var(--c-border-strong);
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--c-accent);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+.zoom-reset:hover {
+  background: var(--c-accent-soft);
+  border-color: var(--c-accent);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--c-text-faint);
+}
+.status-dot.is-on {
+  background: var(--c-success);
+  box-shadow: 0 0 8px var(--c-success);
+  animation: pulse 2s infinite;
+}
+.status-dot.is-off {
+  background: var(--c-text-faint);
+}
+
+/* ============================================================
+   Top header
+   ============================================================ */
+
+.header {
+  /* Floating frosted title bar: it overlays the top of the scrolling content
+     (see .app-scroll's padding-top) so that, as content scrolls up, it passes
+     *under* the bar and is blurred by the backdrop-filter — the "content slides
+     under the header and softly blurs" feel. The tint fades to transparent at
+     the bar's bottom so the seam into the content stays soft (no hard line). */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  height: var(--header-h);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-xl);
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--c-bg) 28%, transparent) 0%,
+    transparent 100%
+  );
+  backdrop-filter: blur(18px) saturate(1.4) brightness(1.04);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4) brightness(1.04);
+  box-shadow: none;
+}
+
+.header__title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  /* Smooth color change when the theme flips. */
+  transition: color var(--transition-slow);
+  /* A short fade+slide each time the page title changes (keyed remount). */
+  animation: titleIn var(--transition-slow) ease-out;
+  transform-origin: left center;
+}
+
+@keyframes titleIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+
+/* ============================================================
+   Cards
+   ============================================================ */
+
+.card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-xl);
+  padding: var(--sp-lg);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-blur);
+  position: relative;
+  overflow: visible;
+  transition: transform var(--transition);
+  animation: cardIn 380ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--card-i, 0) * var(--stagger-step, 70ms));
+}
+.card:hover {
+  background: var(--glass-bg-strong);
+}
+
+/* Clickable card variant (e.g. plugin tiles) — pressed state. */
+.card--plugin {
   cursor: pointer;
 }
-
-button:hover {
-  background: #eef1f4;
+.card--plugin:active {
+  transform: scale(0.98);
 }
 
-pre {
-  background: #1f2328;
-  color: #d7dee8;
-  padding: 0.8rem 1rem;
-  border-radius: 8px;
-  overflow-x: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
+.card + .card {
+  margin-top: var(--sp-md);
 }
 
-code {
-  background: #e4e8ee;
-  padding: 0 0.25em;
-  border-radius: 4px;
+/* Plugin tiles are grid items, so the generic `.card + .card` top margin would
+   fight the grid's own gap and misalign the rows — cancel it inside the grid. */
+.plugin-grid > .card + .card {
+  margin-top: 0;
 }
 
-pre.error {
-  background: #3a1518;
-  color: #ffb3b8;
+.card__title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  text-shadow: var(--card-text-shadow);
+  letter-spacing: var(--ls-tight);
+  margin-bottom: var(--sp-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
 }
 
-ul {
-  padding-left: 1.2rem;
+.card__hint {
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-normal);
+  text-shadow: var(--card-text-shadow);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
-footer {
-  margin-top: 2.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid #c9ced6;
-  font-size: 0.85rem;
-  color: #57606a;
+.card__stripe {
+  width: 3px;
+  height: 14px;
+  border-radius: var(--r-pill);
+  background: var(--c-accent);
+  display: inline-block;
 }
 
-footer a {
-  color: #0969da;
-  text-decoration: none;
+.card__actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-sm);
 }
 
-footer a:hover {
+/* inline controls between the card title and its right-side actions */
+.card__toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  margin-left: auto;
+}
+
+/* Notice — one-line status message (tone maps to a status color) */
+.notice {
+  font-size: var(--fs-xs);
+  margin-bottom: var(--sp-sm);
+}
+.notice--error { color: var(--c-danger); }
+.notice--success { color: var(--c-success); }
+.notice--warning { color: var(--c-warning); }
+
+/* ============================================================
+   Toast — global message popups (antd-message style). The stack
+   is rendered once by <ToastContainer/>; pages only call toast.*.
+   ============================================================ */
+
+.toast-container {
+  position: fixed;
+  top: calc(var(--header-h) + var(--sp-md));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-xs);
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  max-width: min(560px, 80vw);
+  padding: 10px 16px;
+  border-radius: var(--r-md);
+  /* Frosted glass like every other floating surface, instead of a flat solid
+     slab — the toast hovers over content, so it should blur it. */
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--shadow-md);
+  font-size: var(--fs-sm);
+  color: var(--c-text);
+  cursor: pointer;
+  user-select: none;
+}
+.toast--entering {
+  animation: toast-in var(--transition-slow) ease forwards;
+}
+.toast--leaving {
+  animation: toast-out 200ms ease forwards;
+}
+
+.toast__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--c-info);
+}
+
+/* tone: dot + border tint carry the semantics */
+.toast--success { border-color: color-mix(in srgb, var(--c-success) 45%, transparent); }
+.toast--success .toast__dot { background: var(--c-success); }
+.toast--error { border-color: color-mix(in srgb, var(--c-danger) 45%, transparent); }
+.toast--error .toast__dot { background: var(--c-danger); }
+.toast--warning { border-color: color-mix(in srgb, var(--c-warning) 45%, transparent); }
+.toast--warning .toast__dot { background: var(--c-warning); }
+.toast--info { border-color: color-mix(in srgb, var(--c-info) 45%, transparent); }
+.toast--info .toast__dot { background: var(--c-info); }
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+}
+
+/* ============================================================
+   Status / hero panel
+   ============================================================ */
+
+/* Hero card layout — status ring on the left, status text on the
+   right, with room to breathe (the missing .hero rule made the
+   ring and text stack as bare blocks and feel cramped). */
+.hero {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xl);
+  padding: var(--sp-xl);
+}
+
+.hero__text {
+  min-width: 0;
+}
+
+/* Hero + config switcher share one row: the hero fills the space, the
+   switcher sizes to its content (capped so the hero keeps room). */
+.hero-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-md);
+}
+.hero-row > .card:first-child {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.hero-row > .card + .card {
+  /* cancel .card + .card's stack margin; the row gap handles spacing */
+  margin-top: 0;
+  flex: 0 1 auto;
+  min-width: 260px;
+  max-width: 44%;
+}
+/* Config chips wrap inside the narrower card instead of overflowing. */
+.hero-row .segmented {
+  flex-wrap: wrap;
+}
+@media (max-width: 720px) {
+  .hero-row {
+    flex-direction: column;
+  }
+  .hero-row > .card {
+    max-width: none;
+  }
+}
+
+.hero__ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+}
+
+.hero__ring .status-dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--c-success);
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 10px var(--c-success-soft), 0 0 26px var(--c-success);
+  animation: pulse 2.2s infinite;
+}
+.hero__ring.is-off .status-dot {
+  background: var(--c-text-faint);
+  box-shadow: 0 0 0 10px var(--c-border), 0 0 18px var(--c-shadow-dark);
+  animation: none;
+}
+
+.hero__label {
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+}
+
+.hero__name {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hero__meta {
+  display: flex;
+  gap: var(--sp-lg);
+  margin-top: var(--sp-sm);
+  color: var(--c-text-faint);
+  font-size: var(--fs-sm);
+}
+
+.hero__actions {
+  margin-left: auto;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: var(--sp-sm);
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+
+.btn {
+  height: var(--ctrl-height);
+  padding: 0 var(--ctrl-pad-x);
+  border-radius: var(--r-sm);
+  background: var(--c-surface-active);
+  color: var(--c-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  transition: background var(--transition), transform var(--transition),
+    box-shadow var(--transition);
+}
+.btn:hover {
+  background: var(--c-surface-hover);
+}
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn--primary {
+  background: linear-gradient(135deg, var(--c-accent), var(--c-accent-strong));
+  color: var(--c-text-on-accent);
+  box-shadow: var(--shadow-accent);
+}
+.btn--primary:hover {
+  filter: brightness(1.08);
+  background: linear-gradient(135deg, var(--c-accent), var(--c-accent-strong));
+}
+
+.btn--ghost {
+  background: transparent;
+  border: 1px solid var(--c-border-strong);
+}
+.btn--ghost:hover {
+  background: var(--c-surface-hover);
+}
+
+/* text-link style button: no box, just an inline link */
+.btn--link {
+  background: none;
+  border: none;
+  height: auto;
+  padding: 0;
+  color: var(--c-accent);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+.btn--link:hover {
+  background: none;
+  color: var(--c-accent-strong);
   text-decoration: underline;
 }
 
-@media (prefers-color-scheme: dark) {
-  body {
-    background: #14161a;
-    color: #e6e9ee;
-  }
+/* Danger variant of the link button (destructive actions like delete). */
+.btn--link-danger {
+  color: var(--c-danger);
+}
+.btn--link-danger:hover {
+  color: var(--c-danger);
+  text-decoration: underline;
+}
 
-  button {
-    background: #23262d;
-    border-color: #3a3f48;
-    color: #e6e9ee;
-  }
+.btn--danger {
+  background: color-mix(in srgb, var(--c-danger) 24%, var(--ctrl-bg));
+  color: var(--c-danger);
+  border: 1px solid color-mix(in srgb, var(--c-danger) 50%, transparent);
+}
+.btn--danger:hover {
+  background: var(--c-danger);
+  color: var(--c-text-on-accent);
+}
 
-  button:hover {
-    background: #2c3038;
-  }
+.btn--sm {
+  height: 30px;
+  padding: 0 12px;
+  font-size: var(--fs-xs);
+}
 
-  code {
-    background: #23262d;
-  }
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
 
-  footer {
-    border-top-color: #3a3f48;
-    color: #8b949e;
-  }
+/* ============================================================
+   Form controls
+   ============================================================ */
 
-  footer a {
-    color: #58a6ff;
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  margin-bottom: var(--sp-md);
+}
+
+/* inline field used inside plugin cards */
+.set-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+  padding: var(--sp-sm) 0;
+  border-top: 1px solid var(--c-border);
+}
+.set-field:first-child {
+  border-top: none;
+}
+
+.range {
+  appearance: none;
+  height: 6px;
+  border-radius: var(--r-pill);
+  /* Filled track: the elapsed portion (up to --fill, written by the Range
+     component from value/min/max) reads in the accent; the rest stays dim.
+     Without --fill (uncontrolled use) it falls back to a 50% split, matching
+     the native default thumb position. */
+  background: linear-gradient(
+    to right,
+    var(--c-accent) 0%,
+    var(--c-accent) var(--fill, 50%),
+    var(--c-border-strong) var(--fill, 50%)
+  );
+  background-clip: content-box;
+  padding: 2px 0;
+  cursor: pointer;
+  width: 100%;
+}
+.range::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  border: none;
+  box-shadow: var(--shadow-accent);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.range::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+  box-shadow: var(--shadow-accent), 0 0 0 4px var(--c-accent-soft);
+}
+
+.field__label {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  font-weight: var(--fw-medium);
+}
+
+.field__desc {
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+}
+
+/* Setting row slider: a fixed-width knob with a numeric value badge — instead
+   of a full-width slider stretched across the whole row. */
+.range.slider {
+  width: 180px;
+  flex-shrink: 0;
+}
+.value-badge {
+  min-width: 40px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--c-bg-elevated);
+  border: 1px solid var(--c-border);
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--transition);
+}
+.value-badge:hover {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 2px var(--c-accent-soft);
+}
+
+.input,
+.select {
+  height: var(--ctrl-height);
+  padding: 0 var(--ctrl-pad-x);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-border-strong);
+  background: var(--ctrl-bg);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.input:hover,
+.select:hover {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 2px var(--c-accent-soft);
+}
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
+}
+
+/* Hide the native number-input spinners (up/down triangles) — they clash
+   with the glass UI; numeric values are typed or set by the control. */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--c-text-muted) 50%),
+    linear-gradient(135deg, var(--c-text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+  cursor: pointer;
+}
+
+/* small variant for inline toolbar use (card title rows, filters) */
+.select--sm {
+  height: 26px;
+  padding: 0 22px 0 8px;
+  font-size: var(--fs-xs);
+  background-position: calc(100% - 12px) 50%, calc(100% - 8px) 50%;
+  background-size: 4px 4px;
+}
+
+.select option {
+  background: var(--c-bg-elevated);
+  color: var(--c-text);
+}
+
+/* ============================================================
+   Select — custom JS dropdown (components/ui.jsx). The trigger
+   is a <button>; the menu is portal-rendered plain DOM, so every
+   rule here applies (no native <option> popup to fight) and long
+   lists scroll inside .dropdown-menu.
+   ============================================================ */
+
+.dropdown-wrap {
+  display: inline-block;
+}
+
+.dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: var(--ctrl-height);
+  line-height: var(--ctrl-height);
+  padding: 0 calc(var(--ctrl-pad-x) + 14px) 0 var(--ctrl-pad-x);
+  min-width: 150px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--c-border-strong);
+  background: var(--ctrl-bg);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.dropdown:hover:not(:disabled) {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 2px var(--c-accent-soft);
+}
+.dropdown:focus-visible {
+  outline: none;
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 3px var(--c-accent-soft);
+}
+.dropdown:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Chevron — pure CSS, rotates when open. */
+.dropdown::after {
+  content: '';
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--c-text-muted);
+  border-bottom: 2px solid var(--c-text-muted);
+  transform: translateY(-65%) rotate(45deg);
+  transition: transform var(--transition);
+  pointer-events: none;
+}
+.dropdown.is-open::after {
+  transform: translateY(-35%) rotate(225deg);
+}
+
+.dropdown__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Compact variant for card toolbar rows (log filters). */
+.dropdown.sm {
+  height: 26px;
+  line-height: 26px;
+  padding: 0 24px 0 8px;
+  min-width: 96px;
+  font-size: var(--fs-xs);
+}
+.dropdown.sm::after {
+  right: 8px;
+  width: 5px;
+  height: 5px;
+}
+
+/* Popup menu — portal-rendered into <body> at fixed viewport
+   coordinates from the trigger (position set inline). Grows with
+   its content up to a cap and scrolls when the list is long. */
+.dropdown-menu {
+  position: fixed;
+  z-index: 90;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 24px));
+  max-height: 280px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--c-bg-elevated);
+  border: 1px solid var(--c-accent-glass);
+  border-radius: var(--r-md);
+  box-shadow: var(--glass-highlight), var(--shadow-lg), var(--shadow-accent);
+  padding: 4px;
+  transform-origin: top;
+  animation: dropdownIn 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dropdown-menu__item {
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition), color var(--transition);
+}
+.dropdown-menu__item.is-highlight {
+  background: var(--c-accent-soft);
+  color: var(--c-accent);
+}
+.dropdown-menu__item.is-selected {
+  background: var(--c-accent-glass);
+  color: var(--c-accent);
+  font-weight: var(--fw-medium);
+}
+.dropdown-menu__empty {
+  padding: 7px 10px;
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  cursor: default;
+}
+
+/* Compact menu paired with the sm trigger. */
+.dropdown-menu--sm {
+  max-height: 240px;
+}
+.dropdown-menu--sm .dropdown-menu__item,
+.dropdown-menu--sm .dropdown-menu__empty {
+  padding: 5px 8px;
+  font-size: var(--fs-xs);
+}
+
+/* Opens upward (trigger near the viewport bottom). */
+.dropdown-menu--up {
+  transform-origin: bottom;
+  animation-name: dropdownInUp;
+}
+
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes dropdownInUp {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Colour swatch pickers (settings → design tokens). */
+.swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+  margin-top: 4px;
+}
+.swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+}
+.swatch input[type='color'] {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-sm);
+  background: none;
+  cursor: pointer;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.swatch input[type='color']:hover {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 2px var(--c-accent-soft);
+}
+.swatch input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.swatch input[type='color']::-webkit-color-swatch {
+  border: none;
+  border-radius: var(--r-sm);
+}
+
+/* Toggle switch */
+.toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-active);
+  border: 1px solid var(--c-border-strong);
+  transition: background var(--transition), border-color var(--transition),
+    box-shadow var(--transition);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.toggle:hover {
+  box-shadow: 0 0 0 2px var(--c-accent-soft);
+}
+.toggle__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--c-text-muted);
+  transition: transform var(--transition-slow), background var(--transition);
+}
+.toggle.is-on {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+}
+.toggle.is-on .toggle__knob {
+  transform: translateX(20px);
+  background: var(--c-text-on-accent);
+}
+
+/* Segmented control — translucent glass tray (not a solid dark slab) so it
+   sits on the glass card like the rest of the UI. */
+.segmented {
+  display: inline-flex;
+  background: var(--ctrl-bg);
+  border: 1px solid var(--c-border-strong);
+  border-radius: var(--r-sm);
+  padding: 4px;
+  gap: 4px;
+}
+.segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-xs);
+  color: var(--c-text);
+  font-weight: var(--fw-medium);
+  transition: background var(--transition), color var(--transition),
+    box-shadow var(--transition);
+  position: relative;
+}
+.segmented button:hover {
+  color: var(--c-accent);
+  background: var(--c-accent-soft);
+}
+/* Active option uses the primary-button language (accent fill + on-accent
+   text + glow) so the current config clearly pops off the glass card. */
+.segmented button.is-active {
+  background: linear-gradient(135deg, var(--c-accent), var(--c-accent-strong));
+  color: var(--c-text-on-accent);
+  box-shadow: var(--shadow-accent);
+}
+.segmented button.is-active:hover {
+  background: linear-gradient(135deg, var(--c-accent), var(--c-accent-strong));
+  color: var(--c-text-on-accent);
+}
+
+/* ============================================================
+   Rows / settings lists
+   ============================================================ */
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  padding: var(--sp-sm) 0;
+}
+.setting-row + .setting-row {
+  border-top: 1px solid var(--c-border);
+}
+
+.setting-row__label {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+.setting-row__desc {
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+  margin-top: 2px;
+  max-width: 520px;
+}
+
+.setting-row__control {
+  /* Uniform control column: fixed width, content flush right at the card
+     edge (like the plain space-between layout), and the slider / segmented
+     controls below stretch to fill it — so every row's control has the same
+     footprint and both edges line up. */
+  flex: 0 0 240px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-xs);
+}
+/* Fill the column: slider rows (badge + slider) and segmented rows end up
+   with the same width, so the right side reads as one aligned block. */
+.setting-row__control > .range.slider,
+.setting-row__control > .segmented {
+  flex: 1 1 0;
+  width: 100%;
+  min-width: 0;
+}
+.setting-row__control > .segmented button {
+  flex: 1 1 0;
+}
+
+/* ============================================================
+   Plugin cards
+   ============================================================ */
+
+.plugin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--sp-md);
+}
+
+/* ============================================================
+   Background picker (settings)
+   ============================================================ */
+
+.bg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--sp-sm);
+}
+
+.bg-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.bg-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--glass-highlight), var(--glass-shadow);
+}
+.bg-tile.is-current {
+  border-color: var(--c-accent);
+  box-shadow: 0 0 0 2px var(--c-accent-glass);
+}
+.bg-tile.is-applying {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.bg-tile img {
+  width: 100%;
+  aspect-ratio: 16/10;
+  object-fit: cover;
+  display: block;
+}
+.bg-tile__ph {
+  aspect-ratio: 16/10;
+  display: grid;
+  place-items: center;
+  color: var(--c-text-faint);
+  background: var(--c-bg-elevated);
+}
+.bg-tile__name {
+  font-size: var(--fs-xs);
+  padding: 0 8px 6px;
+  color: var(--c-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bg-tile__check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: var(--fs-xs);
+  color: var(--c-text-on-accent);
+  background: var(--c-accent);
+  border-radius: var(--r-pill);
+  padding: 1px 7px;
+}
+
+/* Reveal-the-file-in-Explorer button: floats top-left, appears on hover.
+   A span because the tile itself is a <button>. */
+.bg-tile__reveal {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-xs);
+  color: var(--c-text-faint);
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition), background var(--transition);
+  cursor: pointer;
+}
+.bg-tile:hover .bg-tile__reveal,
+.bg-tile__reveal:hover {
+  opacity: 1;
+}
+.bg-tile__reveal:hover {
+  color: var(--c-accent);
+  background: var(--c-accent-glass);
+}
+
+/* Theme-mode picker: three preview tiles (reusing the bg-tile language) so
+   the light/dark mode switch is its own distinct control — not another
+   segmented bar. Each tile shows a mini wireframe of the app shell (sidebar +
+   content lines) in that mode's palette. */
+.theme-mode-grid {
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  max-width: 420px;
+}
+.theme-mode-grid .bg-tile__ph {
+  display: flex;
+  overflow: hidden;
+  padding: 0;
+  background: transparent;
+  /* explicit preview height — aspect-ratio didn't resolve reliably inside
+     the flex tile, leaving the mock ~31px tall in a ~97px box */
+  height: 96px;
+}
+.theme-mode__ph > .theme-mode-mock {
+  flex: 1 1 50%;
+  min-width: 0;
+}
+.theme-mode-mock {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  overflow: hidden;
+  height: 100%; /* fill the preview box, not just its content */
+  background: var(--mock-bg);
+}
+.theme-mode-mock--light {
+  --mock-bg: #eef1f7;
+  --mock-sidebar: #dce3ef;
+  --mock-line: rgba(20, 28, 40, 0.16);
+  --mock-card: #ffffff;
+  --mock-card-border: rgba(20, 28, 40, 0.1);
+}
+.theme-mode-mock--dark {
+  --mock-bg: #0d0f14;
+  --mock-sidebar: #181d28;
+  --mock-line: rgba(255, 255, 255, 0.16);
+  --mock-card: #1a2030;
+  --mock-card-border: rgba(255, 255, 255, 0.09);
+}
+.theme-mode-mock__sidebar {
+  flex-shrink: 0;
+  width: 16%;
+  border-radius: 2px;
+  background: var(--mock-sidebar);
+}
+.theme-mode-mock__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.theme-mode-mock__bar {
+  height: 5px;
+  border-radius: 2px;
+  background: var(--mock-sidebar);
+  margin-bottom: 2px;
+}
+.theme-mode-mock__line {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--mock-line);
+}
+.theme-mode-mock__line--short {
+  width: 50%;
+}
+.theme-mode-mock__card {
+  flex: 1;
+  margin-top: 2px;
+  border-radius: 3px;
+  background: var(--mock-card);
+  border: 1px solid var(--mock-card-border);
+}
+
+/* .plugin is now an inner content block; the glass "card" styling lives on the
+   wrapping .card (see PluginCard.jsx). So .plugin carries no background, border,
+   padding, hover or entrance animation of its own — just internal layout. */
+.plugin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+.plugin.is-disabled {
+  opacity: 0.6;
+}
+
+.plugin__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+}
+
+.plugin__name {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-md);
+}
+.plugin__name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Status dot next to the plugin name — green when enabled in the current
+   config, gray when disabled. A lighter-weight alternative to a pill chip. */
+.plugin__dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-success);
+  box-shadow: 0 0 6px var(--c-success);
+}
+.plugin__dot.is-off {
+  background: var(--c-text-faint);
+  box-shadow: none;
+}
+
+/* Description sits in the header row between the title and the version pill,
+   truncating with an ellipsis when it doesn't fit. */
+.plugin__desc {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+}
+
+.plugin__version {
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+  color: var(--c-info);
+  background: var(--c-info-soft);
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  display: inline-block;
+}
+
+/* Version pill + "reveal in Explorer" button, grouped at the head's right. */
+.plugin__head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.plugin__reveal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-xs);
+  color: var(--c-text-faint);
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+}
+.plugin__reveal:hover {
+  color: var(--c-accent);
+  background: var(--c-accent-soft);
+}
+
+/* Current-parameter overview on the tile — a compact preview, not the full
+   editor (that lives in the parameter-config modal). */
+.plugin__params {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-top: 1px solid var(--c-border);
+  padding-top: var(--sp-sm);
+}
+.plugin__param {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  min-width: 0;
+}
+/* Label block: the short param name on top, the (possibly long) description
+   as a truncated second line underneath; both ellipsize, full text in the
+   tooltip. */
+.plugin__param-label {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.plugin__param-name {
+  color: var(--c-text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plugin__param-desc {
+  color: var(--c-text-faint);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plugin__param-value {
+  flex-shrink: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--c-text);
+}
+.plugin__param-more {
+  color: var(--c-text-faint);
+  font-size: var(--fs-xs);
+}
+
+.plugin__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.plugin__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ============================================================
+   Process monitor
+   ============================================================ */
+
+.process-table {
+  width: 100%;
+  border-collapse: collapse;
+  /* Fixed layout: column widths come from the header row (config 30%,
+     delete 48px, path takes the rest), so a long unbroken exe path can no
+     longer stretch its column and push the other columns out of the card.
+     In auto layout the column width follows the content's min-content
+     width (a path has no spaces, so it is the full string width) and the
+     span's ellipsis is purely visual — the column still eats the space. */
+  table-layout: fixed;
+}
+
+.process-table th {
+  text-align: left;
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: var(--sp-xs) var(--sp-sm);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.process-table td {
+  /* Compact rows: tighter vertical padding than the default so the rules
+     list reads as a dense table, not a stack of form rows. */
+  padding: var(--sp-xs) var(--sp-sm);
+  border-bottom: 1px solid var(--c-border);
+  font-size: var(--fs-sm);
+  vertical-align: middle;
+}
+
+.process-table tbody tr:hover {
+  /* Soft accent tint — matches the app-wide hover language (menu items,
+     segmented, sidebar). A solid surface color reads as a big black slab
+     over the glass card, so rows get the subtle tint instead. */
+  background: var(--c-accent-soft);
+  transition: background var(--transition);
+}
+
+.process-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  padding: 4px 10px;
+  background: var(--c-bg-elevated);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--c-border);
+  max-width: 100%;
+}
+
+/* The monitored exe path in the rules table — plain text label, no box.
+   A bordered pill with a solid background reads as a (disabled) input,
+   which this isn't; hover shows the full path in the tooltip.
+   width:100% (not max-width) pins the span to the fixed-layout column width
+   even while its content is shorter, so JS can read a STABLE available
+   width (getBoundingClientRect) without the measurement disturbing layout. */
+.process-path {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--c-text);
+}
+
+/* Row delete: link-style icon button (no box), muted until hover, then the
+   app's danger language (same as the config delete badge). */
+.rule-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 4px;
+  border-radius: var(--r-xs);
+  color: var(--c-text-faint);
+  transition: color var(--transition), background var(--transition);
+}
+.rule-delete:hover {
+  color: var(--c-danger);
+  background: var(--c-danger-soft);
+  text-decoration: none;
+}
+
+/* Narrow delete column: keep the icon centered. */
+.process-table__del {
+  text-align: center;
+}
+
+/* ============================================================
+   Log console
+   ============================================================ */
+
+.log-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-xs);
+}
+
+.log-console {
+  /* Fixed dark terminal well — never changes with theme so log colors stay
+     consistent. Noise overlay via has-noise. */
+  position: relative;
+  overflow: hidden;
+  background: #12151c;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--r-md);
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: 1.6;
+  height: 320px;
+  overflow-y: auto;
+  padding: var(--sp-sm);
+  user-select: text;   /* the app disables selection globally; logs must stay copyable */
+  cursor: text;
+}
+.log-console ::selection {
+  background: rgba(94, 166, 255, 0.35);
+  color: inherit;
+}
+.log-console::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--noise-svg);
+  background-size: 180px 180px;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.3;
+}
+.log-console > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Newest line fades in. Only :last-child animates: the selector starts
+   matching the freshly-appended node (and stops matching the previous one),
+   so a ring-buffer trim never replays the animation on the whole list. */
+.log-line:last-child {
+  animation: logLineIn 240ms ease-out;
+}
+@keyframes logLineIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.log-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-xs);
+  color: var(--c-text-muted);
+}
+.log-line.is-info {
+  color: var(--c-success);
+}
+.log-line.is-warn {
+  color: var(--c-warning);
+}
+.log-line.is-error {
+  color: var(--c-danger);
+}
+
+/* expand chevron: real element (the old ::before could not be clicked) */
+.log-line__chevron {
+  flex-shrink: 0;
+  width: 14px;
+  text-align: center;
+  color: var(--c-accent);
+  opacity: 0.7;
+  cursor: pointer;
+  user-select: none;
+  transition: transform var(--transition), color var(--transition), background var(--transition);
+}
+.log-line.is-open .log-line__chevron {
+  /* stays inline at the start of the panel; made more prominent with a
+     round accent-tinted backdrop so the collapse affordance is obvious */
+  transform: rotate(90deg);
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--c-accent-soft);
+  color: var(--c-accent);
+  opacity: 1;
+  font-size: 13px;
+  font-weight: var(--fw-bold);
+}
+.log-line.is-open .log-line__chevron:hover {
+  background: var(--c-accent);
+  color: var(--c-text-on-accent);
+}
+
+/* labeled meta row: level / time / tag, always one line */
+.log-line__meta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+/* level badge: color carries the semantics, no text label needed */
+.log-level-chip {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-weight: var(--fw-medium);
+  line-height: 1.5;
+}
+.log-level-chip--info {
+  background: var(--c-success-soft);
+  color: var(--c-success);
+}
+.log-level-chip--warn {
+  background: var(--c-warning-soft);
+  color: var(--c-warning);
+}
+.log-level-chip--error {
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+}
+
+.log-line__time {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+}
+
+/* relative age ("刚刚 / N 分钟前") — accent-tinted so it reads separately
+   from the absolute timestamp that follows it */
+.log-line__time-rel {
+  color: var(--c-info);
+  font-weight: var(--fw-medium);
+}
+
+.log-line__tag {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  background: var(--c-bg-elevated);
+  color: var(--c-text-muted);
+  border: 1px solid var(--c-border);
+}
+
+/* collapsed: single ellipsized line; expanded: panel-like block with a
+   level-colored left bar so the open region stands out */
+.log-line__text {
+  flex: 1 1 0;          /* take all remaining width, shrinkable for ellipsis */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.log-line.is-open {
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  padding: 6px 10px;
+  margin: 2px 0;
+  background: var(--c-bg-elevated);
+  border: 1px solid var(--c-border);
+  border-left: 3px solid var(--c-accent);
+  border-radius: var(--r-sm);
+  align-items: center;
+}
+.log-line.is-open.is-info {
+  border-left-color: var(--c-success);
+}
+.log-line.is-open.is-warn {
+  border-left-color: var(--c-warning);
+}
+.log-line.is-open.is-error {
+  border-left-color: var(--c-danger);
+}
+.log-line.is-open .log-line__text {
+  flex-basis: 100%;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow: visible;
+}
+
+/* ============================================================
+   Tags / chips
+   ============================================================ */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  background: var(--c-info-soft);
+  color: var(--c-info);
+  transition: filter var(--transition);
+}
+.chip:hover {
+  box-shadow: 0 0 0 2px var(--c-accent-soft);
+}
+.chip--success {
+  background: var(--c-success-soft);
+  color: var(--c-success);
+}
+.chip--danger {
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+}
+.chip--warning {
+  background: var(--c-warning-soft);
+  color: var(--c-warning);
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--c-overlay);
+  backdrop-filter: blur(6px) saturate(0.8);
+  -webkit-backdrop-filter: blur(6px) saturate(0.8);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  -webkit-app-region: no-drag;
+  animation: overlayIn 200ms ease both;
+}
+.modal-overlay--closing {
+  animation: overlayOut 200ms ease forwards;
+}
+
+.modal {
+  width: 420px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-xl);
+  padding: var(--sp-lg);
+  box-shadow: var(--glass-highlight), var(--shadow-lg);
+  animation: modalIn 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.modal--closing {
+  animation: modalOut 200ms ease forwards;
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes overlayOut {
+  to { opacity: 0; }
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes modalOut {
+  to { opacity: 0; transform: translateY(12px) scale(0.96); }
+}
+
+.modal__title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  margin-bottom: var(--sp-sm);
+}
+
+.modal__body {
+  margin-bottom: var(--sp-lg);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-sm);
+}
+
+.empty {
+  text-align: center;
+  color: var(--c-text-faint);
+  padding: var(--sp-xl);
+  font-size: var(--fs-sm);
+}
+
+.page-title {
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-tight);
+  margin-bottom: var(--sp-md);
+}
+
+.page-sub {
+  color: var(--c-text-muted);
+  font-size: var(--fs-sm);
+  margin-bottom: var(--sp-xl);
+}
+
+.section-gap {
+  height: var(--sp-md);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
   }
 }
+
+/* ==== entrance animations (tasteful; play once, not on scroll) ====
+   The whole-page "rise together" effect was removed on purpose: it felt flat
+   and uniform. Instead each .card animates on its own (see the .card rule) and,
+   where a page shows several cards, they enter one after another via the
+   --card-i stagger index (set per card in JSX). */
+
+/* Fade + gentle rise used by .card. */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Reduced motion: kill ALL animation/transition, not just the card entrance —
+   modals, toasts, the header-title slide and the status pulse included. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   Tooltip (reusable hover bubble; see components/Tooltip.jsx)
+   ============================================================ */
+
+.tooltip {
+  position: relative;
+  display: inline-flex;
+}
+
+.tooltip__bubble {
+  position: absolute;
+  z-index: 60;
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  background: var(--c-bg-elevated);
+  color: var(--c-text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--shadow-md);
+  opacity: 0;
+  visibility: hidden;
+  scale: 0.96;
+  transform-origin: var(--tooltip-origin, center);
+  transition: opacity var(--transition), visibility var(--transition), scale var(--transition);
+  pointer-events: none;
+}
+
+.tooltip__bubble.is-open {
+  opacity: 1;
+  visibility: visible;
+  scale: 1;
+}
+
+/* Drop-down placement per data-side on the trigger wrapper. */
+.tooltip[data-side='right'] .tooltip__bubble {
+  left: calc(100% + 10px);
+  top: 50%;
+  translate: 0 -50%;
+  --tooltip-origin: left center;
+}
+.tooltip[data-side='left'] .tooltip__bubble {
+  right: calc(100% + 10px);
+  top: 50%;
+  translate: 0 -50%;
+  --tooltip-origin: right center;
+}
+.tooltip[data-side='top'] .tooltip__bubble {
+  bottom: calc(100% + 8px);
+  left: 50%;
+  translate: -50% 0;
+  --tooltip-origin: center bottom;
+}
+.tooltip[data-side='bottom'] .tooltip__bubble {
+  top: calc(100% + 8px);
+  left: 50%;
+  translate: -50% 0;
+  --tooltip-origin: center top;
+}
+
+@media (max-width: 720px) {
+  .sidebar {
+    /* the sidebar already transitions its --sidebar-w; wider→collapsed is smooth */
+    width: var(--sidebar-w-collapsed);
+    /* Lift the whole sidebar (and the icon tooltips inside it) above .app-main,
+       which shares .app > * { z-index:1 } — otherwise the tooltip bubble is
+       drawn under the content that comes later in the DOM. */
+    z-index: 50;
+  }
+
+  /* Brand subtitle/name and nav LABELS fade out (not the .sidebar-nav__icon,
+     which must stay visible when collapsed — that is the whole point). */
+  .sidebar-brand__text,
+  .sidebar-nav__label,
+  .sidebar-foot {
+    max-width: 0;
+    opacity: 0;
+    visibility: hidden;
+    overflow: hidden;
+    transition: max-width var(--transition-slow), opacity var(--transition-slow),
+      visibility var(--transition-slow);
+  }
+
+  /* Keep the icon centered-ish when the text vanishes. */
+  .sidebar-nav__item {
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+    color: var(--c-text);
+  }
+  .sidebar-nav__item:hover::after {
+    background: var(--glass-bg-strong);
+  }
+
+  /* The label tooltip is now a reusable <Tooltip> component (Tooltip.jsx). */
+
+  /* Brand dot row centers when text is hidden. */
+  .sidebar-brand {
+    justify-content: center;
+    padding: 0 0 var(--sp-lg);
+  }
+
+  .app-content {
+    padding: var(--sp-lg);
+  }
+}
+
+/* Smoothly widen/expand when leaving the narrow range. */
+.sidebar-brand__text,
+.sidebar-nav__label,
+.sidebar-foot {
+  transition: max-width var(--transition-slow), opacity var(--transition-slow),
+    visibility var(--transition-slow);
+}
+
+
+

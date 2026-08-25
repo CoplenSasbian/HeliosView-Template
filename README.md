@@ -1,265 +1,179 @@
-# HeliosView App Template
+# GameTrigger — 进程触发与监控
 
-> **Repo layout:** this template lives in the **`template/react-js`** branch.
-> The `master` branch holds only a template index (React = `template/react-js`,
-> Vue = `template/vue-js`, …). Get this template with:
-> `git clone --recursive -b template/react-js https://github.com/CoplenSasbian/HeliosView-Template.git`
+> 一个 Windows 桌面小工具：**监控某个进程（例如游戏）的启动与退出，并自动执行一组动作**。
+> 基于 [HeliosView](https://github.com/CoplenSasbian/HeliosView)（C++ / WebView2 + 原生 ⇄ JS 桥）与
+> **React + Vite** 前端实现。
 
-This is the **React** template in the HeliosView template family. Its sibling
-templates — `template/vue-js` (Vue 3) and `template/vanilla-js` (no framework)
-— share the same C++ backend and scripts; only the checked-in `frontend/`
-differs, so pick the branch whose frontend you want and keep the C++ side
-identical. You can also re-scaffold the frontend to any other framework with
-`scripts/setup`.
-
-Built on the **HeliosView** C++ library (WebView2 + native ⇄ JS bridge):
-<https://github.com/CoplenSasbian/HeliosView>
-
-A ready-to-hack-on starting point for a **HeliosView** desktop app: one C++
-window with an embedded WebView (WebView2) + a **React** web frontend (Vite).
-Fork it and start building — the plumbing is already wired up:
+当你想给游戏加“进入时切换高性能电源方案 + 开启 HDR + 关闭粘滞键”，退出时再把一切还原，
+GameTrigger 就是干这个的：配好规则后它一直在后台监控进程，命中就自动切换。
 
 ```
 ┌────────────────────────── C++ ──────────────────────────┐
 │  main()                                                  │
 │    AppContext    UI loop (helios::App)                   │
 │    MainWindow    : helios::WebViewWindow (WebView2)      │
-│        │  window.helios.call('appInfo', {}) → Promise    │
+│      ProcessMonitor   exe → config 自动切换              │
+│      PluginManager    动态加载插件 DLL 并执行            │
+│        │  window.helios.call('config_get') → Promise     │
 │        ▼                                                 │
 └──── frontend (React + Vite) ───────────────────────────┘
      dev : vite dev server on :5173   (HMR)
-     prod: built assets served from exe-dir/assets/ via https://app.local/
+     prod: built assets served from appRoot/assets/ via https://app.local/
 ```
 
-## Prerequisites
+## 核心概念
 
-| tool      | needed for                  |
-| --------- | --------------------------- |
-| CMake ≥ 4.3 | the C++ build (see below) |
-| C++23 compiler | MSVC (Windows) or Clang/GCC |
-| ninja     | the C++ build on macOS/Linux (Windows falls back to Visual Studio) |
-| Node.js ≥ 20 | the frontend (Vite)      |
+**配置（Config）** 是触发动作的载体。每个配置保存一份“每个插件各自参数值”的设置，
+切换配置即触发该配置内所有已启用插件的 `execute()`，立即生效。自带一个内置配置
+`close`（不启用任何动作），用于“还原”状态——比如进程退出后自动切回。
 
-The HeliosView library is a **git submodule** (`HeliosView/`) tracking the
-**master** branch (no release tag is published yet — the v1.0.0 tag is one
-commit behind master, and that commit only touches the CMake submodule
-bootstrap, so the code is identical), including its own dependencies (stdexec
-+ nlohmann/json + the Boost superproject as nested submodules, WebView2 SDK
-pulled from NuGet at configure time) — no vcpkg/conan. `git clone --recursive`
-fetches it all.
+**进程自动切换（Process auto-switch）**：维护一组 `exe → 配置` 规则。某个被监控的进程
+启动时，自动切换到对应配置；最后一个被监控的进程退出时，自动回到 `close`。也可在托盘
+或主页手动切换。
 
-> **Auto-configure:** a fresh clone builds out of the box. `CMakeLists.txt`
-> runs `ensure-submodule.cmake`, which initializes any missing submodules at
-> configure time — the HeliosView submodule and then its own nested ones
-> (stdexec + json). You don't have to run `git submodule update` by hand:
->
-> ```bat
-> git submodule update --init -- HeliosView              REM HeliosView/
-> git -C HeliosView submodule update --init              REM stdexec + json
-> ```
->
-> This stays one level deep (it never recurses into the Boost superproject's
-> ~160 libraries). HeliosView's own `cmake/ensure-submodule.cmake` then
-> initializes just the Boost libs it needs (each `--depth 1`) at configure
-> time.
+## 功能特性
 
-## Platforms
+- **配置系统**：可创建/删除/复制多套配置，插件参数按配置分别保存；内置 `close` 关闭态。
+- **插件（动态 DLL）**：每个插件声明自己的参数（int / double / string / bool / 文件 / 目录 /
+  下拉选择等），前端按元数据自动生成表单：
+  - **HDR 插件** — 切换 HDR（原生 DisplayConfig API / Win11 24H2+ `SET_HDR_STATE`，兜底 `Win+Alt+B`）
+  - **NVIDIA 数字振动插件** — 自动调节 NVIDIA 数字振动（Digital Vibrance）
+  - **电源方案插件** — 切换 Windows 电源方案（枚举本机所有方案，下拉选择）
+  - **运行脚本插件** — 激活配置时执行脚本/程序（`bat` / `ps1` / `vbs` / `exe`）
+  - **粘滞键插件** — 屏蔽/恢复粘滞键（临时屏蔽、退出自动还原用户原设置）
+- **毛玻璃外观与个性化**：iOS 风格磨砂玻璃 + 多色极光背景；支持 Bing 每日壁纸 / 本地背景
+  图库 / 纯色背景；根据背景亮度自动切换深浅主题；设计面板可调**主题色、模糊、圆角、字号、密度**。
+- **系统托盘**：打开主界面、切换配置、开机启动（任务计划程序）、进程监控开关、退出。
+- **进程监控**：后台 watch 指定 exe，启动/退出自动切换配置。
+- **应用内日志控制台**：日志实时刷新到前端，可过滤（时间/来源/级别）。
+- 单实例守护、开机自启（Task Scheduler，非注册表）、窗口位置/尺寸记忆。
 
-| | Windows | macOS / Linux |
-| --- | --- | --- |
-| scripts | `scripts/*.cmd` (pure cmd batch — no PowerShell, no execution policy involved) | not shipped yet — Windows-only for now |
-| C++ backend | Win32 + WebView2 | not shipped yet — the library only has a Win32 backend today |
+## 界面
 
-The scripts are Windows-only for now. The frontend tooling (dev server,
-`vite build`) works on any OS, and the C++ side builds as soon as HeliosView
-gains non-Windows backends — the `*.sh` variants will come back then.
+- **主页** — 当前状态、一键切换配置、日志控制台。
+- **插件** — 插件列表 + 配置管理（创建/删除），按配置编辑各插件参数。
+- **进程监控** — 维护 `exe → 配置` 的自动切换规则。
+- **应用设置** — 常规行为（开机启动、托盘弹窗位置）与背景/主题/设计面板。
 
-## Getting started
+## 构建
 
-A React frontend (and the HeliosView submodule) is checked in, so the very
-first run needs nothing but the two commands below. Configure-time
-`ensure-submodule.cmake` fetches the library automatically. `npm install` only
-runs the first time (the scripts do it automatically).
+### 前置依赖
+
+| 工具 | 用途 |
+| --- | --- |
+| CMake ≥ 4.3 | C++ 构建 |
+| C++23 编译器 | MSVC（Windows）或 Clang/GCC |
+| ninja | C++ 构建（Windows 回退到 Visual Studio 生成器） |
+| Node.js ≥ 20 | 前端（Vite） |
+
+HeliosView 库是 **git 子模块**（`HeliosView/`，跟踪 master 分支），含其自身依赖
+（stdexec + nlohmann/json + Boost 超级项目子模块，WebView2 SDK 在配置时从 NuGet 拉取），
+无需 vcpkg/conan。
+
+> **自动配置**：全新 clone 可直接构建。`CMakeLists.txt` 在 configure 时运行
+> `ensure-submodule.cmake`，自动初始化缺失的子模块（HeliosView → 其内层 stdexec + json →
+> HeliosView 需要的少数 Boost 库，各 `--depth 1`），无需手动 `git submodule update` 来回递归。
+
+### Windows
 
 ```bat
-REM Windows:
-REM 1a. Develop (C++ + Vite dev server with HMR)
+REM 1a. 开发（C++ + Vite 开发服务器，带 HMR）
 scripts\dev.cmd
 
-REM 1b. Build for distribution (C++ + compiled frontend)
+REM 1b. 打发布包（C++ + 编译后的前端）
 scripts\build.cmd
-dist\bin\HeliosViewApp.exe
+dist\bin\GameTrigger.exe
 ```
 
-### Switching the frontend framework (React, Svelte, ...)
+- **Dev 模式（默认）**：前端走 `vite dev --port 5173 --strictPort`（HMR），C++ 导航到
+  `http://localhost:5173`。
+- **Prod 模式**（`build.cmd` 自动切到 `-DHELIOSVIEW_TEMPLATE_DEV=OFF`）：`vite build` 输出
+  拷到应用根目录的 `assets\`（即 exe 所在 `bin\` 的上一级，如 `dist\bin\GameTrigger.exe` →
+  `dist\assets\`），通过 WebView2 虚拟主机 `https://app.local/` 加载（`file://`
+  无法服务 Vite 的 ES-module 产物）。`dist\` 由 `cmake --install` 组装，只含运行所需文件，
+  整目录可直接分发。
 
-The frontend is a plain Vite project, so you can re-scaffold it with any
-official template (react, vue, svelte, solid, preact, lit, vanilla — JS or TS):
+CLion / IDE 开发流程：终端跑 `scripts\vite.cmd` 起前端，然后在 IDE 里运行 `GameTrigger`
+目标即可（默认 Dev 模式）。
 
-```bat
-scripts\setup.cmd -Template react-ts -Force    REM replaces frontend/
-```
+### 应用名与窗口标题
 
-The scripts run the official `npm create vite` scaffold. Without
-`-Force`/`-f` the scripts refuse to touch an existing `frontend/`.
+集中在一个文件 **`app-config.cmake`**（仓库根目录，被 `CMakeLists.txt` 引入）：
 
-## How the two build modes work
+| 变量 | 当前值 |
+| --- | --- |
+| `HELIOSVIEW_TEMPLATE_APP_NAME` | `GameTrigger`（可执行文件 / target 名） |
+| `HELIOSVIEW_TEMPLATE_APP_TITLE` | `Game Trigger`（窗口标题） |
 
-**Dev is the CMake default** — only packaging switches to prod
-(`scripts/build.cmd` sets `-DHELIOSVIEW_TEMPLATE_DEV=OFF` itself):
+改完重新构建即可，`scripts\dev.cmd` / `build.cmd` 会按构建输出自动找到 exe，无需其它同步。
 
-| | Dev (default) | Prod (`build.cmd`) |
-| --- | --- | --- |
-| frontend | `vite dev --port 5173 --strictPort` (HMR) | `vite build` → `frontend/dist` |
-| C++ | `navigate("http://localhost:5173")` | `HELIOSVIEW_TEMPLATE_DEV=OFF` → maps `assets/` to `https://app.local/` and navigates there |
-| assets | served by Vite | copied next to the exe as `assets/` on every build |
+> 目前仅支持 **Windows**（Win32 + WebView2）。前端工具链（dev server / `vite build`）可在任意
+> 系统使用，C++ 后端待 HeliosView 提供非 Windows 后端后即可移植。
 
-The built page is served from the `assets\` folder next to the exe through a
-WebView2 virtual-host mapping (`https://app.local/`, see `mapLocalFolder` in
-`src/MainWindow.cpp`) — file:// cannot serve the Vite ES-module output, so
-`app.local` is the supported scheme the prod build navigates to. All DLLs
-(`HeliosView.dll`, `WebView2Loader.dll`, the OpenSSL dlls), `cacert.pem` and
-`assets/` sit in `build/*/bin` next to the exe. `scripts\build.cmd` assembles
-**`dist\`** with `cmake --install` from the install rules (top-level
-`CMakeLists.txt` + HeliosView's own); the library's dev files (headers/libs)
-are dropped, so `dist\` holds only what the app needs to run — the whole
-folder is directly distributable.
+## 架构
 
-The mode is a CMake option (cached per build dir) — you can also configure
-manually:
+`AppMain()`（`src/main.cpp`，由 `src/entry.cpp` 的平台入口调用）装配三件事：
 
-```sh
-cmake -S . -B build/dev -G Ninja -DCMAKE_BUILD_TYPE=Debug                  # dev is the default
-cmake -S . -B build/release -G Ninja -DCMAKE_BUILD_TYPE=Release -DHELIOSVIEW_TEMPLATE_DEV=OFF
-```
+1. **`AppContext`**（`src/AppContext.h`）— 应用级服务，先于所有窗口创建：
+   - `app()` — UI 消息循环（`helios::App`，同时是 `std::execution` 调度器）；
+     `postTask()` 把任务投递到 UI 线程；每个窗口/WebView API 都必须在消息循环线程上跑。
+   - `logger()` — 全局日志，监听器实时转发到前端 `log` 频道。
+   - `guard()` — 单实例守护。
+2. **`MainWindow`**（`src/MainWindow.h/.cpp`）— 继承 `helios::WebViewWindow`，注册原生 ⇄ JS
+   桥接、`loadFrontend()` 加载前端；持有 `PluginManager`（插件加载/激活）、`ProcessMonitor`
+   （进程自动切换）、`Wallpaper`（Bing 壁纸）、`BgImages`（本地背景图库）。
+3. **UI 循环** — `return ctx.app().exec()`，最后一个窗口关闭时退出。
 
-If an existing build dir was configured before the default flip, it still
-holds the old cached value — reconfigure it explicitly (`-DHELIOSVIEW_TEMPLATE_DEV=ON`)
-or clear the cache.
+### 插件系统
 
-### App name & window title
+插件是独立的动态库（放在 `plugins/`），实现 `IPlugin` 接口（见 `PluginInterface/include/IPlugin.h`），
+用 `REGISTER_PLUGIN` 导出。`PluginManager` 在启动时从应用根目录 `plugins\` 目录加载 DLL，查询每个
+插件的参数元数据；切换配置时逐个调用已启用插件的 `execute(PluginParameterValue*)`。
+开发新插件只需在 `plugins/` 下仿照现有例子里加一个 target 即可，无需改主程序。
 
-Configured in **one file**: `app-config.cmake` at the repo root (included by
-`CMakeLists.txt`). Edit the values there and rebuild — nothing else needs to
-change:
+### 原生 ⇄ JS 桥
 
-| Variable in `app-config.cmake` | Default | Used for |
-| --- | --- | --- |
-| `HELIOSVIEW_TEMPLATE_APP_NAME` | `HeliosViewApp` | executable/target name (the `.exe` file name); also the app name reported by the `appInfo` bridge call |
-| `HELIOSVIEW_TEMPLATE_APP_TITLE` | `HeliosView App` | window title |
+HeliosView 向每个页面注入 `window.helios`。前端调用 `window.helios.call(name, ...args)`，
+原生侧在 `MainWindow::setupBridge()` 用 `bindJson<...>` 绑定（handler 是 detached 的
+`std::execution::task` 协程，Promise 在线程安全地 resolve）。
 
-The C++ side and the build pick the values up automatically, and
-`scripts\dev.cmd` / `scripts\build.cmd` find the executable by scanning the
-build output — no other place to keep in sync.
+当前桥接函数（`src/MainWindow.cpp`）：
 
-### CLion workflow (IDE builds/runs the C++ app)
+| 函数 | 说明 |
+| --- | --- |
+| `config_get` | 获取整体配置状态（活动配置、配置列表、插件信息、参数元数据/值） |
+| `plugins_getParamValues` / `plugins_setParams` | 读取 / 写入某套配置的插件参数 |
+| `plugins_activate` / `plugins_createConfig` / `plugins_deleteConfig` | 切换 / 创建 / 删除配置 |
+| `plugins_pickPath` | 文件 / 文件夹选择对话框 |
+| `settings_get` / `settings_set` | 整对象读写应用设置（含进程规则、开机自启、设计令牌） |
+| `wallpaper_fetch` / `bg_list` / `bg_load` / `bg_loadThumb` | Bing 壁纸与本地背景图库 |
+| `shell_reveal` / `shell_openDir` | 在资源管理器中定位文件 / 打开目录 |
 
-If you develop in CLion (or another IDE), you don't need the full dev loop —
-CLion builds and runs the app, and a dedicated script just serves the
-frontend. Dev is the default, so no CMake configuration is needed:
+广播频道（前端 `BroadcastChannel`）：`configActivated`、`paramsSaved`、`configsChanged`、
+`settingsChanged`、`log`。
 
-1. Run the frontend dev server in a terminal (Ctrl+C stops it):
-   ```bat
-   scripts\vite.cmd
-   ```
-2. Run `HeliosViewApp` from CLion — it loads `http://localhost:5173` (HMR).
-3. Packaging: `scripts\build.cmd` — it flips to prod automatically.
-
-## Architecture
-
-`AppMain()` (`src/main.cpp`, called from the platform entry in
-`src/entry.cpp` — `WinMain` on Windows, `main` elsewhere) wires up exactly
-three things:
-
-1. **`AppContext`** (`src/AppContext.h`) — the application-wide services,
-   created first so it outlives every window:
-   - `app()` — the **UI loop**: message pump, event queue, idle tasks
-     (`helios::App`, also a `std::execution` scheduler). Run with
-     `app().exec()`; deliver work to the UI thread with `app().postTask(...)`.
-   Threading (HeliosView v1.0.0): every window/WebView API runs on the
-   message-loop thread; `postTask`/`quit` and the WebView
-   resolve/reject/broadcast calls are safe from any thread. The library no
-   longer ships a thread pool (`helios::Async` was removed in v1.0.0) — run
-   background work on your own workers and hand results back with
-   `app().postTask(...)` (see the `ping` binding).
-2. **`MainWindow`** (`src/MainWindow.h/.cpp`) — inherits
-   `helios::WebViewWindow`; its constructor registers the native ⇄ JS bridge,
-   `loadFrontend()` navigates to the dev server (dev) or the built assets
-   (prod).
-3. **The UI loop** — `return ctx.app().exec()`, which exits when the last
-   window closes.
-
-## The native ↔ JS bridge
-
-HeliosView injects `window.helios` into every page. From the frontend:
-
-```js
-const info = await window.helios.call('appInfo', {});   // → { app: { name, version, helios } }
-```
-
-On the C++ side, `MainWindow::setupBridge()` binds it (handlers are detached
-`std::execution::task` coroutines; the Promise resolves when the task
-completes, from any thread):
-
-```cpp
-bindJson<nlohmann::json>("appInfo", [](nlohmann::json)
-                             -> std::execution::task<helios::JsonResp<nlohmann::json>> {
-    co_return helios::JsonResp<nlohmann::json>{ "app", {
-        { "name",    "HeliosViewApp" },
-        { "version", HELIOSVIEW_TEMPLATE_VERSION },
-        { "helios",  helios::version() },
-    }};
-});
-```
-
-The `ping` binding demonstrates the v1.0.0 threading model: it spawns a plain
-`std::thread` worker (v1.0.0 ships no library thread pool — use your own
-bounded pool in a real app), the worker pushes the result to the page's
-`BroadcastChannel('ping')` via the thread-safe `broadcast()`, and the Promise
-resolves on the UI thread — one round trip through the bridge.
-
-More from the library README (DTO `Req` types, bidirectional
-`BroadcastChannel`, error shapes, async slots):
-
-- `call(name, ...args)` → `Promise` — native functions bound with `bindJson`
-- `new BroadcastChannel(name)` — bidirectional: native `broadcast()` and JS
-  `postMessage()` (via `subscribeJson`)
-- handler results: DTO / number / string / `nlohmann::json` / `JsonResp<T>` /
-  `JsonError<T>` / `void`
-
-## Project layout
+## 目录结构
 
 ```
-CMakeLists.txt       ensure-submodule + add_subdirectory(HeliosView) + the app target + dev/prod mode
-app-config.cmake     app identity: program name, window title (edit these)
-ensure-submodule.cmake  auto-fetch the HeliosView submodule (and its nested deps) at configure time
-HeliosView/          HeliosView library as a git submodule (tracks master; concrete commit in the index)
-src/AppContext.h     the context: UI loop (helios::App)
-src/MainWindow.h/.cpp  the window: WebViewWindow subclass, bridge bindings, frontend URL
-src/entry.cpp        the process entry: WinMain (Windows) / main (elsewhere) → AppMain
-src/main.cpp         AppMain: create the context + window, run the UI loop
-frontend/            React + Vite project (switch frameworks with scripts/setup)
-scripts/setup.cmd            (re)scaffold the frontend (framework picker, -Force to replace)
-scripts/vite.cmd             run the Vite dev server only (for CLion/IDE workflows)
-scripts/dev.cmd              dev loop: Vite dev server + C++ app
-scripts/build.cmd            release: vite build + C++ prod build
+CMakeLists.txt       ensure-submodule + add_subdirectory(HeliosView) + 应用 target + dev/prod 模式
+app-config.cmake     应用身份：程序名、窗口标题（改这里）
+ensure-submodule.cmake  configure 时自动拉取 HeliosView（及其嵌套依赖）子模块
+HeliosView/          HeliosView 库（git 子模块，concrete commit 固定在索引里）
+PluginInterface/     插件 SDK：IPlugin / PluginParameter 接口头文件
+plugins/             各插件源码（HDR / NvDvc / Power / RunScript / StickyKeys / test）
+src/AppContext.h     UI 循环上下文 + 日志 + 单实例守护
+src/MainWindow.h/.cpp  主窗口：WebViewWindow 子类、桥接绑定、前端加载
+src/ProcessMonitor.h / ProcessMonitor_win32.cpp  进程 → 配置自动切换
+src/AppSettings.h    应用设置（整对象 JSON 持久化 app.json）
+src/Wallpaper.h · BgImages.h · Logger.h · AutoStart.h …
+frontend/            React + Vite 前端（src/style.css · theme.css · pages/ · components/）
+scripts/dev.cmd      开发循环：Vite dev server + C++ 应用
+scripts/build.cmd    发布：vite build + C++ prod 构建并组装 dist\
+scripts/vite.cmd     仅起 Vite dev server（供 CLion / IDE 使用）
 ```
 
-## Customizing
+## License / 致谢
 
-- **Dev server port** — change `scripts/dev.cmd`'s `-Port`,
-  `frontend/vite.config.js` and keep
-  `HELIOSVIEW_TEMPLATE_DEV_URL` in sync (or pass `-DHELIOSVIEW_TEMPLATE_DEV_URL=…`
-  to CMake).
-- **Track the library** — the HeliosView submodule (`HeliosView/`) follows the
-  **master** branch (set in `.gitmodules`); update it with
-  `git submodule update --remote HeliosView`. The gitlink in the index still
-  records a concrete commit, so every build stays reproducible.
-- **Window** — size/title in `src/main.cpp`; see the HeliosView README for
-  `WindowStyle`, signals/slots, coroutines.
-- **Distribution** — run `scripts\build.cmd`: it assembles `dist\` with
-  `cmake --install` and drops the library's dev files (headers/libs). `dist\`
-  holds only what the app needs to run (`dist\bin`: exe + HeliosView.dll +
-  WebView2/OpenSSL dlls + `cacert.pem` + `assets\`). The whole folder is
-  self-contained and directly distributable; a WiX/MSIX installer can be
-  added later.
+- 界面框架：HeliosView template（`/src`、`frontend/` 及构建脚本来自
+  `template/react-js` 分支）。
+- 依赖：Windows 回调 / WebView2（微软）、nlohmann/json、Boost、stdexec、miniz、Vite、React。

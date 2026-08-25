@@ -1,17 +1,17 @@
 #pragma once
 
-// AppContext — the application-wide services shared by all windows:
+// AppContext — the application-wide services shared by all components:
 //
 //   app()   the UI loop: message pump + event queue + idle tasks
 //           (also a std::execution scheduler for UI-thread delivery)
 //   async() the background thread pool (helios::Async, asio-backed) for
 //           off-UI-thread work in bridge handlers / native services
+//   logger() the app-scoped logger (file + console + optional listener)
 //
-// The HeliosView library wraps the loop (helios::App) and ships the pool
-// (helios::Async); this class just owns them for the app. main() creates the
-// context and every window/native service receives an AppContext& — pass it
-// down instead of grabbing globals. AppContext::instance() is the escape
-// hatch for code that has no context reference.
+// Singleton: created once in main(), accessible everywhere via
+// AppContext::instance(). No need to pass context references — any
+// component that needs app(), async() or logger() calls the static
+// accessor directly.
 //
 // Threading: every window/WebView API must run on the message-loop thread
 // (the thread running app().exec()). The exceptions — safe from any thread —
@@ -22,17 +22,19 @@
 // pool is owned here, app-scoped, so it outlives every window and binding.
 
 #include <HeliosViewCore/HeliosView.h>
-
+#include "Logger.h"
+#include "utils/SingleInstanceGuard.h"
 class AppContext {
 public:
     AppContext() { s_instance = this; }
     ~AppContext() { if (s_instance == this) s_instance = nullptr; }
 
-    // A process owns a single context (like helios::App)
+    // Non-copyable, non-movable — the singleton lives for the whole process.
     AppContext(const AppContext&) = delete;
     AppContext& operator=(const AppContext&) = delete;
 
-    // The current context, or nullptr before any AppContext is constructed
+    // The global instance. Returns nullptr before the context is constructed
+    // or after it is destroyed.
     static AppContext* instance() { return s_instance; }
 
     // The UI loop: message pump, event queue, idle tasks. Run it with
@@ -44,9 +46,13 @@ public:
     // every window and binding.
     helios::Async& async() noexcept { return m_async; }
 
+    Logger& logger() noexcept { return m_logger; }
+
+    SingleInstanceGuard& guard() noexcept { return m_guard; }
 private:
     helios::App m_app;          // UI loop (must outlive every window)
     helios::Async m_async;      // background pool (app-scoped: outlives windows)
-
+    Logger m_logger;
+    SingleInstanceGuard m_guard;
     static inline AppContext* s_instance = nullptr;
 };

@@ -10,7 +10,7 @@
 # need to be updated when you rename the app.
 
 # Executable (target) name: the .exe file name and the CMake target name.
-set(HELIOSVIEW_TEMPLATE_APP_NAME "HeliosViewApp")
+set(HELIOSVIEW_TEMPLATE_APP_NAME "GameTrigger")
 
 # Window title shown in the title bar.
-set(HELIOSVIEW_TEMPLATE_APP_TITLE "HeliosView App")
+set(HELIOSVIEW_TEMPLATE_APP_TITLE "Game Trigger")
