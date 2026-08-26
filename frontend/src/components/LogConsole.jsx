@@ -101,24 +101,29 @@ export default function LogConsole({ filters }) {
 
   }, [logList, filters])
 
-  // Initial scroll to bottom on mount.
-  useEffect(() => {
-    const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [])
-
-  // Auto-scroll on new logs — only when already near bottom (within 80px).
+  // Follow the console tail: scroll to the bottom on mount, when the log
+  // history seeds in (list grows from 0 → N), and for every new batch — as
+  // long as the user hasn't scrolled up (further than 80px from the bottom).
+  // Scrolling up manually stops the following until the user returns near the
+  // bottom; a cleared/empty console resumes following.
+  const stickToBottom = useRef(true)
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80
-    if (nearBottom) {
+    if (stickToBottom.current || filtered.length === 0) {
+      if (filtered.length === 0) stickToBottom.current = true
       el.scrollTop = el.scrollHeight
     }
   }, [filtered])
 
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
+
   return (
-    <div className="log-console" ref={scrollRef}>
+    <div className="log-console" ref={scrollRef} onScroll={handleScroll}>
       {filtered.map((log, i) => {
         const key = `${log.timestamp ?? 'js'}-${i}`
         const isOpen = openKeys.has(key)
