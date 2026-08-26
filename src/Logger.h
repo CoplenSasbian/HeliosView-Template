@@ -33,6 +33,15 @@ public:
     size_t addLogListener(std::function<void(const std::string&)> listener);
     void removeLogListener(size_t id);
 
+    // Re-read the tail of the currently-written log file (today's log-*.txt)
+    // as LogEntry list — the durable history behind the live sink, so a page
+    // that (re)loads later can show what happened before it loaded (e.g. while
+    // the window was hidden in the tray and its WebView destroyed). Lines are
+    // parsed back from the on-disk text format; best-effort: lines still being
+    // written (or otherwise unparseable) are skipped, and the display time in
+    // each line is converted back to an epoch timestamp. Safe from any thread.
+    std::vector<LogEntry> recentFromLogFile(size_t max_entries = 500) const;
+
     template <typename... Args>
     void Info(const char* tag, std::format_string<Args...> fmt, Args&&... args) {
         std::string msg = std::format(fmt, std::forward<Args>(args)...);

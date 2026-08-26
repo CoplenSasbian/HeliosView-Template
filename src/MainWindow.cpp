@@ -399,6 +399,7 @@ void MainWindow::setupBridge()
     bindJson<>("bg_list", this, &MainWindow::bgList);
     bindJson<std::string>("bg_load", this, &MainWindow::bgLoad);
     bindJson<std::string>("bg_loadThumb", this, &MainWindow::bgLoadThumb);
+    bindJson<>("log_history", this, &MainWindow::logHistory);
     bindJson<std::string, std::string>("shell_reveal", this, &MainWindow::shellReveal);
     bindJson<std::string>("shell_openDir", this, &MainWindow::shellOpenDir);
 }
@@ -888,6 +889,15 @@ std::execution::task<boost::json::value> MainWindow::bgLoadThumb(std::string nam
     const std::string data = m_bgImages.loadThumb(name, 320);
     co_return boost::json::value{{"ok", !data.empty()}, {"name", std::move(name)},
                                  {"url", data}};
+}
+
+std::execution::task<boost::json::value> MainWindow::logHistory()
+{
+    // File I/O (the tail of today's log file) off the UI thread. Returns the
+    // parsed LogEntry array (time/timestamp/level/tag/message), oldest first —
+    // the console seeds from it on load, then live entries stream in on "log".
+    co_await std::execution::schedule(AppContext::instance()->async().get_scheduler());
+    co_return boost::json::value_from(AppContext::instance()->logger().recentFromLogFile());
 }
 
 // Reveal one specific file in Explorer with it selected: a plugin dll (by its

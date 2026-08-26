@@ -143,6 +143,9 @@ private:
     std::execution::task<bool> shellReveal(std::string type, std::string name);
     // Open an app directory in Explorer, navigating INTO it (logs).
     std::execution::task<bool> shellOpenDir(std::string type);
+    // Return the last entries of the current log file (see Logger::recentFromLogFile)
+    // so the frontend console can show the history after a (re)load.
+    std::execution::task<boost::json::value> logHistory();
 
     PluginManager m_pluginManager;
     AppSettings m_settings;
