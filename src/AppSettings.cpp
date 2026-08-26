@@ -44,8 +44,17 @@ std::execution::task<bool> AppSettings::load(helios::Async& async)
     const auto executor = async.get_executor();
 
     // Synchronous open is cheap; the actual read runs on the pool.
-    boost::asio::stream_file file{executor, path.string(), boost::asio::file_base::read_only};
-    if (!file.is_open()) co_return false;
+    // Use the error_code open (NOT the throwing constructor): a missing
+    // settings\app.json on first launch is normal and must fall through to
+    // defaults. The non-error_code constructor would raise
+    // boost::system::system_error here and kill the whole init chain —
+    // setupPlugins never runs, so no default "close" config is created and the
+    // frontend shows an empty plugins/config list until the next launch.
+    boost::asio::stream_file file(executor);
+    boost::system::error_code openEc;
+    file.open(path.string(), boost::asio::file_base::read_only, openEc);
+    if (openEc)
+        co_return false;
 
     const auto size = file.size();
     std::string data;

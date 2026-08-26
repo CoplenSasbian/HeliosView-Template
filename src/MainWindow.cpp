@@ -995,11 +995,22 @@ std::execution::task<void> MainWindow::InitAsync()
     }
     loadFrontend();
 
-    // Background pool: settings (file I/O), then plugins (DLL loading). Both
-    // are done long before the page finishes loading, so the frontend's first
-    // config_get sees real data.
-    co_await setupSettings();
-    co_await setupPlugins();
+    // Background pool: settings (file I/O), then plugins (DLL loading). Each
+    // step is isolated: one failure must not silently kill the other, or the
+    // frontend is left with no configs/plugins (observed: a throwing
+    // AppSettings::load on a fresh install used to abort InitAsync before
+    // setupPlugins ran — empty UI until the app was restarted). Exceptions are
+    // logged here and swallowed so the app keeps running.
+    try { co_await setupSettings(); }
+    catch (const std::exception& e)
+    {
+        AppContext::instance()->logger().Error("init", "setupSettings failed: {}", e.what());
+    }
+    try { co_await setupPlugins(); }
+    catch (const std::exception& e)
+    {
+        AppContext::instance()->logger().Error("init", "setupPlugins failed: {}", e.what());
+    }
     co_return;
 }
 

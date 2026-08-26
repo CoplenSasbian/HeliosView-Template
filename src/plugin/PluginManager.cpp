@@ -216,30 +216,40 @@ std::execution::task<void> PluginConfig::initConfig()
     {
         if (entry.is_regular_file() && entry.path().extension() == ".json")
         {
-            boost::asio::stream_file file{executor, entry.path().string(), boost::asio::file_base::read_only};
-            if (file.is_open())
+            // One unreadable/corrupt config file must not abort the whole
+            // config load: the stream_file ctor below throws on open failure
+            // (and boost::json::parse can throw too).
+            try
             {
-                uint64_t size = file.size();
-                std::string data;
-                data.resize(size);
-
-
-                auto bytesRead = co_await async.readAsync(file, boost::asio::buffer(data));
-
-                if (bytesRead == size)
+                boost::asio::stream_file file{executor, entry.path().string(), boost::asio::file_base::read_only};
+                if (file.is_open())
                 {
-                    boost::json::value config = boost::json::parse(data);
-                    if (config.is_object())
+                    uint64_t size = file.size();
+                    std::string data;
+                    data.resize(size);
+
+
+                    auto bytesRead = co_await async.readAsync(file, boost::asio::buffer(data));
+
+                    if (bytesRead == size)
                     {
-                        auto jsonType = config.as_object().if_contains("json_type");
-                        if (jsonType && jsonType->is_string() && jsonType->as_string() == "pluginConfig")
+                        boost::json::value config = boost::json::parse(data);
+                        if (config.is_object())
                         {
-                            std::string configName = entry.path().stem().string();
-                            m_->pluginConfigs[configName] = config;
-                            m_->tagLogger_.Info("Loaded plugin config: {}", configName);
+                            auto jsonType = config.as_object().if_contains("json_type");
+                            if (jsonType && jsonType->is_string() && jsonType->as_string() == "pluginConfig")
+                            {
+                                std::string configName = entry.path().stem().string();
+                                m_->pluginConfigs[configName] = config;
+                                m_->tagLogger_.Info("Loaded plugin config: {}", configName);
+                            }
                         }
                     }
                 }
+            }
+            catch (const std::exception& e)
+            {
+                m_->tagLogger_.Error("Failed to read config '{}': {}", entry.path().string(), e.what());
             }
         }
     }
