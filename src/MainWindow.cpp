@@ -154,6 +154,32 @@ MainWindow::MainWindow(int width, int height, const char* title, bool silent)
     });
     closeRequested.connect(&Window::hide,static_cast<Window*>(this));
 
+    // Low-footprint trial: while the window is away — hidden to the tray, or
+    // minimized — destroy the WebView: its WebView2 browser process exits and
+    // frees the memory/CPU it held. When the window comes back (shown /
+    // restored) recreate it and reload the frontend. Trade-off: restoring
+    // reloads the page from scratch (a brief blank moment while WebView2
+    // spins up). If that delay is not acceptable, abandon this approach.
+    const auto destroyWebViewForAway = [this] {
+        AppContext::instance()->logger().Info("webview", "window away (hidden/minimized) -> destroy WebView, free its processes");
+        m_frontendReady = false; /* no broadcasts while there is no WebView */
+        destroyWebView();
+    };
+    const auto recreateWebViewOnShow = [this] {
+        AppContext::instance()->logger().Info("webview", "window back (shown/restored) -> recreate WebView + reload frontend");
+        if (const std::filesystem::path udf = WebView2DataDir(); !udf.empty()) {
+            const auto u8 = udf.u8string();
+            createWebView(std::string(reinterpret_cast<const char*>(u8.data()), u8.size()).c_str());
+        } else {
+            createWebView();  // no per-user dir available: keep the runtime default
+        }
+        loadFrontend();
+    };
+    hidden.connect(destroyWebViewForAway);
+    minimized.connect(destroyWebViewForAway);
+    shown.connect(recreateWebViewOnShow);
+    restored.connect(recreateWebViewOnShow);
+
     // Process auto-switch: when a watched process starts, activate its config;
     // when the last watched process exits, fall back to the built-in "close".
     // The monitor posts its signal emissions to the UI thread, so these slots
@@ -931,6 +957,12 @@ static std::string assetsDir()
 
 void MainWindow::loadFrontend()
 {
+    // Re-loads after a WebView destroy/recreate must not leak the previous
+    // log listener (no-op when m_logSinkId == 0 on the first load).
+    if (m_logSinkId != 0) {
+        AppContext::instance()->logger().removeLogListener(m_logSinkId);
+        m_logSinkId = 0;
+    }
     setupBridge();  // must run after createWebView(): binds are dropped otherwise
     m_frontendReady = true; // broadcasts are safe once the WebView is up
 
