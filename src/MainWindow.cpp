@@ -117,7 +117,12 @@ MainWindow::MainWindow(int width, int height, const char* title, bool silent)
     // install — and show it fully rendered, so the first visible frame is the
     // loaded page at its final position: no flash, no jump. Silent startup
     // stays in the tray.
-    navigationCompleted.connect([this](int /*error*/) {
+    navigationCompleted.connect([this](int error) {
+        // Every load — first show, and every destroy/recreate reload: a failed
+        // page load (missing assets, WebView2 issues) is logged so it shows up
+        // in the console/log file instead of a silent blank window.
+        if (error != 0)
+            AppContext::instance()->logger().Error("webview", "navigation completed with error: {}", error);
         if (m_silent || m_frontendShown) return;
         m_frontendShown = true;
 
@@ -167,13 +172,21 @@ MainWindow::MainWindow(int width, int height, const char* title, bool silent)
     };
     const auto recreateWebViewOnShow = [this] {
         AppContext::instance()->logger().Info("webview", "window back (shown/restored) -> recreate WebView + reload frontend");
-        if (const std::filesystem::path udf = WebView2DataDir(); !udf.empty()) {
-            const auto u8 = udf.u8string();
-            createWebView(std::string(reinterpret_cast<const char*>(u8.data()), u8.size()).c_str());
-        } else {
-            createWebView();  // no per-user dir available: keep the runtime default
+        try {
+            if (const std::filesystem::path udf = WebView2DataDir(); !udf.empty()) {
+                const auto u8 = udf.u8string();
+                createWebView(std::string(reinterpret_cast<const char*>(u8.data()), u8.size()).c_str());
+            } else {
+                createWebView();  // no per-user dir available: keep the runtime default
+            }
+            loadFrontend();  // binds/navigation throw here if creation actually failed
+        } catch (const std::exception& e) {
+            // WebView2 creation failed (e.g. runtime unavailable): keep the
+            // window alive without a page; the next shown/restored retries.
+            // Logged (→ console + log file) instead of crashing the UI loop.
+            m_frontendReady = false;
+            AppContext::instance()->logger().Error("webview", "recreate failed: {} (retry on next show)", e.what());
         }
-        loadFrontend();
     };
     hidden.connect(destroyWebViewForAway);
     minimized.connect(destroyWebViewForAway);
