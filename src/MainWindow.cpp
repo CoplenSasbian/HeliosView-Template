@@ -76,9 +76,11 @@ MainWindow::MainWindow(AppContext& ctx, int width, int height, const char* title
 //
 // Threading: bind handlers start on the UI thread. Off-UI-thread work runs on
 // the app's background pool (AppContext::async(), an asio-backed helios::Async
-// thread pool) via `co_await schedule(async().get_scheduler())`; resolve /
-// reject / broadcast are thread-safe, so the task may complete on a pool
-// thread without marshalling back (see the ping handler).
+// thread pool) via `co_await schedule(async().get_scheduler())`. WebView
+// bridge calls (broadcast, and the binding's resolve/reject when the task
+// completes) must run on the UI thread — the C layer no longer marshals
+// off-thread calls — so a handler that leaves the UI thread schedules back
+// onto `app().get_scheduler()` before completing (see the ping handler).
 void MainWindow::setupBridge()
 {
     // Plain binding: runs on the UI thread, returns app info.
@@ -92,9 +94,10 @@ void MainWindow::setupBridge()
     });
 
     // Worker round trip: hop off the UI thread onto the app's background pool,
-    // push the result to the page's BroadcastChannel('ping'), and resolve the
-    // Promise. broadcast()/resolve are thread-safe, so completing on a pool
-    // thread needs no marshalling back.
+    // do the work there, then schedule back onto the UI thread to push the
+    // result to the page's BroadcastChannel('ping') and complete — WebView
+    // bridge calls (broadcast / the binding's resolve) must run on the UI
+    // thread (the C layer no longer marshals off-thread calls).
     bindJson<boost::json::value>("ping", [this](boost::json::value req)
                                      -> std::execution::task<boost::json::value> {
         const std::string msg = jget(req, "msg", std::string("ping"));
@@ -102,6 +105,11 @@ void MainWindow::setupBridge()
         co_await std::execution::schedule(m_ctx.async().get_scheduler());
 
         // ... background work goes here ...
+
+        // Back on the message-loop thread: safely push to the page's
+        // BroadcastChannel('ping') and complete, so the Promise resolves on
+        // the UI thread.
+        co_await std::execution::schedule(m_ctx.app().get_scheduler());
         broadcast("ping", boost::json::serialize(boost::json::value{{ "msg", msg }}).c_str());
 
         co_return boost::json::value{{ "pong", {
