@@ -7,6 +7,7 @@
 #include <fstream>
 #include <mutex>
 #include <print>
+#include <sstream>
 #include <string_view>
 #include <vector>
 
@@ -115,9 +116,13 @@ void Logger::log(Level level, const char* tag, const char* message)
 {
     static thread_local moodycamel::ProducerToken token(m_->logQueue);
     auto now = std::chrono::system_clock::now();
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count() % 1000;
+    // %S alone on a sub-second-precision time point already emits the fractional
+    // seconds (e.g. "58.3360176"), so flooring to whole seconds first keeps the
+    // stored display time clean: "…:58.336". The timestamp stays the true epoch.
+    auto secs = std::chrono::floor<std::chrono::seconds>(now);
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - secs).count();
     auto msg = LogEntry{
-        .time = std::format("{:%Y-%m-%d %H:%M:%S}.{:03}", now, ms),
+        .time = std::format("{:%Y-%m-%d %H:%M:%S}.{:03}", secs, ms),
         .timestamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count(),
         .level = level, .tag = tag, .message = message};
     m_->logQueue.enqueue(token,std::move(msg));
@@ -133,24 +138,23 @@ ILogger::Level ParseLevel(std::string_view s)
     return ILogger::Info;
 }
 
-// "YYYY-MM-DD HH:MM:SS.mmm" (the display time, local) -> epoch seconds.
+// "YYYY-MM-DD HH:MM:SS.mmm" -> epoch seconds.
+//
+// log() writes the display time with std::format on a system_clock::time_point,
+// and a system_clock time point formats as UTC (not local). So the stored
+// fields are UTC wall-clock values. Parse them as UTC: parsing into a sys_time
+// recovers the true epoch, and the frontend renders that epoch with the
+// browser's local timezone — exactly like the live entries (whose `timestamp`
+// is the true epoch too). This keeps history and live lines in one timezone.
 // 0 on failure (the frontend then treats the entry as untimed, which only
 // disables its time-range filter / relative label — it still shows).
 int64_t ParseDisplayTimeEpoch(std::string_view t)
 {
-    std::string s(t); /* sscanf needs a NUL-terminated buffer */
-    int y = 0, mo = 0, d = 0, h = 0, mi = 0, sec = 0;
-    if (std::sscanf(s.c_str(), "%d-%d-%d %d:%d:%d", &y, &mo, &d, &h, &mi, &sec) != 6)
+    std::istringstream is{std::string(t)}; /* parse needs a NUL-terminated buffer */
+    std::chrono::sys_time<std::chrono::milliseconds> tp;
+    if (!(is >> std::chrono::parse("%Y-%m-%d %H:%M:%S", tp)))
         return 0;
-    struct tm tm{};
-    tm.tm_year = y - 1900;
-    tm.tm_mon  = mo - 1;
-    tm.tm_mday = d;
-    tm.tm_hour = h;
-    tm.tm_min  = mi;
-    tm.tm_sec  = sec;
-    tm.tm_isdst = -1; // let mktime resolve DST (the written time is local)
-    return static_cast<int64_t>(std::mktime(&tm));
+    return std::chrono::duration_cast<std::chrono::seconds>(tp.time_since_epoch()).count();
 }
 
 } // namespace

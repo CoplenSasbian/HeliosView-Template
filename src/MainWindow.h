@@ -73,6 +73,22 @@ protected:
 private:
     void setupBridge();  // native <-> JS bridge bindings (requires the WebView)
 
+    // Signal slots (connected in the constructor; see MainWindow.cpp for the
+    // commented trade-offs). Grouped here so the constructor stays a short
+    // wiring list.
+    void onNotifyReceived();                       // SingleInstanceGuard::notifyReceived
+    void onNavigationCompleted(int error);         // WebViewWindow::navigationCompleted
+    void onResized(int32_t w, int32_t h);          // Window::resized
+    void onMoved(int32_t x, int32_t y);            // Window::moved
+    // Low-footprint window lifecycle: hidden → destroy, minimized → suspend,
+    // shown → recreate, restored → resume.
+    void onHidden();
+    void onMinimized();
+    void onShown();
+    void onRestored();
+    void onProcessMatched(const std::string& config, unsigned long pid); // ProcessMonitor
+    void onAllExited();                                                  // ProcessMonitor
+
     // Bridge handlers: each corresponds to a window.helios.call() function.
     // Reads are consolidated into one whole-object config_get; the handlers
     // below are actions (they mutate state) or the parameterized value read.

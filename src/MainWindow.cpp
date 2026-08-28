@@ -97,9 +97,7 @@ MainWindow::MainWindow(int width, int height, const char* title, bool silent)
     // console stays fully usable).
     setMinimumSize(960, 640);
 
-    AppContext::instance()->guard().notifyReceived.connect([this]() {
-        restore(); focus(); flashUntilFocus();
-    });
+    AppContext::instance()->guard().notifyReceived.connect(&MainWindow::onNotifyReceived, this);
 
     // App-level settings load async in setupSettings() (off the UI thread);
     // until then the defaults are active.
@@ -117,81 +115,22 @@ MainWindow::MainWindow(int width, int height, const char* title, bool silent)
     // install — and show it fully rendered, so the first visible frame is the
     // loaded page at its final position: no flash, no jump. Silent startup
     // stays in the tray.
-    navigationCompleted.connect([this](int error) {
-        // Every load — first show, and every destroy/recreate reload: a failed
-        // page load (missing assets, WebView2 issues) is logged so it shows up
-        // in the console/log file instead of a silent blank window.
-        if (error != 0)
-            AppContext::instance()->logger().Error("webview", "navigation completed with error: {}", error);
-        if (m_silent || m_frontendShown) return;
-        m_frontendShown = true;
-
-        if (m_settings.windowWidth > 0 && m_settings.windowHeight > 0 &&
-            m_settings.windowX >= 0 && m_settings.windowY >= 0)
-        {
-            setGeometry(m_settings.windowX, m_settings.windowY,
-                        m_settings.windowWidth, m_settings.windowHeight);
-        }
-        else
-        {
-            int32_t w = 0, h = 0;
-            if (size(w, h)) {
-                helios::Rect wa{};
-                if (helios::primaryWorkArea(wa))
-                    setGeometry(wa.x + (wa.width - w) / 2, wa.y + (wa.height - h) / 2, w, h);
-                else
-                    move(100, 100);
-            }
-        }
-        show();
-    });
+    navigationCompleted.connect(&MainWindow::onNavigationCompleted, this);
 
     // Remember the main-window geometry: track position/size in memory, then
     // persist once when the window is closed (setupSettings restores it on the
     // next launch).
-    resized.connect([this](int w, int h) {
-        m_settings.windowWidth = w;
-        m_settings.windowHeight = h;
-    });
-    moved.connect([this](int x, int y) {
-        m_settings.windowX = x;
-        m_settings.windowY = y;
-    });
+    resized.connect(&MainWindow::onResized, this);
+    moved.connect(&MainWindow::onMoved, this);
     closeRequested.connect(&Window::hide,static_cast<Window*>(this));
 
-    // Low-footprint trial: while the window is away — hidden to the tray, or
-    // minimized — destroy the WebView: its WebView2 browser process exits and
-    // frees the memory/CPU it held. When the window comes back (shown /
-    // restored) recreate it and reload the frontend. Trade-off: restoring
-    // reloads the page from scratch (a brief blank moment while WebView2
-    // spins up). If that delay is not acceptable, abandon this approach.
-    const auto destroyWebViewForAway = [this] {
-        AppContext::instance()->logger().Info("webview", "window away (hidden/minimized) -> destroy WebView, free its processes");
-        m_frontendReady = false; /* no broadcasts while there is no WebView */
-        destroyWebView();
-    };
-    const auto recreateWebViewOnShow = [this] {
-        AppContext::instance()->logger().Info("webview", "window back (shown/restored) -> recreate WebView + reload frontend");
-        try {
-            if (const std::filesystem::path udf = WebView2DataDir(); !udf.empty()) {
-                const auto u8 = udf.u8string();
-                createWebView(std::string(reinterpret_cast<const char*>(u8.data()), u8.size()).c_str());
-            } else {
-                createWebView();  // no per-user dir available: keep the runtime default
-            }
-            loadFrontend();  // binds/navigation throw here if creation actually failed
-        } catch (const std::exception& e) {
-            // WebView2 creation failed (e.g. runtime unavailable): keep the
-            // window alive without a page; the next shown/restored retries.
-            // Logged (→ console + log file) instead of crashing the UI loop.
-            m_frontendReady = false;
-            AppContext::instance()->logger().Error("webview", "recreate failed: {} (retry on next show)", e.what());
-        }
-    };
-    hidden.connect(destroyWebViewForAway);
-    minimized.connect(destroyWebViewForAway);
-    shown.connect(recreateWebViewOnShow);
-    restored.connect(recreateWebViewOnShow);
+    // Low-footprint window lifecycle (implemented below, outside the
+    // constructor): hidden → destroy the WebView, minimized → suspend it,
+    // shown → recreate + reload, restored → resume in place.
+    hidden.connect(&MainWindow::onHidden, this);
+    minimized.connect(&MainWindow::onMinimized, this);
+    shown.connect(&MainWindow::onShown, this);
+    restored.connect(&MainWindow::onRestored, this);
 
     // Process auto-switch: when a watched process starts, activate its config;
     // when the last watched process exits, fall back to the built-in "close".
@@ -203,39 +142,11 @@ MainWindow::MainWindow(int width, int height, const char* title, bool silent)
     // pool with `co_await schedule(...)` and then accessed `this` members —
     // resuming such a task from the pool resumed with a corrupted `this`
     // (stdexec/MSVC coroutine-frame issue, 0xDD-fill → access violation in
-    // PluginConfig::switchConfig). activateConfig runs directly on the UI
-    // thread instead; concurrent activations (processMatched / allExited /
-    // plugins_activate) are serialized inside PluginManager::activateConfig.
-    m_processMonitor.processMatched.connect(
-        [this](const std::string& config, unsigned long pid) {
-            auto& cfg = m_pluginManager.getPluginConfig();
-            if (config == cfg.getActiveConfigName()) return;
-            const auto& names = cfg.getConfigNameList();
-            if (std::find(names.begin(), names.end(), config) == names.end())
-            {
-                AppContext::instance()->logger().Warning("procmon", "auto-switch target config '{}' not found, skipped", config);
-                return;
-            }
-            AppContext::instance()->logger().Info("procmon", "process matched (pid {}): auto-switch to config '{}'", pid, config);
-            try { ActivateConfig(config, "process"); }
-            catch (const std::exception& e)
-            {
-                AppContext::instance()->logger().Error("procmon", "activateConfig '{}' failed: {}", config, e.what());
-            }
-        });
-
-    m_processMonitor.allExited.connect([this]() {
-        auto& cfg = m_pluginManager.getPluginConfig();
-        if (cfg.getActiveConfigName() == "close") return;
-        const auto& names = cfg.getConfigNameList();
-        if (std::find(names.begin(), names.end(), "close") == names.end()) return;
-        AppContext::instance()->logger().Info("procmon", "all watched processes exited, switching to 'close'");
-        try { ActivateConfig("close", "process"); }
-        catch (const std::exception& e)
-        {
-            AppContext::instance()->logger().Error("procmon", "activateConfig 'close' failed: {}", e.what());
-        }
-    });
+    // PluginConfig::switchConfig). onProcessMatched/onAllExited run directly on
+    // the UI thread instead; concurrent activations (processMatched / allExited
+    // / plugins_activate) are serialized inside PluginManager::activateConfig.
+    m_processMonitor.processMatched.connect(&MainWindow::onProcessMatched, this);
+    m_processMonitor.allExited.connect(&MainWindow::onAllExited, this);
 
     // (Plugins are loaded by setupPlugins(), called from InitAsync above.)
 
@@ -246,6 +157,135 @@ MainWindow::MainWindow(int width, int height, const char* title, bool silent)
 MainWindow::~MainWindow()
 {
     AppContext::instance()->logger().removeLogListener(m_logSinkId);
+}
+
+// ---- low-footprint window lifecycle ------------------------------------------
+//
+// Hidden to the tray: destroy the WebView — its WebView2 browser process exits
+// and frees the memory/CPU it held. Minimizing is cheaper: just suspend the
+// WebView (TrySuspend) so rendering stops and most browser-process resources
+// are released while the page stays alive. Coming back: hidden → recreate +
+// reload the frontend, minimized → resume in place (no reload, no blank flash).
+void MainWindow::onHidden()
+{
+    AppContext::instance()->logger().Info("webview", "window hidden -> destroy WebView, free its processes");
+    m_frontendReady = false; /* no broadcasts while there is no WebView */
+    destroyWebView();
+}
+
+void MainWindow::onMinimized()
+{
+    AppContext::instance()->logger().Info("webview", "window minimized -> suspend WebView (low-footprint)");
+    webviewSuspend();  // fire-and-forget; no-op if the WebView is already gone/inactive
+}
+
+void MainWindow::onShown()
+{
+    AppContext::instance()->logger().Info("webview", "window shown (from tray) -> recreate WebView + reload frontend");
+    try {
+        if (const std::filesystem::path udf = WebView2DataDir(); !udf.empty()) {
+            const auto u8 = udf.u8string();
+            createWebView(std::string(reinterpret_cast<const char*>(u8.data()), u8.size()).c_str());
+        } else {
+            createWebView();  // no per-user dir available: keep the runtime default
+        }
+        loadFrontend();  // binds/navigation throw here if creation actually failed
+    } catch (const std::exception& e) {
+        // WebView2 creation failed (e.g. runtime unavailable): keep the
+        // window alive without a page; the next shown/restored retries.
+        // Logged (→ console + log file) instead of crashing the UI loop.
+        m_frontendReady = false;
+        AppContext::instance()->logger().Error("webview", "recreate failed: {} (retry on next show)", e.what());
+    }
+}
+
+void MainWindow::onRestored()
+{
+    if (webviewIsSuspended()) {
+        AppContext::instance()->logger().Info("webview", "window restored -> resume suspended WebView");
+        webviewResume();
+    }
+}
+
+// ---- signal slots (connected in the constructor) -----------------------------
+
+void MainWindow::onNotifyReceived()
+{
+    restore();flashUntilFocus(); focus();
+}
+
+void MainWindow::onNavigationCompleted(int error)
+{
+    // Every load — first show, and every destroy/recreate reload: a failed
+    // page load (missing assets, WebView2 issues) is logged so it shows up
+    // in the console/log file instead of a silent blank window.
+    if (error != 0)
+        AppContext::instance()->logger().Error("webview", "navigation completed with error: {}", error);
+    if (m_silent || m_frontendShown) return;
+    m_frontendShown = true;
+
+    if (m_settings.windowWidth > 0 && m_settings.windowHeight > 0 &&
+        m_settings.windowX >= 0 && m_settings.windowY >= 0)
+    {
+        setGeometry(m_settings.windowX, m_settings.windowY,
+                    m_settings.windowWidth, m_settings.windowHeight);
+    }
+    else
+    {
+        int32_t w = 0, h = 0;
+        if (size(w, h)) {
+            helios::Rect wa{};
+            if (helios::primaryWorkArea(wa))
+                setGeometry(wa.x + (wa.width - w) / 2, wa.y + (wa.height - h) / 2, w, h);
+            else
+                move(100, 100);
+        }
+    }
+    show();
+}
+
+void MainWindow::onResized(int32_t w, int32_t h)
+{
+    m_settings.windowWidth = w;
+    m_settings.windowHeight = h;
+}
+
+void MainWindow::onMoved(int32_t x, int32_t y)
+{
+    m_settings.windowX = x;
+    m_settings.windowY = y;
+}
+
+void MainWindow::onProcessMatched(const std::string& config, unsigned long pid)
+{
+    auto& cfg = m_pluginManager.getPluginConfig();
+    if (config == cfg.getActiveConfigName()) return;
+    const auto& names = cfg.getConfigNameList();
+    if (std::find(names.begin(), names.end(), config) == names.end())
+    {
+        AppContext::instance()->logger().Warning("procmon", "auto-switch target config '{}' not found, skipped", config);
+        return;
+    }
+    AppContext::instance()->logger().Info("procmon", "process matched (pid {}): auto-switch to config '{}'", pid, config);
+    try { ActivateConfig(config, "process"); }
+    catch (const std::exception& e)
+    {
+        AppContext::instance()->logger().Error("procmon", "activateConfig '{}' failed: {}", config, e.what());
+    }
+}
+
+void MainWindow::onAllExited()
+{
+    auto& cfg = m_pluginManager.getPluginConfig();
+    if (cfg.getActiveConfigName() == "close") return;
+    const auto& names = cfg.getConfigNameList();
+    if (std::find(names.begin(), names.end(), "close") == names.end()) return;
+    AppContext::instance()->logger().Info("procmon", "all watched processes exited, switching to 'close'");
+    try { ActivateConfig("close", "process"); }
+    catch (const std::exception& e)
+    {
+        AppContext::instance()->logger().Error("procmon", "activateConfig 'close' failed: {}", e.what());
+    }
 }
 
 // ---- native <-> JS bridge --------------------------------------------------
