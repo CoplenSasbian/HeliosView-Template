@@ -566,7 +566,20 @@ std::execution::task<bool> MainWindow::pluginsActivate(std::string config)
     // activateConfig may block in plugin execute() — switch to the pool
     // scheduler inside this coroutine instead of blocking the UI thread.
     co_await std::execution::schedule(AppContext::instance()->async().get_scheduler());
-    ActivateConfig(std::move(config), "activate"); // throws → JS promise rejects
+    // The WebView bridge calls (the broadcast in AnnounceConfigActivated and
+    // the binding's resolve on co_return) must run on the UI thread — the C
+    // layer no longer marshals off-thread calls — so hop back first.
+    try
+    {
+        m_pluginManager.activateConfig(config); // blocking part stays off the UI thread
+    }
+    catch (...)
+    {
+        co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+        throw; // rethrown on the UI thread → the JS promise rejects there
+    }
+    co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+    AnnounceConfigActivated(config, "activate");
     co_return true;
 }
 
@@ -626,9 +639,15 @@ std::execution::task<bool> MainWindow::pluginsSetParams(std::string config, std:
     catch (...)
     {
         if (switched) cfg.switchConfig(prev);
+        // save() resumes on a pool thread; the binding's reject must run on
+        // the UI thread — hop back, then rethrow.
+        co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
         throw;
     }
     if (switched) cfg.switchConfig(prev);
+    // Back on the message-loop thread (save() resumed on the pool): the
+    // broadcast and the resolve on co_return are UI-thread calls.
+    co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
     BroadcastParamsSaved();
     co_return true;
 }
@@ -638,14 +657,29 @@ std::execution::task<bool> MainWindow::pluginsCreateConfig(std::string name)
     if (name.empty())
         throw std::runtime_error("配置名称不能为空");
 
-    bool ok = co_await m_pluginManager.getPluginConfig().createConfig(name);
+    // createConfig persists via async file I/O, so the coroutine resumes on a
+    // pool thread; hop back to the UI thread before the bridge calls below.
+    bool ok = false;
+    try {
+        ok = co_await m_pluginManager.getPluginConfig().createConfig(name);
+    }
+    catch (...)
+    {
+        // createConfig() may fail on the pool; reject on the UI thread.
+        co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+        throw;
+    }
+    co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
     if (!ok)
         throw std::runtime_error(std::format("配置 '{}' 已存在", name));
 
     // Same as pluginsActivate: the activation may block in plugin execute(),
-    // so hop to the pool before running it.
+    // so hop to the pool before running it — then back to the UI thread for
+    // the WebView bridge calls (broadcast / resolve).
     co_await std::execution::schedule(AppContext::instance()->async().get_scheduler());
-    ActivateConfig(name, "create");
+    m_pluginManager.activateConfig(name);
+    co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+    AnnounceConfigActivated(name, "create");
     BroadcastConfigsChanged(); // config list changed too
     co_return true;
 }
@@ -731,7 +765,18 @@ std::execution::task<boost::json::value> MainWindow::settings_set(boost::json::v
     // A process change triggers the monitor (processAutoSwitch / processRules).
     ApplyProcessMonitor();
 
-    co_await m_settings.save(AppContext::instance()->async());
+    // save() completes on the pool; the WebView bridge calls (broadcast and
+    // the resolve on co_return) must run on the UI thread.
+    try {
+        co_await m_settings.save(AppContext::instance()->async());
+    }
+    catch (...)
+    {
+        // save() may fail on the pool; reject on the UI thread.
+        co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+        throw;
+    }
+    co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
     BroadcastSettingsChanged(); // keep UI + tray menu in sync
     AppContext::instance()->logger().Info("bridge", "settings_set applied");
     // Return the same flattened view as settings_get so callers stay consistent.
@@ -768,9 +813,13 @@ void MainWindow::BroadcastSettingsChanged()
     broadcast("settingsChanged", boost::json::serialize(obj).c_str());
 }
 
-void MainWindow::ActivateConfig(const std::string& config, const char* reason)
+// UI-thread tail of a config switch: frontend broadcast + tray toast. Split
+// out of ActivateConfig so a bridge handler can run the BLOCKING activation
+// (plugin execute()) on the background pool, hop back onto the UI thread, and
+// announce there — broadcast() must run on the UI thread (the C layer no
+// longer marshals off-thread calls).
+void MainWindow::AnnounceConfigActivated(const std::string& config, const char* reason)
 {
-    m_pluginManager.activateConfig(config); // may throw — caller decides
     BroadcastConfigActivated(reason);
 
     // System notification on config switch (manual, tray or auto-switch).
@@ -780,6 +829,12 @@ void MainWindow::ActivateConfig(const std::string& config, const char* reason)
         const std::string msg = off ? "当前未启用任何配置" : ("当前配置：" + config);
         m_tray->notify(off ? "配置已关闭" : "配置已切换", msg.c_str());
     }
+}
+
+void MainWindow::ActivateConfig(const std::string& config, const char* reason)
+{
+    m_pluginManager.activateConfig(config); // may throw — caller decides
+    AnnounceConfigActivated(config, reason);
 }
 
 // ---- system tray + context menu -------------------------------------------
@@ -921,7 +976,19 @@ std::execution::task<boost::json::value> MainWindow::wallpaperFetch(bool fresh, 
 {
     // Runs on the Async pool inside Wallpaper::fetch; returns a data: URL for
     // Bing's wallpaper `idx` days ago (0 = today, -1 = yesterday, ...).
-    const std::string dataUrl = co_await m_wallpaper.fetch(fresh, idx);
+    std::string dataUrl;
+    try {
+        dataUrl = co_await m_wallpaper.fetch(fresh, idx);
+    }
+    catch (...)
+    {
+        // fetch() may fail on the pool; reject on the UI thread.
+        co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+        throw;
+    }
+    // fetch() resumes on a pool thread; hop back so the binding's resolve on
+    // co_return runs on the UI thread (the C layer no longer marshals).
+    co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
     AppContext::instance()->logger().Info("bridge", "wallpaper_fetch(fresh={}, idx={}) -> {}", fresh, idx,
                    dataUrl.empty() ? "<fallback gradient>" : "ok");
     co_return boost::json::value{{"ok", !dataUrl.empty()}, {"url", dataUrl}};
@@ -942,9 +1009,11 @@ std::execution::task<boost::json::value> MainWindow::bgList()
 std::execution::task<boost::json::value> MainWindow::bgLoad(std::string name)
 {
     // Reading + base64-coding a full (often multi-MB 4K) image off the UI thread:
-    // hop to the background pool, do the heavy I/O, then return on the UI loop.
+    // hop to the background pool, do the heavy I/O, then return on the UI loop
+    // (the binding's resolve on co_return must run on the UI thread).
     co_await std::execution::schedule(AppContext::instance()->async().get_scheduler());
     const std::string data = m_bgImages.load(name);
+    co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
     co_return boost::json::value{{"ok", !data.empty()}, {"name", std::move(name)},
                                  {"url", data}};
 }
@@ -955,6 +1024,7 @@ std::execution::task<boost::json::value> MainWindow::bgLoadThumb(std::string nam
     // thread too so the picker grid scrolls smoothly.
     co_await std::execution::schedule(AppContext::instance()->async().get_scheduler());
     const std::string data = m_bgImages.loadThumb(name, 320);
+    co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
     co_return boost::json::value{{"ok", !data.empty()}, {"name", std::move(name)},
                                  {"url", data}};
 }
@@ -965,7 +1035,10 @@ std::execution::task<boost::json::value> MainWindow::logHistory()
     // parsed LogEntry array (time/timestamp/level/tag/message), oldest first —
     // the console seeds from it on load, then live entries stream in on "log".
     co_await std::execution::schedule(AppContext::instance()->async().get_scheduler());
-    co_return boost::json::value_from(AppContext::instance()->logger().recentFromLogFile());
+    const auto entries = AppContext::instance()->logger().recentFromLogFile();
+    // Back on the UI thread for the binding's resolve on co_return.
+    co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+    co_return boost::json::value_from(entries);
 }
 
 // Reveal one specific file in Explorer with it selected: a plugin dll (by its

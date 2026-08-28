@@ -139,6 +139,13 @@ private:
     // (bridge handlers reject the JS promise; signal slots catch + log).
     void ActivateConfig(const std::string& config, const char* reason);
 
+    // UI-thread tail of a config switch (broadcast + tray toast). Split out of
+    // ActivateConfig so pool-executed bridge handlers (pluginsActivate /
+    // pluginsCreateConfig) can run the blocking activation on the background
+    // pool, hop back onto the UI thread, and announce there — the WebView
+    // bridge calls must run on the message-loop thread.
+    void AnnounceConfigActivated(const std::string& config, const char* reason);
+
     // ---- system tray + context menu ----
     // Created from InitAsync (only needs the native window, which exists from
     // construction). The tray menu is rebuilt each time it opens so
