@@ -301,6 +301,21 @@ void MainWindow::onAllExited()
 //   // member-function form (preferred — see setupBridge below):
 //   bindJson<std::string>("myFn", this, &MainWindow::myFn);
 //
+// Handlers are detached std::execution::task coroutines; the JS Promise is
+// resolved when the task completes. Arguments and return values are
+// Boost.JSON: bindJson deserializes each JS call argument with
+// boost::json::value_to and serializes the handler's task<Resp> completion
+// value with boost::json::value_from.
+//
+// Threading: bind handlers start on the UI thread. Off-UI-thread work runs on
+// the app's background pool (AppContext::async(), an asio-backed helios::Async
+// thread pool) via `co_await schedule(async().get_scheduler())`. WebView
+// bridge calls (broadcast, and the binding's resolve/reject when the task
+// completes) must run on the UI thread — the C layer no longer marshals
+// off-thread calls — so a handler that leaves the UI thread schedules back
+// onto `app().get_scheduler()` before completing (see the pool-executed
+// handlers below: pluginsActivate / bgLoad & co. all end with a UI-thread hop).
+//
 // The demo bindings (appInfo / ping / add) were removed. Add the functions
 // your frontend needs here.
 
@@ -858,7 +873,7 @@ void MainWindow::RebuildMenu()
         BroadcastSettingsChanged(); // keep UI + tray menu in sync
     });
 
-    // 进程监控（可勾选项，点击切换；UI 线程执行，保存异步 fire-and-forget）
+// 进程监控（可勾选项，点击切换；UI 线程执行，保存异步 fire-and-forget）
     addCheckItem(m_menu.get(), "进程监控", m_settings.processAutoSwitch, [this] {
         m_settings.processAutoSwitch = !m_settings.processAutoSwitch;
         ApplyProcessMonitor();
