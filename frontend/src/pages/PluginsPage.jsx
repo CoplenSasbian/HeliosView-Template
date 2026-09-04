@@ -374,6 +374,15 @@ export default function PluginsPage() {
         {pluginsList.length ? (
           filteredPlugins.length ? (
             <div className={viewMode === 'grid' ? 'plugin-grid-layout' : 'plugin-list'}>
+              {viewMode === 'list' && (
+                <div className="plugin-list-header">
+                  <span className="plugin-list-header__name">插件名称</span>
+                  <span className="plugin-list-header__desc">功能描述</span>
+                  <span className="plugin-list-header__params">核心参数预览</span>
+                  <span className="plugin-list-header__status">启用状态</span>
+                  <span className="plugin-list-header__actions">操作</span>
+                </div>
+              )}
               {filteredPlugins.map((p, i) => {
                 const pluginValues = {
                   ...(params[p.name] ?? {}),

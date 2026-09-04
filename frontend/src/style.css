@@ -2723,157 +2723,166 @@ input[type='number'] {
   color: var(--c-danger);
 }
 
-/* Plugin list (plugins page) — rows inside a single card, no box-in-box */
+/* ============================================================
+   Detailed Data-Grid List Mode (Rich Dense List)
+   ============================================================ */
 .plugin-list {
   display: flex;
   flex-direction: column;
 }
 
-/* Theme-accent hover bar: a thin strip at the tile's bottom edge revealed on
-   hover/focus. Color comes from --c-accent (applyDesign keeps it in sync with
-   the user's 主题色), so it follows whatever accent is active — no JS needed. */
-.bg-tile__accent {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 3px;
-  height: 2px;
-  border-radius: 2px;
-  background: var(--c-accent);
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity var(--transition), transform var(--transition);
-  pointer-events: none;
+/* List Table Header */
+.plugin-list-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 6px var(--sp-md);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  color: var(--c-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--c-border);
+  user-select: none;
 }
-.bg-tile:hover .bg-tile__accent,
-.bg-tile:focus-visible .bg-tile__accent {
-  opacity: 0.85;
-  transform: translateY(0);
+.plugin-list-header__name {
+  flex: 0 0 160px;
+}
+.plugin-list-header__desc {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.plugin-list-header__params {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.plugin-list-header__status {
+  flex: 0 0 68px;
+  text-align: center;
+}
+.plugin-list-header__actions {
+  flex: 0 0 64px;
+  text-align: right;
 }
 
-/* One plugin row. The whole row is the click target (opens the detail dialog).
-   Hover echoes the sidebar nav: an accent wash GROWS in from the left (not a
-   flat tint), the row compresses on press, and it rises in staggered behind
-   the card entrance (order from --row-i). Rows are separated by a hairline
-   instead of boxed as separate cards. */
+/* Detailed List Row (Horizontal Dense Grid) */
 .plugin-row {
   position: relative;
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-sm);
-  padding: var(--sp-md) var(--sp-sm);
-  border-radius: var(--r-md);
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 10px var(--sp-md);
+  border-radius: var(--r-sm);
   overflow: hidden;
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease-out);
+  box-sizing: border-box;
+  transition: background var(--transition), border-color var(--transition);
   animation: rowIn var(--dur-slow) var(--ease-out) backwards;
-  animation-delay: calc(var(--row-i, 0) * var(--row-step, 55ms));
+  animation-delay: calc(var(--row-i, 0) * var(--row-step, 45ms));
 }
 .plugin-row + .plugin-row {
   border-top: 1px solid var(--c-border);
 }
-/* nav-like fill: the accent wash grows from the left edge on hover. Content
-   sits at z-index 1 (see below) so the wash is a background, not an overlay. */
-.plugin-row::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--c-accent-glass) 0%, var(--c-accent-soft) 42%, transparent 78%);
-  opacity: 0;
-  transform: scaleX(0.55);
-  transform-origin: left center;
-  pointer-events: none;
-  transition: opacity var(--transition), transform var(--dur-slow) var(--ease-out);
+.plugin-row:hover {
+  background: var(--c-surface-hover);
 }
-.plugin-row:hover::before {
-  opacity: 1;
-  transform: scaleX(1);
+.plugin-row.is-disabled {
+  opacity: 0.65;
 }
-/* Press feedback. The row compresses while pointed — except when the press
-   lands on the head action buttons (edit gear / reveal): pressing an inner
-   <button> activates the row too (ancestor :active), which would make the whole
-   row jump while clicking a button. :has() excludes those presses. */
-.plugin-row:active:not(:has(.plugin-row__actions:active)) {
-  transform: scale(0.992);
-}
-.plugin-row:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--c-accent-soft);
-}
-/* keep name / description / chips / actions above the growing wash */
-.plugin-row__head,
-.plugin-row__params,
-.plugin-row__name,
-.plugin__desc {
-  position: relative;
-  z-index: 1;
-}
-@keyframes rowIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+.plugin-row.is-disabled:hover {
+  opacity: 0.92;
 }
 
-.plugin-row__head {
+/* Col 1: Plugin Identity (Icon + Name + Version) */
+.plugin-row__identity {
+  flex: 0 0 160px;
   display: flex;
   align-items: center;
-  gap: var(--sp-sm);
+  gap: 8px;
+  min-width: 0;
+}
+.plugin-row__icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-xs);
+  background: var(--c-accent-soft);
+  color: var(--c-accent);
+  flex-shrink: 0;
+}
+.plugin-row__name-wrap {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 .plugin-row__name {
-  flex-shrink: 0;
   font-weight: var(--fw-bold);
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
   white-space: nowrap;
-}
-
-/* Status dot next to the plugin name — green when enabled in the current
-   config, gray when disabled. */
-.plugin__dot {
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--c-success);
-  box-shadow: 0 0 6px var(--c-success);
-}
-.plugin__dot.is-off {
-  background: var(--c-text-faint);
-  box-shadow: none;
-}
-
-/* Description between the name and the actions, truncating with an ellipsis. */
-.plugin__desc {
-  flex: 1;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--c-text-muted);
-  font-size: var(--fs-xs);
+  color: var(--c-text);
+}
+.plugin-row__ver {
+  font-size: 10px;
+  color: var(--c-text-faint);
+  line-height: 1.1;
 }
 
-/* Action buttons, grouped at the head's right (the version is a <Pill>). */
-.plugin-row__actions {
-  display: inline-flex;
+/* Col 2: Plugin Description */
+.plugin-row__desc {
+  flex: 1 1 200px;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Col 3: Parameter Pills Preview */
+.plugin-row__params {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
   align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+  overflow: hidden;
+}
+.plugin-row__params .pill {
+  padding: 1px 7px;
+  font-size: 11px;
+}
+.plugin-row__params-empty {
+  font-size: 11px;
+  color: var(--c-text-faint);
+}
+
+/* Col 4: Status Toggle Column */
+.plugin-row__status {
+  flex: 0 0 68px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Col 5: Secondary Actions (Config & Reveal) */
+.plugin-row__actions {
+  flex: 0 0 64px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 6px;
   flex-shrink: 0;
 }
 
-/* Current parameter values as an inline pill strip — a compact preview, not
-   the full editor (that lives in the parameter-config modal). */
-.plugin-row__params {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.plugin-row__param-more {
-  font-size: var(--fs-xs);
-  color: var(--c-text-faint);
-  align-self: center;
-  padding: 2px 4px;
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* Pill — shared small rounded badge (components/ui.jsx), ONE component with
