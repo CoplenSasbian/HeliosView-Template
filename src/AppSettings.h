@@ -23,7 +23,6 @@ struct AppSettings
 {
     using ProcessRule = std::pair<std::string, std::string>; // exe → config
 
-    int popupPosition = 3;                 // 0..3 (tray popup corner)
     bool processAutoSwitch = false;        // process-monitor auto-activation
     std::vector<ProcessRule> processRules; // exe → config pairs to watch
 
@@ -54,9 +53,6 @@ struct AppSettings
     int windowX = -1, windowY = -1;        // main-window position (-1 = not saved)
     int windowWidth = 0, windowHeight = 0; // main-window size (0 = not saved)
 
-    // Clamped to the valid 0..3 range.
-    void setPopupPosition(int pos) { popupPosition = std::clamp(pos, 0, 3); }
-
     // Async file I/O on the background pool. load() reads app.json; missing /
     // invalid files keep the defaults and complete with false. save() writes
     // it (creating the settings dir first).
@@ -67,7 +63,7 @@ struct AppSettings
 // The persisted shape: every member is described, so load/save map the whole
 // object in one value_to/value_from call instead of hand-written JSON code.
 // (autoStart is not listed — see the struct comment: it is OS-side state now.)
-BOOST_DESCRIBE_STRUCT(AppSettings, (), (popupPosition, processAutoSwitch,
+BOOST_DESCRIBE_STRUCT(AppSettings, (), (processAutoSwitch,
                                         processRules, backgroundName, solidColor, themeMode, themeThreshold,
                                         design,
                                         windowX, windowY, windowWidth, windowHeight))

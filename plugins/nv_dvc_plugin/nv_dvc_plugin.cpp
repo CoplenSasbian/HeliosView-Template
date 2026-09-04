@@ -63,8 +63,9 @@ public:
         return uiBuffer_.c_str();
     }
 
-    void initialize(ILogger* logger, IPluginContext* /*context*/) noexcept override {
+    void initialize(ILogger* logger, IPluginContext* context) noexcept override {
         this->logger = logger;
+        this->context = context;
         parameters.reserve(1);
 
         auto& param = parameters.emplace_back();
@@ -171,6 +172,7 @@ public:
             level = static_cast<int>(values->getInt64Value("level"));
         } catch (...) {
             logError("execute: 缺少 'level' 参数");
+            if (context) context->reportStatus(NotifyLevel::Error, "缺少 level 参数");
             return false;
         }
 
@@ -181,14 +183,17 @@ public:
 
         if (!m_available) {
             logWarn("NvDvc 不可用, 忽略");
+            if (context) context->reportStatus(NotifyLevel::Warning, "NVIDIA 显卡接口不可用");
             return false;
         }
 
         if (setVibrance(level)) {
             logInfo(std::format("数字振动已设置为 {} (配置值)", level));
+            if (context) context->reportStatus(NotifyLevel::Success, std::format("数字振动: {}%", level).c_str());
             return true;
         }
         logInfo("数字振动设置失败");
+        if (context) context->reportStatus(NotifyLevel::Error, "数字振动设置失败");
         return false;
     }
 
@@ -215,6 +220,7 @@ private:
     }
 
     ILogger* logger = nullptr;
+    IPluginContext* context = nullptr;
     std::vector<PluginParameterInfo> parameters;
     std::string uiBuffer_;   // customInfo() 返回缓冲
 

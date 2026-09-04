@@ -1,4 +1,4 @@
-// SettingsPage — app settings: general behaviors (auto-start, popup position)
+// SettingsPage — app settings: general behaviors (auto-start)
 // and appearance (theme, background, design). Settings come from
 // SettingsContext; appearance state from AppearanceContext.
 // Note: config management (create/delete/edit/activate) deliberately lives
@@ -11,14 +11,6 @@ import { call } from '../bridge'
 import { useSettings } from '../context/SettingsContext.jsx'
 import { toast } from '../components/toast'
 import { useAppearance, bgList, bgLoadThumb, solidBackgroundCss, DEFAULT_ACCENT, SOLID_KEY } from '../context/AppearanceContext.jsx'
-
-// 0=左上角 1=右上角 2=左下角 3=右下角 — must match the native popupPosition.
-const POPUP_OPTIONS = [
-  { value: 0, label: '左上角' },
-  { value: 1, label: '右上角' },
-  { value: 2, label: '左下角' },
-  { value: 3, label: '右下角' },
-]
 
 // Mini wireframe of the app shell (a sidebar strip + a few content lines and
 // a card) — the theme-mode tiles show this rough sketch in light/dark colors
@@ -120,7 +112,7 @@ function BgThumb({ name, thumb, current, applying, onLoadThumb, onPick, onReveal
 }
 
 export default function SettingsPage() {
-  const { autoStart, popupPosition, loading, setAutoStart, setPopupPosition } = useSettings()
+  const { autoStart, loading, setAutoStart } = useSettings()
   const {
     themeMode,
     themeThreshold,
@@ -551,19 +543,6 @@ export default function SettingsPage() {
               on={autoStart}
               onChange={toggleAutoStart}
               title={loading ? '加载中…' : autoStart ? '已开启' : '已关闭'}
-            />
-          }
-        />
-
-        <SettingRow
-          label="插件输出弹窗位置"
-          desc="插件通知在屏幕的哪个角落弹出"
-          control={
-            <Select
-              options={POPUP_OPTIONS}
-              value={popupPosition}
-              disabled={loading}
-              onChange={changePopupPosition}
             />
           }
         />

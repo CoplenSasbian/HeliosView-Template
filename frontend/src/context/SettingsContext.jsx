@@ -1,5 +1,5 @@
-// SettingsContext — app-settings business module: auto-start and plugin
-// popup position, loaded once and updated by the settings page. The native
+// SettingsContext — app-settings business module: auto-start,
+// loaded once and updated by the settings page. The native
 // side broadcasts "settingsChanged" from EVERY write point (the settings page
 // AND the tray menu), so the UI stays in sync even when a toggle is flipped
 // from the system-tray context menu. Pages consume it via useSettings().
@@ -11,14 +11,12 @@ const SettingsContext = createContext(null)
 
 export function SettingsProvider({ children }) {
   const [autoStart, setAutoStart] = useState(false)
-  const [popupPosition, setPopupPosition] = useState(3)
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
     try {
       const settings = await call('settings_get')
       setAutoStart(settings?.autoStart ?? false)
-      setPopupPosition(settings?.popupPosition ?? 3)
     } catch (e) {
       console.error('SettingsProvider: refresh failed', e)
     } finally {
@@ -34,7 +32,6 @@ export function SettingsProvider({ children }) {
   // that read this context re-render automatically.
   useChannel('settingsChanged', (state) => {
     if (typeof state?.autoStart === 'boolean') setAutoStart(state.autoStart)
-    if (typeof state?.popupPosition === 'number') setPopupPosition(state.popupPosition)
   })
 
   // Operations mutate native state via the whole-object settings_set (partial
@@ -45,22 +42,14 @@ export function SettingsProvider({ children }) {
     return res?.autoStart === on ? { ok: true } : { ok: false }
   }, [])
 
-  const setPopupPositionSetting = useCallback(async (pos) => {
-    const res = await call('settings_set', { popupPosition: Number(pos) })
-    setPopupPosition(res?.popupPosition ?? Number(pos))
-    return res
-  }, [])
-
   const value = useMemo(
     () => ({
       autoStart,
-      popupPosition,
       loading,
       refresh,
       setAutoStart: setAutoStartSetting,
-      setPopupPosition: setPopupPositionSetting,
     }),
-    [autoStart, popupPosition, loading, refresh, setAutoStartSetting, setPopupPositionSetting],
+    [autoStart, loading, refresh, setAutoStartSetting],
   )
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>

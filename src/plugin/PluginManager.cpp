@@ -44,9 +44,32 @@ const char* PluginHostContext::activeConfigName() noexcept
     return config_.getActiveConfigName().c_str();
 }
 
-bool PluginHostContext::notifyUser(const char* title, const char* message) noexcept
+void PluginHostContext::reportStatus(NotifyLevel level, const char* message) noexcept
 {
-    return helios::notificationShow(title, message);
+    if (!message || !*message)
+        return;
+    if (reportCallback_)
+    {
+        try {
+            reportCallback_(PluginStatusReport{pluginName_, level, message});
+        } catch (...) {
+            // Never throw across C++ ABI boundaries
+        }
+    }
+}
+
+bool PluginHostContext::notifyUser(const char* title, const char* message, NotifyLevel level) noexcept
+{
+    std::string prefix;
+    switch (level)
+    {
+    case NotifyLevel::Success: prefix = "✓ "; break;
+    case NotifyLevel::Warning: prefix = "⚠️ "; break;
+    case NotifyLevel::Error:   prefix = "❌ "; break;
+    default: break;
+    }
+    const std::string fullTitle = prefix + (title ? title : "GameTrigger");
+    return helios::notificationShow(fullTitle.c_str(), message ? message : "");
 }
 
 // KV store: <key -> string> JSON file per plugin. Not thread-safe on its own —
@@ -130,67 +153,88 @@ struct JsonPluginParameterValue : public PluginParameterValue
     {
     }
 
-    [[nodiscard]] PluginParameterType getType(const char* name) const override
+    [[nodiscard]] PluginParameterType getType(const char* name) const noexcept override
     {
-        auto find_if = std::ranges::find_if(type, [&](const PluginParameterInfo& info) { return std::string_view{info.name} == name; });
+        if (!name) return PluginParameterType::Int;
+        auto find_if = std::ranges::find_if(type, [&](const PluginParameterInfo& info) { return info.name && std::string_view{info.name} == name; });
         return find_if != type.end() ? find_if->type : PluginParameterType::Int;
     }
-    [[nodiscard]] int64_t getInt64Value(const char* name) const override
+    [[nodiscard]] int64_t getInt64Value(const char* name) const noexcept override
     {
-        return configObj.get().at(name).to_number<int64_t>();
+        if (!name) return 0;
+        try {
+            auto it = configObj.get().if_contains(name);
+            return (it && (it->is_int64() || it->is_uint64() || it->is_double())) ? it->to_number<int64_t>() : 0;
+        } catch (...) { return 0; }
     }
-    [[nodiscard]] double getDoubleValue(const char* name) const override
+    [[nodiscard]] double getDoubleValue(const char* name) const noexcept override
     {
-        return configObj.get().at(name).to_number<double>();
+        if (!name) return 0.0;
+        try {
+            auto it = configObj.get().if_contains(name);
+            return (it && (it->is_int64() || it->is_uint64() || it->is_double())) ? it->to_number<double>() : 0.0;
+        } catch (...) { return 0.0; }
     }
-    [[nodiscard]] bool getBoolValue(const char* name) const override
+    [[nodiscard]] bool getBoolValue(const char* name) const noexcept override
     {
-        return configObj.get().at(name).as_bool();
+        if (!name) return false;
+        try {
+            auto it = configObj.get().if_contains(name);
+            return it && it->is_bool() ? it->as_bool() : false;
+        } catch (...) { return false; }
     }
-    [[nodiscard]] const char* getStringValue(const char* name) const override
+    [[nodiscard]] const char* getStringValue(const char* name) const noexcept override
     {
-        return configObj.get().at(name).as_string().c_str();
+        if (!name) return "";
+        try {
+            auto it = configObj.get().if_contains(name);
+            return (it && it->is_string()) ? it->as_string().c_str() : "";
+        } catch (...) { return ""; }
     }
-    [[nodiscard]] int64_t getDateTimeValue(const char* name) const override
+    [[nodiscard]] int64_t getDateTimeValue(const char* name) const noexcept override
     {
-        return configObj.get().at(name).to_number<int64_t>();
+        return getInt64Value(name);
     }
-    [[nodiscard]] const char* getFileValue(const char* name) const override
+    [[nodiscard]] const char* getFileValue(const char* name) const noexcept override
     {
-        return configObj.get().at(name).as_string().c_str();
+        return getStringValue(name);
     }
-    [[nodiscard]] const char* getFolderValue(const char* name) const override
+    [[nodiscard]] const char* getFolderValue(const char* name) const noexcept override
     {
-        return configObj.get().at(name).as_string().c_str();
+        return getStringValue(name);
     }
 
-    void setInt64Value(const char* name, int64_t value) override
+    void setInt64Value(const char* name, int64_t value) noexcept override
     {
-        configObj.get()[name] = value;
+        if (!name) return;
+        try { configObj.get()[name] = value; } catch (...) {}
     }
-    void setDoubleValue(const char* name, double value) override
+    void setDoubleValue(const char* name, double value) noexcept override
     {
-        configObj.get()[name] = value;
+        if (!name) return;
+        try { configObj.get()[name] = value; } catch (...) {}
     }
-    void setBoolValue(const char* name, bool value) override
+    void setBoolValue(const char* name, bool value) noexcept override
     {
-        configObj.get()[name] = value;
+        if (!name) return;
+        try { configObj.get()[name] = value; } catch (...) {}
     }
-    void setStringValue(const char* name, const char* value) override
+    void setStringValue(const char* name, const char* value) noexcept override
     {
-        configObj.get()[name] = value;
+        if (!name) return;
+        try { configObj.get()[name] = value ? value : ""; } catch (...) {}
     }
-    void setDateTimeValue(const char* name, int64_t value) override
+    void setDateTimeValue(const char* name, int64_t value) noexcept override
     {
-        configObj.get()[name] = value;
+        setInt64Value(name, value);
     }
-    void setFileValue(const char* name, const char* value) override
+    void setFileValue(const char* name, const char* value) noexcept override
     {
-        configObj.get()[name] = value;
+        setStringValue(name, value);
     }
-    void setFolderValue(const char* name, const char* value) override
+    void setFolderValue(const char* name, const char* value) noexcept override
     {
-        configObj.get()[name] = value;
+        setStringValue(name, value);
     }
     std::reference_wrapper<boost::json::object> configObj;
     std::span<const PluginParameterInfo> type;
@@ -693,9 +737,8 @@ struct PluginManager::Impl
     // frontend plugins_activate / pluginsCreateConfig (pool thread) at the
     // same time, and must not overlap.
     std::mutex activateMutex;
-
+    std::vector<PluginStatusReport> currentReports;
     std::flat_map<std::string, PluginPkg> plugins;
-
     TagLogger tagLogger_;
 };
 
@@ -770,10 +813,13 @@ std::execution::task<void> PluginManager::loadPlugins()
             // One IPluginContext per plugin: the KV file lives under the app
             // settings dir, keyed by a sanitized plugin name (one namespace
             // per plugin).
-            const std::string kvFile = (SettingDir() / "plugin_data" / SanitizeFileName(plugin->name())).string() + ".json";
-            pkg.context = std::make_unique<PluginHostContext>(pluginConfig_, kvFile);
+            const std::string pName = plugin->name();
+            const std::string kvFile = (SettingDir() / "plugin_data" / SanitizeFileName(pName.c_str())).string() + ".json";
+            pkg.context = std::make_unique<PluginHostContext>(pluginConfig_, pName, kvFile, [this](PluginStatusReport report) {
+                m_->currentReports.push_back(std::move(report));
+            });
             pkg.plugin->initialize(&logger_, pkg.context.get());
-            auto [it, inserted] = m_->plugins.emplace(plugin->name(), std::move(pkg));
+            auto [it, inserted] = m_->plugins.emplace(pName, std::move(pkg));
             if (!inserted)
             {
                 m_->tagLogger_.Error("Duplicate plugin name: {}", plugin->name());
@@ -826,14 +872,28 @@ const std::vector<std::string>& PluginManager::getConfigNameList() const
     return pluginConfig_.getConfigNameList();
 }
 
-void PluginManager::activateConfig(const std::string& configName)
+// MSVC C2712: __try cannot be used in functions that require C++ object unwinding
+// (e.g. holding std::lock_guard, std::string, etc.). We isolate the SEH call in a
+// dedicated helper function without C++ object destructors on its frame.
+static bool SafeExecutePlugin(IPlugin* plugin, PluginParameterValue* value, DWORD& exceptionCode)
+{
+    __try {
+        return plugin->execute(value);
+    } __except (exceptionCode = GetExceptionCode(), EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+
+const std::vector<PluginStatusReport>& PluginManager::activateConfig(const std::string& configName)
 {
     // Serialize the whole activation (switch + plugin execute): concurrent
     // calls from the process-monitor auto-switch and the frontend would
     // otherwise race on PluginConfig state and on the plugins themselves.
     std::lock_guard<std::mutex> lock(m_->activateMutex);
+    m_->currentReports.clear();
+
     bool config = pluginConfig_.switchConfig(configName);
-    if (!config) return throw std::runtime_error("Config not found");
+    if (!config)  throw std::runtime_error("Config not found");
 
     for (auto [name, pkg] : m_->plugins)
     {
@@ -847,9 +907,17 @@ void PluginManager::activateConfig(const std::string& configName)
         PluginParameterValue* value = pluginConfig_.getCurrentConfigParameter(name);
         if (value)
         {
-            pkg.plugin->execute(value);
+            DWORD exceptionCode = 0;
+            if (!SafeExecutePlugin(pkg.plugin, value, exceptionCode))
+            {
+                if (exceptionCode != 0)
+                {
+                    m_->tagLogger_.Error("插件 '{}' 执行时发生严重崩溃异常 (SEH: 0x{:08X})", name, exceptionCode);
+                    m_->currentReports.push_back(PluginStatusReport{name, NotifyLevel::Error, "插件崩溃(SEH异常)"});
+                }
+            }
         }
     }
 
-
+    return m_->currentReports;
 }

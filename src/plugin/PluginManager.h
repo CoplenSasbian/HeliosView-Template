@@ -46,20 +46,30 @@ private:
     PluginManager& pluginManager_;
 };
 
+struct PluginStatusReport
+{
+    std::string pluginName;
+    NotifyLevel level = NotifyLevel::Info;
+    std::string message;
+};
+
 // Host services exposed to plugins (IPluginContext): the currently active
-// config name, OS toast notifications, and a persistent per-plugin KV store.
+// config name, OS toast notifications, status reporting, and a persistent per-plugin KV store.
 // One instance is created per loaded plugin (configured with the plugin's
 // storage file), so each plugin gets its own KV namespace.
 class PluginHostContext : public IPluginContext
 {
 public:
-    PluginHostContext(PluginConfig& config, std::string kvFilePath)
-        : config_(config), kvFilePath_(std::move(kvFilePath))
+    PluginHostContext(PluginConfig& config, std::string pluginName, std::string kvFilePath,
+                      std::function<void(PluginStatusReport)> reportCallback)
+        : config_(config), pluginName_(std::move(pluginName)),
+          kvFilePath_(std::move(kvFilePath)), reportCallback_(std::move(reportCallback))
     {
     }
 
     const char* activeConfigName() noexcept override;
-    bool notifyUser(const char* title, const char* message) noexcept override;
+    void reportStatus(NotifyLevel level, const char* message) noexcept override;
+    bool notifyUser(const char* title, const char* message, NotifyLevel level = NotifyLevel::Info) noexcept override;
     void kvSet(const char* key, const char* value) noexcept override;
     const char* kvGet(const char* key) noexcept override;
     void kvRemove(const char* key) noexcept override;
@@ -72,7 +82,9 @@ private:
     void save() noexcept;
 
     PluginConfig& config_;
+    std::string pluginName_;
     std::string kvFilePath_;
+    std::function<void(PluginStatusReport)> reportCallback_;
     std::mutex mutex_;
     bool loaded_ = false;
     boost::json::object kv_;               // key -> string value
@@ -104,7 +116,7 @@ public:
 
     [[nodiscard]] const std::vector<std::string>& getConfigNameList() const;
 
-    void activateConfig(const std::string& configName);
+    const std::vector<PluginStatusReport>& activateConfig(const std::string& configName);
 
 private:
     struct Impl;

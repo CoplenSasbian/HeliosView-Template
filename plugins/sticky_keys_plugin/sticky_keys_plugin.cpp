@@ -50,8 +50,9 @@ public:
         return uiBuffer_.c_str();
     }
 
-    void initialize(ILogger* logger, IPluginContext* /*context*/) noexcept override {
+    void initialize(ILogger* logger, IPluginContext* context) noexcept override {
         this->logger = logger;
+        this->context = context;
         parameters.reserve(1);
 
         auto& param = parameters.emplace_back();
@@ -78,13 +79,16 @@ public:
             block = values->getBoolValue("block");
         } catch (...) {
             logError("execute: 缺少 'block' 参数");
+            if (context) context->reportStatus(NotifyLevel::Error, "缺少 block 参数");
             return false;
         }
 
-        if (block)
+        if (block) {
             blockStickyKeys();
-        else
+            if (context) context->reportStatus(NotifyLevel::Success, "粘滞键已屏蔽");
+        } else {
             restore();
+        }
         return true;
     }
 
@@ -162,6 +166,7 @@ private:
     }
 
     ILogger* logger = nullptr;
+    IPluginContext* context = nullptr;
     std::vector<PluginParameterInfo> parameters;
     std::string uiBuffer_;   // customInfo() 返回缓冲
 

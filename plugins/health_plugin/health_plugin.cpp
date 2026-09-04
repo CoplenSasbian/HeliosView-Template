@@ -269,7 +269,7 @@ private:
             return;
         const int64_t mins = (seconds + 30) / 60;
         const std::string body = makeMessage(mins);
-        if (!context->notifyUser("健康提醒", body.c_str()) && logger)
+        if (!context->notifyUser("健康提醒", body.c_str(), NotifyLevel::Warning) && logger)
             logger->log(ILogger::Warning, "HealthPlugin", "休息提醒发送失败 (toast 不可用)");
     }
 

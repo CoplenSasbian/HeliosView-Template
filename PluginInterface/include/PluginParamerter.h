@@ -15,23 +15,23 @@ enum class PluginParameterType
 struct PluginParameterValue
 {
     virtual ~PluginParameterValue() = default;
-    [[nodiscard]] virtual PluginParameterType getType(const char* name) const = 0;
-    [[nodiscard]] virtual int64_t getInt64Value(const char* name) const = 0;
-    [[nodiscard]] virtual double getDoubleValue(const char* name) const = 0;
-    [[nodiscard]] virtual bool getBoolValue(const char* name) const = 0;
-    [[nodiscard]] virtual const char* getStringValue(const char* name) const = 0;
-    [[nodiscard]] virtual int64_t getDateTimeValue(const char* name) const = 0;
-    [[nodiscard]] virtual const char* getFileValue(const char* name) const = 0;
-    [[nodiscard]] virtual const char* getFolderValue(const char* name) const = 0;
+    [[nodiscard]] virtual PluginParameterType getType(const char* name) const noexcept = 0;
+    [[nodiscard]] virtual int64_t getInt64Value(const char* name) const noexcept = 0;
+    [[nodiscard]] virtual double getDoubleValue(const char* name) const noexcept = 0;
+    [[nodiscard]] virtual bool getBoolValue(const char* name) const noexcept = 0;
+    [[nodiscard]] virtual const char* getStringValue(const char* name) const noexcept = 0;
+    [[nodiscard]] virtual int64_t getDateTimeValue(const char* name) const noexcept = 0;
+    [[nodiscard]] virtual const char* getFileValue(const char* name) const noexcept = 0;
+    [[nodiscard]] virtual const char* getFolderValue(const char* name) const noexcept = 0;
 
 
-    virtual void setInt64Value(const char* name, int64_t value) = 0;
-    virtual void setDoubleValue(const char* name, double value) = 0;
-    virtual void setBoolValue(const char* name, bool value) = 0;
-    virtual void setStringValue(const char* name, const char* value) = 0;
-    virtual void setDateTimeValue(const char* name, int64_t value) = 0;
-    virtual void setFileValue(const char* name, const char* value) = 0;
-    virtual void setFolderValue(const char* name, const char* value) = 0;
+    virtual void setInt64Value(const char* name, int64_t value) noexcept = 0;
+    virtual void setDoubleValue(const char* name, double value) noexcept = 0;
+    virtual void setBoolValue(const char* name, bool value) noexcept = 0;
+    virtual void setStringValue(const char* name, const char* value) noexcept = 0;
+    virtual void setDateTimeValue(const char* name, int64_t value) noexcept = 0;
+    virtual void setFileValue(const char* name, const char* value) noexcept = 0;
+    virtual void setFolderValue(const char* name, const char* value) noexcept = 0;
 };
 
 

@@ -10,6 +10,7 @@
 #include <IPlugin.h>
 
 #define WIN32_LEAN_AND_MEAN
+#include <filesystem>
 #include <windows.h>
 #include <shellapi.h>
 
@@ -55,8 +56,9 @@ public:
         return uiBuffer_.c_str();
     }
 
-    void initialize(ILogger* logger, IPluginContext* /*context*/) noexcept override {
+    void initialize(ILogger* logger, IPluginContext* context) noexcept override {
         this->logger = logger;
+        this->context = context;
         parameters.reserve(1);
 
         auto& param = parameters.emplace_back();
@@ -84,6 +86,7 @@ public:
             if (v) command = v;
         } catch (...) {
             logError("execute: 缺少 'command' 参数");
+            if (context) context->reportStatus(NotifyLevel::Error, "缺少 command 参数");
             return false;
         }
 
@@ -93,7 +96,14 @@ public:
         }
 
         logInfo(std::format("执行脚本: {}", command));
-        return executeCommand(command);
+        bool ok = executeCommand(command);
+        if (context) {
+            std::filesystem::path p(command);
+            std::string filename = p.filename().string();
+            if (ok) context->reportStatus(NotifyLevel::Success, std::format("已执行: {}", filename).c_str());
+            else context->reportStatus(NotifyLevel::Error, std::format("执行失败: {}", filename).c_str());
+        }
+        return ok;
     }
 
 private:
@@ -145,6 +155,7 @@ private:
     }
 
     ILogger* logger = nullptr;
+    IPluginContext* context = nullptr;
     std::vector<PluginParameterInfo> parameters;
     std::string uiBuffer_;   // customInfo() 返回缓冲
 };

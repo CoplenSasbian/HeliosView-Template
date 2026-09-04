@@ -22,7 +22,7 @@ BOOST_DESCRIBE_ENUM(ILogger::Level,  Info, Warning, Error)
 
 class Logger : public ILogger {
 public:
-    void log(Level level, const char* tag, const char* message) override;
+    void log(Level level, const char* tag, const char* message) noexcept override;
     Logger();
     ~Logger() override;
 

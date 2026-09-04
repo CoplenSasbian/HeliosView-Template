@@ -79,8 +79,9 @@ public:
         return uiBuffer_.c_str();
     }
 
-    void initialize(ILogger* logger, IPluginContext* /*context*/) noexcept override {
+    void initialize(ILogger* logger, IPluginContext* context) noexcept override {
         this->logger = logger;
+        this->context = context;
         parameters.reserve(1);
 
         auto& param = parameters.emplace_back();
@@ -148,11 +149,13 @@ public:
             index = static_cast<int>(values->getInt64Value("scheme"));
         } catch (...) {
             logError("execute: 缺少 'scheme' 参数");
+            if (context) context->reportStatus(NotifyLevel::Error, "缺少 scheme 参数");
             return false;
         }
 
         if (m_schemeGuids.empty()) {
             logError("没有可用的电源方案");
+            if (context) context->reportStatus(NotifyLevel::Warning, "无可用电源方案");
             return false;
         }
 
@@ -160,6 +163,7 @@ public:
         if (index < 0 || index >= static_cast<int>(m_schemeGuids.size())) {
             logError(std::format("scheme 下标越界: {} (有效范围 0-{})",
                                  index, static_cast<int>(m_schemeGuids.size()) - 1));
+            if (context) context->reportStatus(NotifyLevel::Error, "电源方案下标越界");
             return false;
         }
 
@@ -170,10 +174,12 @@ public:
                 logInfo("需要管理员权限来切换电源方案");
             else if (err == ERROR_NOT_SUPPORTED)
                 logInfo("此电源方案不可用, 请选择其他方案");
+            if (context) context->reportStatus(NotifyLevel::Error, "电源方案切换失败(需权限)");
             return false;
         }
 
         logInfo(std::format("电源方案已切换: {}", m_schemeNames[index]));
+        if (context) context->reportStatus(NotifyLevel::Success, std::format("电源方案: {}", m_schemeNames[index]).c_str());
         return true;
     }
 
@@ -197,6 +203,7 @@ private:
     }
 
     ILogger* logger = nullptr;
+    IPluginContext* context = nullptr;
     std::vector<PluginParameterInfo> parameters;
     std::string uiBuffer_;   // customInfo() 返回缓冲
 

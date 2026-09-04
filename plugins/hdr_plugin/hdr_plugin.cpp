@@ -269,8 +269,9 @@ public:
         return uiBuffer_.c_str();
     }
 
-    void initialize(ILogger* logger, IPluginContext* /*context*/) noexcept override {
+    void initialize(ILogger* logger, IPluginContext* context) noexcept override {
         this->logger = logger;
+        this->context = context;
         parameters.reserve(1);
 
         auto& param = parameters.emplace_back();
@@ -306,6 +307,7 @@ public:
             action = static_cast<int>(values->getInt64Value("action"));
         } catch (...) {
             logError("execute: 缺少 'action' 参数");
+            if (context) context->reportStatus(NotifyLevel::Error, "缺少 action 参数");
             return false;
         }
 
@@ -315,14 +317,27 @@ public:
 
         if (!m_available) {
             logWarn("HDR 不可用, 忽略动作");
+            if (context && action != 0) context->reportStatus(NotifyLevel::Warning, "HDR 设备不可用");
             return false;
         }
 
         switch (action) {
-        case 1:
-            return enableHdr(true);
-        case 2:
-            return enableHdr(false);
+        case 1: {
+            bool ok = enableHdr(true);
+            if (context) {
+                if (ok) context->reportStatus(NotifyLevel::Success, "HDR 已开启");
+                else context->reportStatus(NotifyLevel::Error, "HDR 开启失败");
+            }
+            return ok;
+        }
+        case 2: {
+            bool ok = enableHdr(false);
+            if (context) {
+                if (ok) context->reportStatus(NotifyLevel::Success, "HDR 已关闭");
+                else context->reportStatus(NotifyLevel::Error, "HDR 关闭失败");
+            }
+            return ok;
+        }
         default:
             return true; // 0 = 不操作
         }
@@ -389,6 +404,7 @@ private:
     }
 
     ILogger* logger = nullptr;
+    IPluginContext* context = nullptr;
     std::vector<PluginParameterInfo> parameters;
     std::string uiBuffer_;   // customInfo() 返回缓冲
     bool m_available = false;

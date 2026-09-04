@@ -112,20 +112,24 @@ void Logger::removeLogListener(size_t id)
 }
 
 
-void Logger::log(Level level, const char* tag, const char* message)
+void Logger::log(Level level, const char* tag, const char* message) noexcept
 {
-    static thread_local moodycamel::ProducerToken token(m_->logQueue);
-    auto now = std::chrono::system_clock::now();
-    // %S alone on a sub-second-precision time point already emits the fractional
-    // seconds (e.g. "58.3360176"), so flooring to whole seconds first keeps the
-    // stored display time clean: "…:58.336". The timestamp stays the true epoch.
-    auto secs = std::chrono::floor<std::chrono::seconds>(now);
-    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - secs).count();
-    auto msg = LogEntry{
-        .time = std::format("{:%Y-%m-%d %H:%M:%S}.{:03}", secs, ms),
-        .timestamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count(),
-        .level = level, .tag = tag, .message = message};
-    m_->logQueue.enqueue(token,std::move(msg));
+    try {
+        static thread_local moodycamel::ProducerToken token(m_->logQueue);
+        auto now = std::chrono::system_clock::now();
+        // %S alone on a sub-second-precision time point already emits the fractional
+        // seconds (e.g. "58.3360176"), so flooring to whole seconds first keeps the
+        // stored display time clean: "…:58.336". The timestamp stays the true epoch.
+        auto secs = std::chrono::floor<std::chrono::seconds>(now);
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - secs).count();
+        auto msg = LogEntry{
+            .time = std::format("{:%Y-%m-%d %H:%M:%S}.{:03}", secs, ms),
+            .timestamp = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count(),
+            .level = level, .tag = tag ? tag : "", .message = message ? message : ""};
+        m_->logQueue.enqueue(token,std::move(msg));
+    } catch (...) {
+        // Logging must never propagate exceptions across module boundaries
+    }
 }
 
 namespace {

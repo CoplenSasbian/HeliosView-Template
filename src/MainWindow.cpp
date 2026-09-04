@@ -630,9 +630,10 @@ std::execution::task<bool> MainWindow::pluginsActivate(std::string config)
     // the binding's resolve / reject on completion) must run on the UI thread
     // — the C layer no longer marshals off-thread calls — so hop back first.
     std::exception_ptr fail;
+    std::vector<PluginStatusReport> reports;
     try
     {
-        m_pluginManager.activateConfig(config); // blocking part stays off the UI thread
+        reports = m_pluginManager.activateConfig(config); // blocking part stays off the UI thread
     }
     catch (...)
     {
@@ -641,7 +642,7 @@ std::execution::task<bool> MainWindow::pluginsActivate(std::string config)
     co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
     if (fail)
         std::rethrow_exception(fail); // → the JS promise rejects on the UI thread
-    AnnounceConfigActivated(config, "activate");
+    AnnounceConfigActivated(config, "activate", reports);
     co_return true;
 }
 
@@ -742,9 +743,9 @@ std::execution::task<bool> MainWindow::pluginsCreateConfig(std::string name)
     // so hop to the pool before running it — then back to the UI thread for
     // the WebView bridge calls (broadcast / resolve).
     co_await std::execution::schedule(AppContext::instance()->async().get_scheduler());
-    m_pluginManager.activateConfig(name);
+    auto reports = m_pluginManager.activateConfig(name);
     co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
-    AnnounceConfigActivated(name, "create");
+    AnnounceConfigActivated(name, "create", reports);
     BroadcastConfigsChanged(); // config list changed too
     co_return true;
 }
@@ -886,7 +887,8 @@ void MainWindow::BroadcastSettingsChanged()
 // (plugin execute()) on the background pool, hop back onto the UI thread, and
 // announce there — broadcast() must run on the UI thread (the C layer no
 // longer marshals off-thread calls).
-void MainWindow::AnnounceConfigActivated(const std::string& config, const char* reason)
+void MainWindow::AnnounceConfigActivated(const std::string& config, const char* reason,
+                                         const std::vector<PluginStatusReport>& reports)
 {
     BroadcastConfigActivated(reason);
 
@@ -895,16 +897,52 @@ void MainWindow::AnnounceConfigActivated(const std::string& config, const char* 
     // which on Win10/11 can only show the exe name (e.g. "GameTrigger.exe") as
     // its title. Fall back to the balloon if toasts are unavailable.
     const bool off = config == "close";
-    const std::string msg = off ? "当前未启用任何配置" : ("当前配置：" + config);
-    const bool shown = helios::notificationShow(off ? "配置已关闭" : "配置已切换", msg.c_str());
+    std::string title = off ? "配置已关闭" : "配置已切换";
+
+    bool hasError = false;
+    bool hasWarning = false;
+    std::string summaryLines;
+
+    for (const auto& r : reports)
+    {
+        if (r.message.empty()) continue;
+        if (r.level == NotifyLevel::Error) hasError = true;
+        if (r.level == NotifyLevel::Warning) hasWarning = true;
+
+        std::string icon;
+        switch (r.level)
+        {
+        case NotifyLevel::Success: icon = "✓ "; break;
+        case NotifyLevel::Warning: icon = "⚠️ "; break;
+        case NotifyLevel::Error:   icon = "❌ "; break;
+        default:                   icon = "• "; break;
+        }
+
+        if (!summaryLines.empty())
+            summaryLines += "\n";
+        summaryLines += icon + r.pluginName + ": " + r.message;
+    }
+
+    if (hasError)
+        title = "⚠️ " + title + " (部分异常)";
+    else if (hasWarning)
+        title = "ℹ️ " + title;
+
+    std::string body = off ? "当前未启用任何配置" : ("当前配置：" + config);
+    if (!summaryLines.empty())
+    {
+        body += "\n" + summaryLines;
+    }
+
+    const bool shown = helios::notificationShow(title.c_str(), body.c_str());
     if (!shown && m_tray && m_tray->valid())
-        m_tray->notify(off ? "配置已关闭" : "配置已切换", msg.c_str());
+        m_tray->notify(title.c_str(), body.c_str());
 }
 
 void MainWindow::ActivateConfig(const std::string& config, const char* reason)
 {
-    m_pluginManager.activateConfig(config); // may throw — caller decides
-    AnnounceConfigActivated(config, reason);
+    auto reports = m_pluginManager.activateConfig(config); // may throw — caller decides
+    AnnounceConfigActivated(config, reason, reports);
 }
 
 // ---- system tray + context menu -------------------------------------------
@@ -1289,8 +1327,8 @@ std::execution::task<void> MainWindow::setupSettings()
     // read false a millisecond later, so the monitor silently never started.
     AppSettings loaded;
     if (co_await loaded.load(AppContext::instance()->async()))
-        AppContext::instance()->logger().Info("settings", "loaded app settings (autoStart={}, popupPosition={}, processAutoSwitch={})",
-                       IsAutoStartEnabled(), loaded.popupPosition, loaded.processAutoSwitch);
+        AppContext::instance()->logger().Info("settings", "loaded app settings (autoStart={}, processAutoSwitch={})",
+                       IsAutoStartEnabled(), loaded.processAutoSwitch);
     else
         AppContext::instance()->logger().Info("settings", "no app settings yet, using defaults");
 
