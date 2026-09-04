@@ -21,7 +21,7 @@ const SPACE_BASE = {
   '--sp-2xs': 4, '--sp-xs': 8, '--sp-sm': 12, '--sp-md': 16,
   '--sp-lg': 24, '--sp-xl': 32, '--sp-2xl': 48,
 }
-const CTRL_BASE = { '--ctrl-height': 38, '--ctrl-pad-x': 14 }
+const CTRL_BASE = { '--ctrl-height': 36, '--ctrl-pad-x': 12 }
 
 // ---- unified (debounced) native persist -------------------------------------
 let _persistTimer = null

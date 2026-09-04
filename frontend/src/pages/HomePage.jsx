@@ -1,14 +1,11 @@
 // HomePage — dashboard with live config switching and log console.
 
 import { useState } from 'react'
-import { Card, Segmented, Button } from '../components/ui'
-import { useLogger } from '../context/LoggerContext.jsx'
-import { useConfig } from '../context/ConfigContext.jsx'
-import { usePlugins } from '../context/PluginContext.jsx'
+import { Card, Segmented, Button, toast } from '../ui'
+import { usePlugins,useConfig,useLogger} from '../context'
 import LogConsole from '../components/LogConsole'
 import LogFilters from '../components/LogFilters'
 import { call } from '../bridge'
-import { toast } from '../components/toast'
 
 export default function HomePage() {
   const { logList, clearLogs } = useLogger()

@@ -5,8 +5,7 @@
 // page). Deletion is one explicit button, not per-chip hover badges — those
 // overlapped the options and were too easy to trigger by accident.
 
-import { Segmented, Button, Card } from './ui'
-import { IconTrash } from './icons'
+import { Segmented, Button, Card, IconTrash } from '../ui'
 
 export default function ConfigSelector({
   configs,

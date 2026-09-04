@@ -1,4 +1,4 @@
-// LogConsole.jsx — scrollable log viewer. Pure rendering: the filter state
+﻿// LogConsole.jsx — scrollable log viewer. Pure rendering: the filter state
 // (time range / tag / level) comes in via the `filters` prop, shared with the
 // LogFilters bar in the card title row.
 //
@@ -8,23 +8,21 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLogger } from '../context/LoggerContext.jsx'
-import { Pill } from './ui'
+import { Pill } from '../ui'
 
 function getLevelClass(level) {
-  switch (level) {
-    case 'Warning': return 'is-warn'
-    case 'Error':   return 'is-error'
-    default:        return 'is-info'
-  }
+  const s = String(level).toLowerCase()
+  if (s.includes('warn')) return 'is-warn'
+  if (s.includes('err')) return 'is-error'
+  return 'is-info'
 }
 
 // Level → Pill tone (info logs read as success-tinted, warn→warning, error→danger).
 function getLevelTone(level) {
-  switch (level) {
-    case 'Warning': return 'warning'
-    case 'Error':   return 'danger'
-    default:        return 'success'
-  }
+  const s = String(level).toLowerCase()
+  if (s.includes('warn')) return 'warning'
+  if (s.includes('err')) return 'danger'
+  return 'success'
 }
 
 // Display formatting only — the stored log keeps the full timestamp from the
@@ -136,30 +134,39 @@ export default function LogConsole({ filters }) {
             key={key}
             className={`log-line ${getLevelClass(log.level)}${isOpen ? ' is-open' : ''}`}
           >
-            <span
-              className="log-line__chevron"
-              role="button"
-              title={isOpen ? '收起' : '展开'}
-              onClick={() => toggle(key)}
-            >
-              ›
-            </span>
-            {isOpen && (
-              <span className="log-line__meta">
-                <Pill tone={getLevelTone(log.level)}>{log.level ?? '--'}</Pill>
-                <span className="log-line__time" title={timeLabel}>
-                  {relLabel && <span className="log-line__time-rel">{relLabel} · </span>}
-                  {timeLabel}
-                </span>
-                <Pill tone="muted">{log.tag ?? '--'}</Pill>
+            <div className="log-line__row">
+              <span
+                className="log-line__chevron"
+                role="button"
+                title={isOpen ? '收起详情' : '展开详情'}
+                onClick={() => toggle(key)}
+              >
+                ›
               </span>
-            )}
-            <span
-              className="log-line__text"
-              title={isOpen ? undefined : log.message ?? undefined}
-            >
-              {log.message ?? ''}
-            </span>
+              <span
+                className="log-line__text"
+                title={isOpen ? undefined : log.message ?? undefined}
+                onClick={() => toggle(key)}
+                style={{ cursor: 'pointer' }}
+              >
+                {log.message ?? ''}
+              </span>
+            </div>
+
+            <div className="log-line__drawer">
+              <div className="log-line__drawer-inner">
+                <div className="log-line__detail">
+                  <div className="log-line__meta">
+                    <Pill tone={getLevelTone(log.level)}>{log.level ?? '--'}</Pill>
+                    <span className="log-line__tag-badge">#{log.tag ?? '--'}</span>
+                    <span className="log-line__time" title={timeLabel}>
+                      {relLabel && <span className="log-line__time-rel">{relLabel} · </span>}
+                      {timeLabel}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )
       })}

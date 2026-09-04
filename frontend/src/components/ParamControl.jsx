@@ -3,7 +3,7 @@
 // the parameter-config modal; also exports normalizeValue(), the save-time
 // counterpart that maps a UI value back to the JSON type the C++ side expects.
 
-import { Toggle, Button, Field, Input, Range, Select, SettingRow, Pill } from './ui'
+import { Toggle, Button, Field, Input, Range, Select, SettingRow, Pill, IconButton, IconFolder } from '../ui'
 import { call } from '../bridge'
 
 // Normalize a value to the JSON type expected by the C++ side, so that
@@ -85,30 +85,34 @@ export default function ParamControl({ param, value, onChange }) {
     case 'folder':
       return (
         <Field label={param.label || param.desc || param.name}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Input
-              style={{ flex: 1 }}
-              value={value ?? ''}
-              onChange={(e) => onChange(e.target.value)}
-            />
-            <Button
-              onClick={async () => {
-                try {
-                  const res = await call(
-                    'plugins_pickPath',
-                    param.type,
-                    `选择${param.type === 'file' ? '文件' : '文件夹'}`,
-                    param.filter ?? ''
-                  )
-                  if (res?.ok && res.path != null) onChange(res.path)
-                } catch (e) {
-                  console.error('pickPath failed', e)
-                }
-              }}
-            >
-              浏览
-            </Button>
-          </div>
+          <Input
+            value={value ?? ''}
+            allowClear
+            placeholder={`选择或输入${param.type === 'file' ? '文件' : '文件夹'}路径...`}
+            onChange={(e) => onChange(e.target.value)}
+            suffix={
+              <button
+                type="button"
+                className="input__action-btn"
+                title={`浏览${param.type === 'file' ? '文件' : '文件夹'}`}
+                onClick={async () => {
+                  try {
+                    const res = await call(
+                      'plugins_pickPath',
+                      param.type,
+                      `选择${param.type === 'file' ? '文件' : '文件夹'}`,
+                      param.filter ?? ''
+                    )
+                    if (res?.ok && res.path != null) onChange(res.path)
+                  } catch (e) {
+                    console.error('pickPath failed', e)
+                  }
+                }}
+              >
+                <IconFolder width={14} height={14} />
+              </button>
+            }
+          />
         </Field>
       )
     case 'select':

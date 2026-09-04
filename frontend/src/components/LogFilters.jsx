@@ -1,10 +1,10 @@
-// LogFilters.jsx — compact log filter bar (time range / tag / level), sized
+﻿// LogFilters.jsx — compact log filter bar (time range / tag / level), sized
 // for the card title row. Controlled: value/onChange live in the parent so
 // LogConsole can share the same filter state.
 
 import { useMemo } from 'react'
 import { useLogger } from '../context/LoggerContext.jsx'
-import { Select } from './ui'
+import { Select } from '../ui'
 
 // Preset time windows (seconds); 0 = show everything.
 const TIME_RANGES = [

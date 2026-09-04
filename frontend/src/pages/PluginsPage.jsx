@@ -1,14 +1,14 @@
-// PluginsPage — live plugin manager UI. Owns the local data flow (loading
+﻿// PluginsPage — live plugin manager UI. Owns the local data flow (loading
 // state, drafts, param values/infos, bridge calls for editing); the global
 // config list / active config come from ConfigContext.
 // ConfigSelector / PluginCard / CreateConfigModal / ParamConfigModal.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Card, Input, Segmented } from '../components/ui'
-import { IconGrid, IconList, IconSearch, IconRefresh, IconSave, IconUndo } from '../components/icons'
+import { Button, Card, Input, Segmented, DataTable, Toggle, Pill } from '../ui'
+import { IconGrid, IconList, IconSearch, IconRefresh, IconSave, IconUndo, IconSettings, IconFolder } from '../ui'
+import { formatValue } from '../components/PluginCard'
 import { useChannel } from '../hooks/useChannel.js'
-import { useConfig } from '../context/ConfigContext.jsx'
-import { usePlugins } from '../context/PluginContext.jsx'
+import { usePlugins,useConfig } from '../context'
 import { call } from '../bridge'
 import ConfigSelector from '../components/ConfigSelector'
 import PluginCard from '../components/PluginCard'
@@ -17,7 +17,7 @@ import CreateConfigModal from '../components/CreateConfigModal'
 import ParamConfigModal from '../components/ParamConfigModal'
 import ConfirmModal from '../components/ConfirmModal'
 import { normalizeValue } from '../components/ParamControl'
-import { toast } from '../components/toast'
+import { toast } from '../ui'
 
 export default function PluginsPage() {
   const [data, setData] = useState(null)
@@ -201,7 +201,119 @@ export default function PluginsPage() {
     setParam(pluginName, '_enabled', nextEnabled)
   }
 
-  // 统计数据
+  // 声明式 DataTable 列定义（List 模式专用）
+  const listColumns = useMemo(
+    () => [
+      {
+        key: 'name',
+        title: '插件名称',
+        width: 170,
+        render: (p) => (
+          <div className="plugin-row__identity">
+            <span className="plugin-row__name" title={p.name}>{p.name}</span>
+            <span className="plugin-row__ver">v{p.version}</span>
+          </div>
+        ),
+      },
+      {
+        key: 'desc',
+        title: '功能描述',
+        flex: '1 1 200px',
+        render: (p) => (
+          <span className="plugin-row__desc" title={p.description || '无详细描述'}>
+            {p.description || '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'params',
+        title: '核心参数预览',
+        flex: '1 1 240px',
+        render: (p) => {
+          const pluginValues = { ...(params[p.name] ?? {}), ...(draft[p.name] ?? {}) }
+          const declared = infos[p.name] ?? []
+          const shown = declared.slice(0, 4)
+          const extra = declared.length - shown.length
+          if (!shown.length) return <span className="plugin-row__params-empty">无参数</span>
+          return (
+            <div className="plugin-row__params">
+              {shown.map((info) => {
+                const label = info.label || info.name
+                const text = formatValue(info, pluginValues[info.name])
+                const tip = `${label}: ${text}${info.desc ? ` — ${info.desc}` : ''}`
+                return (
+                  <Pill key={info.name} tone="muted" title={tip}>
+                    <span className="pill__key">{label}</span>
+                    <span className="pill__val">{text}</span>
+                  </Pill>
+                )
+              })}
+              {extra > 0 && <span className="plugin-row__param-more">+{extra}</span>}
+            </div>
+          )
+        },
+      },
+      {
+        key: 'status',
+        title: '启用状态',
+        width: 68,
+        align: 'center',
+        render: (p) => {
+          const enabled = isPluginEnabled(p.name)
+          return (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <Toggle
+                size="sm"
+                on={enabled}
+                title={enabled ? '点击停用插件' : '点击启用插件'}
+                onChange={(val) => handleTogglePlugin(p.name, val)}
+              />
+            </div>
+          )
+        },
+      },
+      {
+        key: 'actions',
+        title: '操作',
+        width: 64,
+        align: 'right',
+        render: (p) => (
+          <div
+            className="plugin-row__actions"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="plugin-row__btn"
+              title="参数配置"
+              onClick={(e) => {
+                e.stopPropagation()
+                setConfigPlugin(p.name)
+              }}
+            >
+              <IconSettings width={14} height={14} />
+            </button>
+            <button
+              type="button"
+              className="plugin-row__btn"
+              title="在资源管理器中显示"
+              onClick={(e) => {
+                e.stopPropagation()
+                call('shell_reveal', 'plugin', p.name)
+              }}
+            >
+              <IconFolder width={14} height={14} />
+            </button>
+          </div>
+        ),
+      },
+    ],
+    [params, draft, infos, isPluginEnabled]
+  )
   const totalCount = pluginsList.length
   const enabledCount = useMemo(
     () => pluginsList.filter((p) => isPluginEnabled(p.name)).length,
@@ -216,8 +328,8 @@ export default function PluginsPage() {
   ], [])
 
   const viewOptions = useMemo(() => [
-    { value: 'grid', label: '', icon: <IconGrid width={15} height={15} /> },
-    { value: 'list', label: '', icon: <IconList width={15} height={15} /> },
+    { value: 'grid', label: '', icon: <IconGrid width={18} height={18} /> },
+    { value: 'list', label: '', icon: <IconList width={18} height={18} /> },
   ], [])
 
   // 搜索和状态过滤
@@ -274,7 +386,6 @@ export default function PluginsPage() {
           <>
             <Button
               variant="ghost"
-              size="sm"
               icon={<IconRefresh width={14} height={14} />}
               disabled={loading}
               title={loading ? '刷新中…' : '刷新插件与参数'}
@@ -290,7 +401,6 @@ export default function PluginsPage() {
             {dirtyCount > 0 && (
               <Button
                 variant="ghost"
-                size="sm"
                 icon={<IconUndo width={14} height={14} />}
                 title="放弃所有未保存修改"
                 onClick={() => setDraft({})}
@@ -300,7 +410,6 @@ export default function PluginsPage() {
             )}
             <Button
               variant="primary"
-              size="sm"
               icon={<IconSave width={14} height={14} />}
               onClick={saveParams}
               disabled={saving || !dirtyCount || !targetConfig}
@@ -324,27 +433,15 @@ export default function PluginsPage() {
         {pluginsList.length > 0 && (
           <div className="plugin-toolbar">
             <div className="plugin-toolbar__left">
-              <div className="plugin-search-wrap">
-                <span className="plugin-search__icon">
-                  <IconSearch width={14} height={14} />
-                </span>
-                <Input
-                  className="plugin-search__input"
-                  placeholder="搜索插件名称或描述..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    className="plugin-search__clear"
-                    title="清空搜索"
-                    onClick={() => setSearchQuery('')}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
+              <Input
+                size="sm"
+                className="plugin-search-wrap"
+                prefix={<IconSearch width={14} height={14} />}
+                allowClear
+                placeholder="搜索插件名称或描述..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
 
               <Segmented
                 size="sm"
@@ -373,37 +470,38 @@ export default function PluginsPage() {
 
         {pluginsList.length ? (
           filteredPlugins.length ? (
-            <div className={viewMode === 'grid' ? 'plugin-grid-layout' : 'plugin-list'}>
-              {viewMode === 'list' && (
-                <div className="plugin-list-header">
-                  <span className="plugin-list-header__name">插件名称</span>
-                  <span className="plugin-list-header__desc">功能描述</span>
-                  <span className="plugin-list-header__params">核心参数预览</span>
-                  <span className="plugin-list-header__status">启用状态</span>
-                  <span className="plugin-list-header__actions">操作</span>
-                </div>
-              )}
-              {filteredPlugins.map((p, i) => {
-                const pluginValues = {
-                  ...(params[p.name] ?? {}),
-                  ...(draft[p.name] ?? {}),
-                }
-                return (
-                  <PluginCard
-                    key={p.name}
-                    index={i}
-                    mode={viewMode}
-                    plugin={p}
-                    values={pluginValues}
-                    infos={infos[p.name] ?? []}
-                    onClick={() => setDetailPlugin(p)}
-                    onConfig={() => setConfigPlugin(p.name)}
-                    onReveal={() => call('shell_reveal', 'plugin', p.name)}
-                    onToggle={(nextVal) => handleTogglePlugin(p.name, nextVal)}
-                  />
-                )
-              })}
-            </div>
+            viewMode === 'grid' ? (
+              <div className="plugin-grid-layout">
+                {filteredPlugins.map((p, i) => {
+                  const pluginValues = {
+                    ...(params[p.name] ?? {}),
+                    ...(draft[p.name] ?? {}),
+                  }
+                  return (
+                    <PluginCard
+                      key={p.name}
+                      index={i}
+                      mode="grid"
+                      plugin={p}
+                      values={pluginValues}
+                      infos={infos[p.name] ?? []}
+                      onClick={() => setDetailPlugin(p)}
+                      onConfig={() => setConfigPlugin(p.name)}
+                      onReveal={() => call('shell_reveal', 'plugin', p.name)}
+                      onToggle={(nextVal) => handleTogglePlugin(p.name, nextVal)}
+                    />
+                  )
+                })}
+              </div>
+            ) : (
+              <DataTable
+                columns={listColumns}
+                data={filteredPlugins}
+                rowKey="name"
+                onRowClick={(p) => setDetailPlugin(p)}
+                rowClassName={(p) => (isPluginEnabled(p.name) ? '' : 'is-disabled')}
+              />
+            )
           ) : (
             <div className="plugin-empty-box">
               <span className="plugin-empty-box__title">未找到匹配的插件</span>

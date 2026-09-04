@@ -1,16 +1,15 @@
-// ProcessPage — process monitor + auto-activate config. Watch rules map an
+﻿// ProcessPage — process monitor + auto-activate config. Watch rules map an
 // exe path to a config; when a watched process starts the native side switches
 // to that config, and back to "close" when the last watched process exits.
 // Process state/rules come from ProcessContext; config list / active config
 // from ConfigContext; only the new-rule form lives in this page.
 
-import { useState, useRef, useLayoutEffect } from 'react'
-import { Card, Toggle, Button, Select, SettingRow, Pill, Input } from '../components/ui'
-import { IconTrash } from '../components/icons'
-import { useConfig } from '../context/ConfigContext.jsx'
-import { useProcess } from '../context/ProcessContext.jsx'
+import { useState, useRef, useLayoutEffect, useMemo } from 'react'
+import { Card, Toggle, Button, Select, SettingRow, Pill, Input, DataTable } from '../ui'
+import { IconTrash, IconFolder } from '../ui'
+import { useProcess,useConfig} from '../context'
 import { call } from '../bridge'
-import { toast } from '../components/toast'
+import { toast } from '../ui'
 
 // Middle-ellipsis for long exe paths: keep the front of the path and the
 // WHOLE file name, collapse only the middle directories — C:\Games\…\GameA.exe.
@@ -166,6 +165,48 @@ export default function ProcessPage() {
     saveRules(rules.filter((r) => r.exe !== exe))
   }
 
+  const ruleColumns = useMemo(
+    () => [
+      {
+        key: 'exe',
+        title: '程序路径',
+        flex: '1 1 0',
+        render: (r) => <ProcessPath path={r.exe} />,
+      },
+      {
+        key: 'config',
+        title: '切换到配置',
+        width: 180,
+        render: (r) => (
+          <Select
+            size="sm"
+            options={configs.map((c) => ({ value: c, label: c }))}
+            value={r.config}
+            disabled={loading}
+            onChange={(val) => changeRuleConfig(r.exe, val)}
+          />
+        ),
+      },
+      {
+        key: 'actions',
+        title: '',
+        width: 44,
+        align: 'right',
+        render: (r) => (
+          <button
+            type="button"
+            className="plugin-row__btn"
+            title={`删除规则 ${r.exe}`}
+            onClick={() => removeRule(r.exe)}
+          >
+            <IconTrash width={14} height={14} />
+          </button>
+        ),
+      },
+    ],
+    [configs, loading]
+  )
+
   return (
     <div>
       <div className="page-title">进程监控</div>
@@ -200,42 +241,11 @@ export default function ProcessPage() {
 
       <Card title="匹配规则" hint={`${rules.length} 条规则`}>
         {rules.length ? (
-          <table className="process-table">
-            <thead>
-              <tr>
-                <th>程序</th>
-                <th style={{ width: '30%' }}>切换到配置</th>
-                <th style={{ width: 48 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rules.map((r) => (
-                <tr key={r.exe}>
-                  <td>
-                    <ProcessPath path={r.exe} />
-                  </td>
-                  <td>
-                    <Select
-                      className="sm"
-                      options={configs.map((c) => ({ value: c, label: c }))}
-                      value={r.config}
-                      disabled={loading}
-                      onChange={(val) => changeRuleConfig(r.exe, val)}
-                    />
-                  </td>
-                  <td className="process-table__del">
-                    <button
-                      className="btn btn--link rule-delete"
-                      title={`删除规则 ${r.exe}`}
-                      onClick={() => removeRule(r.exe)}
-                    >
-                      <IconTrash width={14} height={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable
+            columns={ruleColumns}
+            data={rules}
+            rowKey="exe"
+          />
         ) : (
           <p className="field__desc">暂无规则：添加要监控的程序及其目标配置</p>
         )}
@@ -244,15 +254,23 @@ export default function ProcessPage() {
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <Input
-            style={{ flex: 1, minWidth: 240 }}
+            style={{ flex: 1, minWidth: 260 }}
+            allowClear
             placeholder="程序路径，例如 C:\Games\GameA\GameA.exe"
             value={newExe}
             onChange={(e) => setNewExe(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') addRule() }}
+            suffix={
+              <button
+                type="button"
+                className="input__action-btn"
+                title="浏览选择可执行文件"
+                onClick={pickExe}
+              >
+                <IconFolder width={14} height={14} />
+              </button>
+            }
           />
-          <Button variant="ghost" size="sm" onClick={pickExe}>
-            浏览…
-          </Button>
           <Select
             options={configs.map((c) => ({ value: c, label: c }))}
             value={newConfig}

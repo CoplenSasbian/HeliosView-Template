@@ -1,8 +1,8 @@
-// ParamConfigModal.jsx — modal for editing one plugin's parameters. Pure
+﻿// ParamConfigModal.jsx — modal for editing one plugin's parameters. Pure
 // presentation: values come from the parent (current values + local draft),
 // changes are reported via onChange(name, value), saving via onSave().
 
-import { Modal, Button, Toggle, SettingRow } from './ui'
+import { Modal, Button, Toggle, SettingRow } from '../ui'
 import ParamControl from './ParamControl'
 
 export default function ParamConfigModal({

@@ -1,10 +1,10 @@
-// PluginDetailModal.jsx — plugin detail dialog: common metadata (name,
+﻿// PluginDetailModal.jsx — plugin detail dialog: common metadata (name,
 // version, description, DLL file, enabled state in the current config,
 // declared parameters) plus a "自定义信息" section filled with the HTML the
 // plugin itself returns (plugins_customInfo, empty for plugins without one).
 
 import { useEffect, useState } from 'react'
-import { Modal, Button } from './ui'
+import { Modal, Button } from '../ui'
 import { call } from '../bridge'
 
 const PARAM_TYPE_LABEL = {
@@ -26,11 +26,12 @@ const PARAM_TYPE_LABEL = {
 //    (内容长), 所以插件文档自己量高度 postMessage 给父页面自适应。
 const wrapPluginHtml = (html) =>
   '<!doctype html><html><head><meta charset="utf-8">' +
+  '<style>html,body{overflow:hidden !important;margin:0;padding:0;box-sizing:border-box;}</style>' +
   "<script>" +
   "var report=function(){" +
-  // 只量 body: documentElement.scrollHeight 会把 iframe 自身视口也算进去,
-  // 量出来的永远是当前高度, 永远缩不回去。
-  "var h=document.body?document.body.scrollHeight:0;" +
+  // 测量内容真实高度 (优先 offsetHeight / scrollHeight)
+  "var b=document.body;var de=document.documentElement;" +
+  "var h=b?Math.max(b.scrollHeight,b.offsetHeight,de?de.scrollHeight:0):0;" +
   "if(h>0)window.parent.postMessage({type:'pluginSize',height:h},'*')" +
   "};" +
   // body 内容变化 (图片/字体加载) 时重报; body 要等 DOM 建好才能观察。
@@ -49,14 +50,12 @@ const wrapPluginHtml = (html) =>
   "if(/^https?:\\/\\//i.test(href)){" +
   "e.preventDefault();window.parent.postMessage({type:'pluginLink',href:href},'*');" +
   "}});" +
-  "</script></head><body style='margin:0'>" + html + "</body></html>"
+  "</script></head><body>" + html + "</body></html>"
 
-// iframe 高度自适应: 插件文档量出的高度夹在这个区间里, 太长的仍然内部滚动。
-// PAD 让 iframe 略高于量出的内容高度, 避免差一两像素时出现内部滚动条。
-const FRAME_H_DEFAULT = 340
-const FRAME_H_MIN = 80
-const FRAME_H_MAX = 520
-const FRAME_H_PAD = 6
+// iframe 高度自适应: 取消过小的硬顶限制，让 iframe 贴合内容自动撑开，滚动交由 Modal 弹窗自身负责。
+const FRAME_H_DEFAULT = 200
+const FRAME_H_MIN = 60
+const FRAME_H_PAD = 8
 
 export default function PluginDetailModal({ plugin, infos = [], enabled, onClose }) {
   const [html, setHtml] = useState('')
@@ -91,7 +90,7 @@ export default function PluginDetailModal({ plugin, infos = [], enabled, onClose
       } else if (d?.type === 'pluginSize' && Number.isFinite(d.height)) {
         const h = Math.round(d.height)
         if (h > 0) {
-          setFrameH(Math.min(Math.max(h + FRAME_H_PAD, FRAME_H_MIN), FRAME_H_MAX))
+          setFrameH(Math.max(h + FRAME_H_PAD, FRAME_H_MIN))
         }
       }
     }
@@ -106,7 +105,7 @@ export default function PluginDetailModal({ plugin, infos = [], enabled, onClose
       open={!!plugin}
       title={`${plugin.name} — 插件详情`}
       onClose={onClose}
-      className="modal--wide"
+      size="xl"
       actions={<Button variant="ghost" onClick={onClose}>关闭</Button>}
     >
       <div className="plugin-detail">

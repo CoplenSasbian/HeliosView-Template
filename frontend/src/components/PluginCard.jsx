@@ -11,14 +11,13 @@
 // Note: the overview intentionally excludes the per-config `_enabled` flag —
 // it is not a declared parameter and is shown only as the status dot.
 
-import { IconFolder, IconSettings } from './icons'
-import { Pill, Toggle } from './ui'
+import { IconFolder, IconSettings, Pill, Toggle } from '../ui'
 
 // How many declared params to show as chips in the overview ("+n" for the rest).
 const PARAMS_SHOWN = 4
 
 // One-line formatting for a parameter value in the overview.
-function formatValue(info, value) {
+export function formatValue(info, value) {
   if (value === undefined || value === null) return '—'
   switch (info.type) {
     case 'bool':
@@ -66,190 +65,98 @@ export default function PluginCard({
     }
   }
 
-  if (mode === 'grid') {
-    return (
-      <div
-        className={`plugin-card-item${enabled ? '' : ' is-disabled'}`}
-        role="button"
-        tabIndex={0}
-        style={{ '--item-i': index }}
-        onClick={onClick}
-        onKeyDown={handleKeyDown}
-      >
-        <div className="plugin-card-item__header">
-          <div className="plugin-card-item__titles">
-            <div className="plugin-card-item__title-row">
-              <span className="plugin-card-item__name" title={plugin.name}>
-                {plugin.name}
-              </span>
-              <Pill tone="muted">v{plugin.version}</Pill>
-            </div>
-            {plugin.author && (
-              <span className="plugin-card-item__author" title={`作者: ${plugin.author}`}>
-                {plugin.author}
-              </span>
-            )}
-          </div>
-
-          <div
-            className="plugin-card-item__toggle"
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            <Toggle
-              on={enabled}
-              title={enabled ? '点击停用插件' : '点击启用插件'}
-              onChange={(val) => onToggle?.(val)}
-            />
-          </div>
-        </div>
-
-        <div className="plugin-card-item__body">
-          <p className="plugin-card-item__desc" title={plugin.description || '暂无插件描述'}>
-            {plugin.description || '暂无描述信息'}
-          </p>
-        </div>
-
-        {declared.length > 0 && (
-          <div className="plugin-card-item__params">
-            {shown.map((info) => {
-              const label = info.label || info.name
-              const text = formatValue(info, values[info.name])
-              const tip = `${label}: ${text}${info.desc ? ` — ${info.desc}` : ''}`
-              return (
-                <Pill key={info.name} tone="muted" title={tip}>
-                  <span className="pill__key">{label}</span>
-                  <span className="pill__val">{text}</span>
-                </Pill>
-              )
-            })}
-            {extra > 0 && <span className="plugin-row__param-more">+{extra}</span>}
-          </div>
-        )}
-
-        <div
-          className="plugin-card-item__footer"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <span className={`plugin-card-item__status-tag${enabled ? ' is-on' : ' is-off'}`}>
-            {enabled ? '已启用' : '已停用'}
-          </span>
-          <div className="plugin-card-item__actions">
-            <button
-              type="button"
-              className="icon-btn"
-              title="参数配置"
-              onClick={(e) => {
-                e.stopPropagation()
-                onConfig?.()
-              }}
-            >
-              <IconSettings width={14} height={14} />
-            </button>
-            <button
-              type="button"
-              className="icon-btn"
-              title="在资源管理器中显示"
-              onClick={(e) => {
-                e.stopPropagation()
-                onReveal?.()
-              }}
-            >
-              <IconFolder width={14} height={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // mode === 'list' (Dense Table / Grid Row)
   return (
     <div
-      className={`plugin-row${enabled ? '' : ' is-disabled'}`}
+      className={`plugin-card-item${enabled ? '' : ' is-disabled'}`}
       role="button"
       tabIndex={0}
-      style={{ '--row-i': index }}
+      style={{ '--item-i': index }}
       onClick={onClick}
       onKeyDown={handleKeyDown}
     >
-      {/* Col 1: Identity */}
-      <div className="plugin-row__identity">
-        <div className="plugin-row__name-wrap">
-          <span className="plugin-row__name" title={plugin.name}>{plugin.name}</span>
-          <span className="plugin-row__ver">v{plugin.version}</span>
+      <div className="plugin-card-item__header">
+        <div className="plugin-card-item__titles">
+          <div className="plugin-card-item__title-row">
+            <span className="plugin-card-item__name" title={plugin.name}>
+              {plugin.name}
+            </span>
+            <Pill tone="muted">v{plugin.version}</Pill>
+          </div>
+          {plugin.author && (
+            <span className="plugin-card-item__author" title={`作者: ${plugin.author}`}>
+              {plugin.author}
+            </span>
+          )}
+        </div>
+
+        <div
+          className="plugin-card-item__toggle"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Toggle
+            on={enabled}
+            title={enabled ? '点击停用插件' : '点击启用插件'}
+            onChange={(val) => onToggle?.(val)}
+          />
         </div>
       </div>
 
-      {/* Col 2: Description */}
-      <span className="plugin-row__desc" title={plugin.description || '无详细描述'}>
-        {plugin.description || '—'}
-      </span>
-
-      {/* Col 3: Parameters Preview */}
-      <div className="plugin-row__params">
-        {shown.length > 0 ? (
-          <>
-            {shown.map((info) => {
-              const label = info.label || info.name
-              const text = formatValue(info, values[info.name])
-              const tip = `${label}: ${text}${info.desc ? ` — ${info.desc}` : ''}`
-              return (
-                <Pill key={info.name} tone="muted" title={tip}>
-                  <span className="pill__key">{label}</span>
-                  <span className="pill__val">{text}</span>
-                </Pill>
-              )
-            })}
-            {extra > 0 && <span className="plugin-row__param-more">+{extra}</span>}
-          </>
-        ) : (
-          <span className="plugin-row__params-empty">无参数</span>
-        )}
+      <div className="plugin-card-item__body">
+        <p className="plugin-card-item__desc" title={plugin.description || '暂无插件描述'}>
+          {plugin.description || '暂无描述信息'}
+        </p>
       </div>
 
-      {/* Col 4: Status Switch Toggle */}
+      {declared.length > 0 && (
+        <div className="plugin-card-item__params">
+          {shown.map((info) => {
+            const label = info.label || info.name
+            const text = formatValue(info, values[info.name])
+            const tip = `${label}: ${text}${info.desc ? ` — ${info.desc}` : ''}`
+            return (
+              <Pill key={info.name} tone="muted" title={tip}>
+                <span className="pill__key">{label}</span>
+                <span className="pill__val">{text}</span>
+              </Pill>
+            )
+          })}
+          {extra > 0 && <span className="plugin-row__param-more">+{extra}</span>}
+        </div>
+      )}
+
       <div
-        className="plugin-row__status"
+        className="plugin-card-item__footer"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
       >
-        <Toggle
-          on={enabled}
-          title={enabled ? '点击停用插件' : '点击启用插件'}
-          onChange={(val) => onToggle?.(val)}
-        />
-      </div>
-
-      {/* Col 5: Actions */}
-      <div
-        className="plugin-row__actions"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          className="icon-btn"
-          title="参数配置"
-          onClick={(e) => {
-            e.stopPropagation()
-            onConfig?.()
-          }}
-        >
-          <IconSettings width={14} height={14} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          title="在资源管理器中显示"
-          onClick={(e) => {
-            e.stopPropagation()
-            onReveal?.()
-          }}
-        >
-          <IconFolder width={14} height={14} />
-        </button>
+        <span className={`plugin-card-item__status-tag${enabled ? ' is-on' : ' is-off'}`}>
+          {enabled ? '已启用' : '已停用'}
+        </span>
+        <div className="plugin-card-item__actions">
+          <button
+            type="button"
+            className="icon-btn"
+            title="参数配置"
+            onClick={(e) => {
+              e.stopPropagation()
+              onConfig?.()
+            }}
+          >
+            <IconSettings width={14} height={14} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            title="在资源管理器中显示"
+            onClick={(e) => {
+              e.stopPropagation()
+              onReveal?.()
+            }}
+          >
+            <IconFolder width={14} height={14} />
+          </button>
+        </div>
       </div>
     </div>
   )

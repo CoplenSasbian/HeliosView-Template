@@ -1,0 +1,325 @@
+/* ============================================================
+   components.css — Business-domain UI Components
+   (Plugin cards, toolbar, search, detail dialog, list rows,
+    segmented badges, empty states, toast)
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   Plugin Grid & Cards
+   ------------------------------------------------------------ */
+.plugin-grid-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-md);
+}
+
+.plugin-card-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-md);
+  border-radius: var(--r-lg);
+  background: var(--c-bg-elevated);
+  border: 1px solid var(--c-border);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: box-shadow var(--transition), border-color var(--transition), background var(--transition);
+  animation: cardIn var(--dur-slow) var(--ease-out) backwards;
+  animation-delay: calc(var(--item-i, 0) * 45ms);
+  overflow: hidden;
+}
+.plugin-card-item:hover {
+  border-color: color-mix(in srgb, var(--c-accent) 55%, var(--c-border));
+  box-shadow: var(--glass-highlight), var(--shadow-md);
+  background: var(--c-surface-hover);
+}
+.plugin-card-item:active:not(:has(.plugin-card-item__toggle:active, .plugin-card-item__actions:active)) {
+  background: var(--c-surface-active);
+}
+.plugin-card-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--c-accent-soft);
+}
+.plugin-card-item.is-disabled { opacity: 0.72; }
+.plugin-card-item.is-disabled:hover { opacity: 0.95; }
+
+.plugin-card-item__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-sm);
+  min-width: 0;
+}
+.plugin-card-item__titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.plugin-card-item__title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.plugin-card-item__name {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--c-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plugin-card-item__author {
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.plugin-card-item__toggle {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+.plugin-card-item__body {
+  margin-top: var(--sp-xs);
+  flex: 1;
+}
+.plugin-card-item__desc {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--c-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.plugin-card-item__params {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-xs);
+  margin-top: var(--sp-xs);
+  padding-top: var(--sp-xs);
+  border-top: 1px dashed var(--c-border);
+}
+.plugin-card-item__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--sp-xs);
+  padding-top: var(--sp-xs);
+  border-top: 1px solid var(--c-border);
+}
+.plugin-card-item__status-tag {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  border-radius: var(--r-pill);
+  padding: 1px var(--sp-xs);
+}
+.plugin-card-item__status-tag.is-on {
+  color: var(--c-success);
+  background: var(--c-success-soft);
+}
+.plugin-card-item__status-tag.is-off {
+  color: var(--c-text-faint);
+  background: var(--c-bg-subtle);
+}
+.plugin-card-item__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+}
+
+/* ------------------------------------------------------------
+   Plugin Toolbar, Search & Count Badge
+   ------------------------------------------------------------ */
+.plugin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+  margin-bottom: var(--sp-md);
+  padding-bottom: var(--sp-sm);
+  border-bottom: 1px solid var(--c-border);
+}
+.plugin-toolbar__left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+  flex: 1;
+  min-width: 260px;
+}
+.plugin-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+}
+.plugin-search-wrap {
+  width: 220px;
+  max-width: 100%;
+}
+
+/* Count badge inside segmented buttons */
+.segmented-count-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: var(--c-bg-subtle);
+  color: var(--c-text-faint);
+  line-height: 1.2;
+  transition: all var(--transition);
+}
+.segmented button.is-active .segmented-count-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* ------------------------------------------------------------
+   Plugin Detail Dialog Content
+   ------------------------------------------------------------ */
+.plugin-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+}
+.plugin-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-sm) var(--sp-md);
+}
+.plugin-detail__cell--wide { grid-column: 1 / -1; }
+.plugin-detail__label {
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+  margin-bottom: 2px;
+}
+.plugin-detail__value {
+  font-size: var(--fs-sm);
+  color: var(--c-text);
+  word-break: break-all;
+}
+.plugin-detail__value--mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+.plugin-detail__section-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--c-text);
+  margin-top: var(--sp-xs);
+  padding-top: var(--sp-xs);
+  border-top: 1px solid var(--c-border);
+}
+.plugin-detail__params {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+.plugin-detail__param {
+  padding: var(--sp-xs) var(--sp-sm);
+  border-radius: var(--r-sm);
+  background: var(--c-bg-elevated);
+  border: 1px solid var(--c-border);
+}
+.plugin-detail__param-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+}
+.plugin-detail__param-name {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--c-text);
+}
+.plugin-detail__param-type {
+  font-size: var(--fs-xs);
+  color: var(--c-accent);
+}
+.plugin-detail__param-key {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+}
+.plugin-detail__param-desc {
+  font-size: var(--fs-xs);
+  color: var(--c-text-muted);
+  margin-top: 4px;
+}
+.plugin-detail__param-default {
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+}
+.plugin-detail__frame {
+  width: 100%;
+  min-height: 60px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  background: var(--c-surface);
+  overflow: hidden;
+  display: block;
+}
+.plugin-detail__empty {
+  color: var(--c-text-faint);
+  font-size: var(--fs-sm);
+  padding: var(--sp-sm) 0;
+}
+
+/* ------------------------------------------------------------
+   Plugin Empty / No-results State
+   ------------------------------------------------------------ */
+.plugin-empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-2xl) var(--sp-md);
+  text-align: center;
+  color: var(--c-text-muted);
+  gap: var(--sp-sm);
+}
+.plugin-empty-box__title {
+  font-weight: var(--fw-medium);
+  color: var(--c-text);
+  font-size: var(--fs-sm);
+}
+
+/* ------------------------------------------------------------
+   Plugin List View (dense table variant)
+   ------------------------------------------------------------ */
+.plugin-list-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 6px var(--sp-md);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  color: var(--c-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--c-border);
+  user-select: none;
+}
+.plugin-list-header__name    { flex: 0 0 160px; }
+.plugin-list-header__desc    { flex: 1 1 200px; min-width: 0; }
+.plugin-list-header__params  { flex: 1 1 240px; min-width: 0; }
+.plugin-list-header__status  { flex: 0 0 68px; text-align: center; }
+.plugin-list-header__actions { flex: 0 0 64px; text-align: right; }
+
+.plugin-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+}
+.plugin-row.is-disabled { opacity: 0.65; }
+.plugin-row.is-disabled:hover { opacity: 0.95; }
+
+

@@ -1,21 +1,26 @@
-/* style.css — global styles + UI components. All values come from theme.css
-   variables; nothing here is hardcoded. Import theme first. */
+/* ============================================================
+   style.css — Global Shell, Resets & Master Entry
+   Imports:
+     1. theme.css      -> Design Tokens & Colors
+     2. base.css       -> Primitive UI Components (Button, Input, Dropdown…)
+     3. components.css -> Business UI Components (Plugin cards, Toast…)
+     4. pages.css      -> Page Layouts & Features (Hero, Settings, Log…)
+   ============================================================ */
 
 @import './theme.css';
+@import './ui/base.css';
+@import './styles/components.css';
+@import './styles/pages.css';
 
+/* ------------------------------------------------------------
+   Global Resets & Base
+   ------------------------------------------------------------ */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-/* ============================================================
-   Utilities
-   ============================================================ */
-
-/* Film-grain noise overlay — adds a soft-light noise texture via
-   ::before.  Use on any glass-surface element (cards, modals,
-   sidebar) for a consistent photographic grain. */
 .has-noise {
   position: relative;
   overflow: hidden;
@@ -74,15 +79,11 @@ body {
   user-select: none;
 }
 
-/* Text selection follows the accent instead of the OS default blue. */
 ::selection {
   background: var(--c-accent-glass);
   color: var(--c-text);
 }
 
-/* Keyboard focus ring: :focus-visible only fires for Tab navigation, so mouse
-   clicks stay clean. Inputs/selects/dropdowns are excluded — they already draw
-   their own accent ring via box-shadow on :focus. */
 :focus-visible {
   outline: 2px solid var(--c-accent);
   outline-offset: 2px;
@@ -98,127 +99,59 @@ button {
   background: none;
   border: none;
   cursor: pointer;
-  user-select: none;
 }
 
 input,
-select,
-textarea {
+select {
   font: inherit;
-  color: var(--c-text);
+  color: inherit;
 }
 
-/* ============================================================
-   App shell
-   ============================================================ */
-
+/* ------------------------------------------------------------
+   App Shell, Sidebar & Window Titlebar
+   ------------------------------------------------------------ */
 .app {
-  position: relative;
   display: flex;
   height: 100%;
-  /* Multi-colour aurora behind the translucent glass surfaces. Swap the
-     background-image for <url(...)> to use a real photo instead (see theme.css). */
-  background-image: var(--bg-base);
-  background-size: 200% 200%;
-  background-attachment: fixed;
+  position: relative;
+  overflow: hidden;
   background-color: var(--c-bg);
-}
-
-/* A blurred, vivid blob layer under the glass so the translucent surfaces have
-   colour to sample. Fixed so scrolling content doesn't drag the aurora. */
-.app::before {
-  content: "";
-  position: fixed;
-  inset: -10%;
-  z-index: 0;
-  background-image: var(--bg-blobs);
-  background-size: 160% 160%;
+  background-image: var(--bg-base);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
   background-position: center;
-  filter: blur(70px) saturate(1.3);
-  opacity: 0.55;
-  pointer-events: none;
 }
-
+.app::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--bg-blobs);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  filter: var(--background-blur);
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 0;
+}
 .app > * {
   position: relative;
   z-index: 1;
 }
 
-/* A real Bing wallpaper is applied to the .app shell (inline style by
-   AppearanceContext). .has-wallpaper turns off the aurora blob layer so the
-   photo is the base; the glass surfaces still blur over it. */
-.app.has-wallpaper {
-  background-image: none;   /* replaced by the inline backgroundImage in JS */
-  background-color: transparent;
-}
-.app.has-wallpaper::before {
-  display: none;
-}
-
-.app-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  /* anchor for the floating title bar (see .header) */
-  position: relative;
-  /* Title-bar frosted material, shared by the bar and its fade below so the two
-     read as one continuous glass. */
-  --titlebar-blur: blur(18px) saturate(1.4) brightness(1.04);
-  /* Height of the top→bottom dissolve zone under the visible 48px bar. Kept
-     short so the frosted transition finishes quickly below the bar and the
-     rest of the content stays fully crisp. */
-  --titlebar-fade: 24px;
-}
-
-/* full-width scroll container: the scrollbar stays at the window's right edge
-   while the content column below scrolls under the floating title bar.
-   padding-top reserves the header's height so content starts just below the
-   floating bar and scrolls UP *behind* it, where the bar's backdrop-filter
-   blurs it. */
-.app-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-top: var(--header-h);
-}
-
-.app-content {
-  width: 100%;
-  /* Full-bleed content: no centered max-width column — cards stretch
-     edge-to-edge (minus the padding) so the window reads as a native
-     app instead of a webpage centered in a frame. */
-  padding: var(--sp-xl) var(--sp-xl) var(--sp-2xl);
-}
-
-/* Route change transition: App.jsx re-mounts .route-view per page (keyed by
-   pathname), so this animation plays once per navigation — a quick fade+rise
-   instead of a hard cut between pages. */
-.route-view {
-  animation: routeIn var(--transition-slow) ease-out;
-}
-@keyframes routeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ============================================================
-   Sidebar
-   ============================================================ */
-
 .sidebar {
   width: var(--sidebar-w);
   flex-shrink: 0;
-  height: 100%;
-  overflow: hidden;
-  background: var(--glass-bg-strong);
+  display: flex;
+  flex-direction: column;
+  background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-right: 1px solid var(--glass-border);
-  box-shadow: var(--glass-highlight);
-  display: flex;
-  flex-direction: column;
-  padding: var(--sp-lg) 0;
+  padding: var(--sp-md) var(--sp-sm);
+  z-index: 2;
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.04) inset, 4px 0 24px rgba(0, 0, 0, 0.35);
   transition: width var(--transition-slow);
 }
 
@@ -226,197 +159,105 @@ textarea {
   display: flex;
   align-items: center;
   gap: var(--sp-sm);
-  padding: 0 var(--sp-lg) var(--sp-lg);
+  padding: var(--sp-xs) var(--sp-sm) var(--sp-lg);
+  user-select: none;
 }
-
-.sidebar-brand__dot {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--r-md);
-  background: linear-gradient(135deg, var(--c-accent), var(--c-accent-strong));
-  display: grid;
-  place-items: center;
-  box-shadow: var(--shadow-accent);
+.sidebar-brand__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--c-accent);
   flex-shrink: 0;
+  filter: drop-shadow(0 0 12px var(--c-accent-glow));
 }
-
 .sidebar-brand__name {
-  font-size: var(--fs-lg);
+  font-size: var(--fs-md);
   font-weight: var(--fw-bold);
-  letter-spacing: 0.3px;
+  letter-spacing: var(--ls-tight);
 }
-
 .sidebar-brand__sub {
   font-size: var(--fs-xs);
   color: var(--c-text-faint);
-}
-
-/* nav — pills */
-
-/* Registered so the fill block's HEIGHT can transition. --h drives both
-   height and top: calc(50% - var(--h)/2), so the box is vertically centred
-   at EVERY frame — top/bottom grow symmetrically, no transform needed. */
-@property --h {
-  syntax: '<length-percentage>';
-  inherits: false;
-  initial-value: 0px;
+  margin-top: 2px;
 }
 
 .sidebar-nav {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--sp-sm);
-  /* 两边留一点小空, 药丸不再贴着侧栏边缘 */
-  padding: 0 var(--sp-xs);
+  gap: var(--sp-2xs);
+  flex: 1;
+  position: relative;
 }
-
 .sidebar-nav__item {
-  /* hover shows a short centred bar; active fills the whole pill. The fill
-     block animates via width/height (no transform scale — the border-radius
-     then always resolves against the real box size, which is more stable). */
-  --bar-w: 4px;    /* hover bar width */
-  --bar-h: 14px;   /* hover bar height (centred vertically) */
-  /* hover bar corner roundness: 50% = full capsule (too round); lower it for
-     flatter ends (e.g. 20% = lightly rounded rectangle) */
-  --bar-r: 10%;    /* a touch of roundness on the hover bar ends */
-  /* fill animation timing: slow start then accelerate (the global
-     --transition-slow starts fast — that made the growth feel abrupt) */
-  --nav-dur: 260ms;
-  --nav-ease: cubic-bezier(0.7, 0, 0.25, 1);
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--sp-sm);
-  height: 44px;
-  padding: 0 var(--sp-md);
-  margin-top: var(--sp-xs);
-  border-radius: 14px;
+  padding: 0 var(--sp-sm);
+  height: 38px;
+  border-radius: var(--r-md);
   color: var(--c-text-muted);
-  font-weight: var(--fw-medium);
-  font-size: var(--fs-sm);
   text-decoration: none;
-  transition:
-    color var(--transition),
-    transform var(--transition);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  transition: color var(--transition), background var(--transition);
+  z-index: 1;
 }
-
 .sidebar-nav__item:hover {
   color: var(--c-text);
-  transform: translateX(3px);
+  background: var(--c-surface-hover);
 }
-.sidebar-nav__item:hover .sidebar-nav__icon {
-  transform: scale(1.12);
-}
-
-/* active pill: full colour — the glow now lives on the fill block (::before)
-   so it scales with it. */
+.sidebar-nav__item.active,
 .sidebar-nav__item.is-active {
-  color: var(--c-text-on-accent);
-  transition:
-    color 1300ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform var(--transition);
+  color: var(--c-accent);
+  font-weight: var(--fw-bold);
 }
-/* the selected pill stays put — no hover nudge while it is active */
-.sidebar-nav__item.is-active:hover {
-  transform: none;
-}
-
-/* the accent fill block — a layer BEHIND the icon/text (z-index 0 vs content
-   z-index 1). Sized by WIDTH + registered HEIGHT knob:
-   normal = 0×0 (nothing), hover = the small bar at the icon area,
-   active = 100%×100% (full pill). top = calc(50% − h/2) keeps it vertically
-   centred every frame, so height changes are symmetric top/bottom. */
+/* Nav-item active fill pill */
 .sidebar-nav__item::before {
   content: '';
   position: absolute;
-  left: var(--sp-xs);
-  top: calc(50% - var(--h) / 2);
-  width: 0;
-  --h: 0px;
-  height: var(--h);
-  /* rounded ends on the small bar — var(--bar-r), resolved against the
-     current box; the active pill switches back to its inherit (14px) radius */
-  border-radius: var(--bar-r);
-  background: linear-gradient(135deg, var(--c-accent), var(--c-accent-strong));
-  z-index: 0;
-  pointer-events: none;
-  /* glow lives on the block so it follows it in every state */
-  box-shadow: var(--shadow-accent);
-  transition:
-    --h var(--nav-dur) var(--nav-ease),
-    width var(--nav-dur) var(--nav-ease),
-    left var(--nav-dur) var(--nav-ease),
-    border-radius var(--nav-dur) var(--nav-ease),
-    box-shadow var(--nav-dur) var(--nav-ease);
-}
-.sidebar-nav__item:hover::before {
-  --h: var(--bar-h);
-  width: var(--bar-w);
+  inset: 0;
+  border-radius: inherit;
+  background: var(--c-accent-soft);
+  opacity: 0;
+  transition: opacity var(--transition);
 }
 .sidebar-nav__item.is-active::before {
-  left: 0;
-  --h: 100%;
-  width: 100%;
-  border-radius: inherit; /* back to the pill's radius at full size */
+  opacity: 1;
 }
-
-
+/* Exit choreography: pill shrinks to a right-edge bar then fades */
 .sidebar-nav__item.is-leaving::before {
   transition: none;
-  animation: navOut 520ms var(--nav-ease) both;
+  animation: navOut 520ms ease both;
 }
 @keyframes navOut {
-  0% {
-    left: 0;
-    --h: 100%;
-    width: 100%;
-    border-radius: inherit; /* pill radius while full */
-  }
-  35% {
-    left: var(--sp-xs);
-    --h: var(--bar-h);
-    width: var(--bar-w);
-    border-radius: var(--bar-r); /* rounded ends on the bar stage */
-  }
-  100% {
-    left: var(--sp-xs);
-    --h: 0px;
-    width: 0;
-    border-radius: var(--bar-r);
-  }
+  0%   { opacity: 1; left: 0; width: 100%; border-radius: inherit; }
+  35%  { opacity: 1; left: auto; right: 0; width: 3px; border-radius: 2px; }
+  100% { opacity: 0; left: auto; right: 0; width: 3px; }
 }
-
-/* keep the icon + label above the fill block */
-.sidebar-nav__item > * {
-  position: relative;
-  z-index: 1;
-}
-
 .sidebar-nav__icon {
-  width: 20px;
-  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  transition: transform var(--transition);
-}
-.sidebar-nav__item:hover .sidebar-nav__icon {
-  transform: scale(1.12);
 }
 
+/* Sidebar bottom status strip */
 .sidebar-foot {
-  padding: var(--sp-md) var(--sp-lg) 0;
+  padding: var(--sp-md) var(--sp-xs) 0;
   border-top: 1px solid var(--c-border);
-  margin: var(--sp-md) var(--sp-lg) 0;
+  margin-top: var(--sp-md);
 }
-
 .sidebar-foot__status {
   display: flex;
   align-items: center;
   gap: var(--sp-sm);
   color: var(--c-text-muted);
   font-size: var(--fs-sm);
+  padding: var(--sp-xs) var(--sp-sm);
 }
 
+/* Zoom-reset button in the sidebar foot */
 .zoom-reset {
   display: block;
   width: 100%;
@@ -428,6 +269,7 @@ textarea {
   color: var(--c-accent);
   font-size: var(--fs-xs);
   cursor: pointer;
+  text-align: center;
   transition: background var(--transition), border-color var(--transition);
 }
 .zoom-reset:hover {
@@ -435,742 +277,73 @@ textarea {
   border-color: var(--c-accent);
 }
 
+/* Status indicator dot — used in sidebar-foot and hero ring */
 .status-dot {
   width: 8px;
   height: 8px;
+  flex-shrink: 0;
   border-radius: var(--r-pill);
-  background: var(--c-text-faint);
-}
-.status-dot.is-on {
   background: var(--c-success);
   box-shadow: 0 0 8px var(--c-success);
   animation: pulse 2s infinite;
 }
 .status-dot.is-off {
   background: var(--c-text-faint);
-}
-
-/* ============================================================
-   Top header
-   ============================================================ */
-
-.header {
-  /* Floating frosted title bar: it overlays the top of the scrolling content
-     (see .app-scroll's padding-top) so content scrolls up *under* it. The
-     frosted area dissolves top→bottom via a mask on THIS element, so content
-     entering from below transitions crisp → gradually frostier → fully frosted
-     under the bar — no hard bottom edge. */
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 5;
-  /* Beat the bridge's inline height:48px — the extra height is the dissolve
-     zone below the visible bar. (position:absolute makes the inline
-     flex:0 0 48px irrelevant.) */
-  height: calc(var(--header-h) + var(--titlebar-fade)) !important;
-  flex-shrink: 0;
-  display: flex;
-  /* Keep title/controls in the top 48px strip (bridge inline align-items:center
-     would centre them in the extended box). */
-  align-items: flex-start !important;
-  justify-content: space-between;
-  padding: 0 var(--sp-xl);
-  /* the visible bar keeps its soft tint, gone by the bar's bottom */
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--c-bg) 28%, transparent) 0%,
-    transparent var(--header-h)
-  );
-  backdrop-filter: var(--titlebar-blur);
-  -webkit-backdrop-filter: var(--titlebar-blur);
-  /* mask + backdrop-filter on the SAME element is valid in Chromium: the blur
-     is applied first, then the mask clips the blurred result. (Never mask an
-     ANCESTOR of a backdrop-filter element — that breaks the blur.) */
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    #000 0%,
-    #000 var(--header-h),
-    rgba(0, 0, 0, 0.55) calc(var(--header-h) + var(--titlebar-fade) * 0.55),
-    transparent calc(var(--header-h) + var(--titlebar-fade))
-  );
-  mask-image: linear-gradient(
-    to bottom,
-    #000 0%,
-    #000 var(--header-h),
-    rgba(0, 0, 0, 0.55) calc(var(--header-h) + var(--titlebar-fade) * 0.55),
-    transparent calc(var(--header-h) + var(--titlebar-fade))
-  );
   box-shadow: none;
+  animation: none;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--c-success); }
+  50%       { box-shadow: 0 0 0 5px transparent; }
 }
 
-/* Bar content: pinned into the top 48px strip and stays interactive. */
-.header__title,
-.header__actions {
-  height: var(--header-h);
+.app-main {
+  flex: 1;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-xl);
 }
 
-/* The dissolve tail under the bar must not drag the window (app-region:drag is
-   inline on the whole element) nor swallow clicks over the scrolling content:
-   carve it out of the drag region and pass events through. */
-.header::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: var(--titlebar-fade);
-  pointer-events: none;
-  app-region: no-drag;
-  -webkit-app-region: no-drag;
-}
-
-.header__title {
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-bold);
-  line-height: var(--lh-tight);
-  letter-spacing: var(--ls-tight);
-  /* Smooth color change when the theme flips. */
-  transition: color var(--transition-slow);
-  /* A short fade+slide each time the page title changes (keyed remount). */
-  animation: titleIn var(--transition-slow) ease-out;
-  transform-origin: left center;
-}
-
-@keyframes titleIn {
-  from { opacity: 0; transform: translateX(-6px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-.header__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-sm);
-}
-
-/* ============================================================
-   Cards
-   ============================================================ */
-
+/* ------------------------------------------------------------
+   Common Shared Elements (Card, Pill, Tooltip, Field)
+   ------------------------------------------------------------ */
 .card {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--r-xl);
-  padding: var(--sp-lg);
-  box-shadow: var(--glass-shadow);
-  backdrop-filter: var(--glass-blur);
   position: relative;
-  overflow: visible;
-  transition: transform var(--transition);
-  animation: cardIn 380ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
-  animation-delay: calc(var(--card-i, 0) * var(--stagger-step, 70ms));
+  border-radius: var(--r-lg);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  padding: var(--sp-lg);
+  box-shadow: var(--glass-highlight), var(--shadow-sm);
+  animation: cardIn var(--dur-slow) var(--ease-out) backwards;
+  animation-delay: calc(var(--card-i, 0) * 45ms);
 }
-
-/* Clickable card variant (e.g. plugin tiles) — pressed state. */
-.card--plugin {
-  cursor: pointer;
+.card:hover {
+  box-shadow: var(--glass-highlight), var(--shadow-md);
 }
-.card--plugin:active {
-  transform: scale(0.98);
-}
-
-.card + .card {
-  margin-top: var(--sp-md);
-}
-
-/* Plugin tiles are grid items, so the generic `.card + .card` top margin would
-   fight the grid's own gap and misalign the rows — cancel it inside the grid. */
-.plugin-grid > .card + .card {
-  margin-top: 0;
-}
-
 .card__title {
-  font-size: var(--fs-md);
-  font-weight: var(--fw-bold);
-  text-shadow: var(--card-text-shadow);
-  letter-spacing: var(--ls-tight);
-  margin-bottom: var(--sp-sm);
   display: flex;
   align-items: center;
   gap: var(--sp-xs);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  margin-bottom: var(--sp-md);
+  color: var(--c-text);
 }
-
-.card__hint {
-  color: var(--c-text-muted);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-normal);
-  text-shadow: var(--card-text-shadow);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
 .card__stripe {
   width: 3px;
   height: 14px;
   border-radius: var(--r-pill);
   background: var(--c-accent);
-  display: inline-block;
+  margin-right: 4px;
 }
-
-.card__actions {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-sm);
-}
-
-/* inline controls between the card title and its right-side actions */
-.card__toolbar {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-xs);
-  margin-left: auto;
-}
-
-/* Notice — one-line status message (tone maps to a status color) */
-.notice {
-  font-size: var(--fs-xs);
-  margin-bottom: var(--sp-sm);
-}
-.notice--error { color: var(--c-danger); }
-.notice--success { color: var(--c-success); }
-.notice--warning { color: var(--c-warning); }
-
-/* ============================================================
-   Toast — global message popups (antd-message style). The stack
-   is rendered once by <ToastContainer/>; pages only call toast.*.
-   ============================================================ */
-
-.toast-container {
-  position: fixed;
-  top: calc(var(--header-h) + var(--sp-md));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 200;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-xs);
-  pointer-events: none;
-}
-
-.toast {
-  pointer-events: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-xs);
-  max-width: min(560px, 80vw);
-  padding: 10px 16px;
-  border-radius: var(--r-md);
-  /* Frosted glass like every other floating surface, instead of a flat solid
-     slab — the toast hovers over content, so it should blur it. */
-  background: var(--glass-bg-strong);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-highlight), var(--shadow-md);
-  font-size: var(--fs-sm);
-  color: var(--c-text);
-  cursor: pointer;
-  user-select: none;
-}
-.toast--entering {
-  animation: toast-in var(--transition-slow) ease forwards;
-}
-.toast--leaving {
-  animation: toast-out 200ms ease forwards;
-}
-
-.toast__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: var(--c-info);
-}
-
-/* tone: dot + border tint carry the semantics */
-.toast--success { border-color: color-mix(in srgb, var(--c-success) 45%, transparent); }
-.toast--success .toast__dot { background: var(--c-success); }
-.toast--error { border-color: color-mix(in srgb, var(--c-danger) 45%, transparent); }
-.toast--error .toast__dot { background: var(--c-danger); }
-.toast--warning { border-color: color-mix(in srgb, var(--c-warning) 45%, transparent); }
-.toast--warning .toast__dot { background: var(--c-warning); }
-.toast--info { border-color: color-mix(in srgb, var(--c-info) 45%, transparent); }
-.toast--info .toast__dot { background: var(--c-info); }
-
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes toast-out {
-  to {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.96);
-  }
-}
-
-/* ============================================================
-   Status / hero panel
-   ============================================================ */
-
-/* Hero card layout — status ring on the left, status text on the
-   right, with room to breathe (the missing .hero rule made the
-   ring and text stack as bare blocks and feel cramped). */
-.hero {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-xl);
-  padding: var(--sp-xl);
-}
-
-.hero__text {
-  min-width: 0;
-}
-
-/* Hero + config switcher share one row: the hero fills the space, the
-   switcher sizes to its content (capped so the hero keeps room). */
-.hero-row {
-  display: flex;
-  align-items: stretch;
-  gap: var(--sp-md);
-}
-.hero-row > .card:first-child {
-  flex: 1 1 0;
-  min-width: 0;
-}
-.hero-row > .card + .card {
-  /* cancel .card + .card's stack margin; the row gap handles spacing */
-  margin-top: 0;
-  flex: 0 1 auto;
-  min-width: 260px;
-  max-width: 44%;
-}
-/* Config chips wrap inside the narrower card instead of overflowing. */
-.hero-row .segmented {
-  flex-wrap: wrap;
-}
-@media (max-width: 720px) {
-  .hero-row {
-    flex-direction: column;
-  }
-  .hero-row > .card {
-    max-width: none;
-  }
-}
-
-.hero__ring {
-  position: relative;
-  width: 64px;
-  height: 64px;
-  flex-shrink: 0;
-}
-
-.hero__ring .status-dot {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--c-success);
-  position: absolute;
-  inset: 50% auto auto 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 10px var(--c-success-soft), 0 0 26px var(--c-success);
-  animation: pulse 2.2s infinite;
-}
-.hero__ring.is-off .status-dot {
-  background: var(--c-text-faint);
-  box-shadow: 0 0 0 10px var(--c-border), 0 0 18px var(--c-shadow-dark);
-  animation: none;
-}
-
-.hero__label {
-  color: var(--c-text-muted);
-  font-size: var(--fs-sm);
-}
-
-.hero__name {
-  font-size: var(--fs-2xl);
-  font-weight: var(--fw-bold);
-  line-height: var(--lh-tight);
-  letter-spacing: var(--ls-tight);
-  margin-top: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.hero__meta {
-  display: flex;
-  gap: var(--sp-lg);
-  margin-top: var(--sp-sm);
-  color: var(--c-text-faint);
-  font-size: var(--fs-sm);
-}
-
-.hero__actions {
-  margin-left: auto;
-  position: relative;
-  z-index: 1;
-  display: flex;
-  gap: var(--sp-sm);
-}
-
-/* ============================================================
-   Buttons
-   ============================================================ */
-
-.btn {
-  position: relative;
-  height: var(--ctrl-height);
-  padding: 0 var(--ctrl-pad-x);
-  border-radius: var(--r-sm);
-  border: 1px solid color-mix(in srgb, var(--c-accent) 12%, var(--c-border));
-  background: color-mix(in srgb, var(--c-surface) 82%, transparent);
-  color: var(--c-text);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-xs);
-  font-family: inherit;
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-medium);
-  line-height: 1;
-  text-decoration: none;
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  transition: background var(--transition), border-color var(--transition),
-    color var(--transition), transform var(--transition),
-    box-shadow var(--transition), opacity var(--transition);
-}
-
-.btn:hover {
-  background: color-mix(in srgb, var(--c-accent) 8%, var(--c-surface-hover));
-  border-color: color-mix(in srgb, var(--c-accent) 42%, var(--c-border-strong));
-  color: var(--c-text);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--c-accent) 16%, rgba(0, 0, 0, 0.2)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
-.btn:active {
-  background: color-mix(in srgb, var(--c-accent) 14%, var(--c-surface-active));
-  border-color: color-mix(in srgb, var(--c-accent) 55%, transparent);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.btn:focus-visible {
-  outline: 2px solid var(--c-accent);
-  outline-offset: 2px;
-}
-
-/* Primary variant — vivid accent gradient with top specular shine & glow */
-.btn--primary {
-  background: linear-gradient(135deg, var(--c-accent), var(--c-accent-strong));
-  color: var(--c-text-on-accent);
-  border-color: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 4px 14px var(--c-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
-}
-
-.btn--primary:hover {
-  filter: brightness(1.08);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 6px 20px var(--c-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  color: var(--c-text-on-accent);
-}
-
-.btn--primary:active {
-  filter: brightness(0.96);
-  box-shadow: 0 2px 8px var(--c-accent-glow);
-}
-
-/* Ghost variant — refined, translucent frosted glass with a touch of theme accent.
-   Subtle ambient tone at rest; soft lightened-accent border & gentle aura on hover. */
-.btn--ghost {
-  background: color-mix(in srgb, var(--c-accent) 4%, color-mix(in srgb, var(--c-surface) 40%, transparent));
-  border-color: color-mix(in srgb, var(--c-accent) 18%, var(--c-border));
-  color: var(--c-text);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-}
-
-.btn--ghost:hover {
-  background: color-mix(in srgb, var(--c-accent) 12%, var(--c-surface-hover));
-  border-color: color-mix(in srgb, var(--c-accent) 48%, var(--c-border-strong));
-  color: var(--c-text);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--c-accent) 20%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-.btn--ghost:active {
-  background: color-mix(in srgb, var(--c-accent) 18%, var(--c-surface-active));
-  border-color: color-mix(in srgb, var(--c-accent) 60%, transparent);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-
-/* Outline variant — clear body with softened theme accent border */
-.btn--outline {
-  background: color-mix(in srgb, var(--c-accent) 4%, transparent);
-  border-color: color-mix(in srgb, var(--c-accent) 35%, var(--c-border));
-  color: var(--c-text);
-}
-.btn--outline:hover {
-  background: color-mix(in srgb, var(--c-accent) 14%, transparent);
-  border-color: var(--c-accent);
-  color: var(--c-accent);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--c-accent) 24%, transparent);
-}
-.btn--outline:active {
-  background: color-mix(in srgb, var(--c-accent) 22%, transparent);
-}
-
-/* Subtle variant — minimal borderless, reveals a softened accent halo on hover */
-.btn--subtle {
-  background: transparent;
-  border-color: transparent;
-  color: var(--c-text-muted);
-  box-shadow: none;
-}
-.btn--subtle:hover {
-  background: color-mix(in srgb, var(--c-accent) 10%, var(--c-surface-hover));
-  border-color: color-mix(in srgb, var(--c-accent) 25%, transparent);
-  color: var(--c-text);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--c-accent) 14%, transparent);
-}
-.btn--subtle:active {
-  background: color-mix(in srgb, var(--c-accent) 16%, var(--c-surface-active));
-}
-
-/* Danger variant — destructive actions with crimson frosted glass */
-.btn--danger {
-  background: color-mix(in srgb, var(--c-danger) 18%, var(--c-surface));
-  color: var(--c-danger);
-  border-color: color-mix(in srgb, var(--c-danger) 38%, transparent);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-
-.btn--danger:hover {
-  background: var(--c-danger);
-  color: #ffffff;
-  border-color: var(--c-danger);
-  box-shadow: 0 4px 16px rgba(248, 113, 113, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
-}
-
-.btn--danger:active {
-  filter: brightness(0.94);
-  box-shadow: 0 2px 6px rgba(248, 113, 113, 0.2);
-}
-
-/* Text-link style button — inline interactive link */
-.btn--link {
-  background: none !important;
-  border: none !important;
-  height: auto;
-  padding: 0;
-  color: var(--c-accent);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-medium);
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  transform: none !important;
-}
-
-.btn--link:hover {
-  color: var(--c-accent-strong);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.btn--link:active {
-  color: var(--c-accent-strong);
-  transform: scale(0.98) !important;
-}
-
-/* Danger variant of the link button (e.g. table row delete) */
-.btn--link-danger {
-  color: var(--c-danger);
-}
-
-.btn--link-danger:hover {
-  color: var(--c-danger);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-/* ============================================================
-   Unified Control Sizing System (Buttons, Inputs, Selects, Dropdowns)
-   - Base tokens in theme.css: --ctrl-h-{xs,sm,md,lg}, --ctrl-pad-{xs,sm,md,lg}
-   - Grouped selectors maintain guaranteed vertical alignments across controls.
-   ============================================================ */
-
-/* XS size (24px) */
-.btn--xs,
-.input--xs,
-.select--xs,
-.dropdown--xs,
-.dropdown.xs {
-  height: var(--ctrl-h-xs);
-  padding: 0 var(--ctrl-pad-xs);
-  font-size: var(--ctrl-fs-xs);
-  border-radius: var(--ctrl-r-xs);
-  box-sizing: border-box;
-}
-
-/* SM size (30px) */
-.btn--sm,
-.input--sm,
-.select--sm,
-.dropdown--sm,
-.dropdown.sm {
-  height: var(--ctrl-h-sm);
-  padding: 0 var(--ctrl-pad-sm);
-  font-size: var(--ctrl-fs-sm);
-  border-radius: var(--ctrl-r-sm);
-  box-sizing: border-box;
-}
-
-/* MD size (default: 38px) */
-.btn,
-.input,
-.select,
-.dropdown {
-  height: var(--ctrl-h-md);
-  padding: 0 var(--ctrl-pad-md);
-  font-size: var(--ctrl-fs-md);
-  border-radius: var(--ctrl-r-md);
-  box-sizing: border-box;
-}
-
-/* LG size (42px) */
-.btn--lg,
-.input--lg,
-.select--lg,
-.dropdown--lg,
-.dropdown.lg {
-  height: var(--ctrl-h-lg);
-  padding: 0 var(--ctrl-pad-lg);
-  font-size: var(--ctrl-fs-lg);
-  border-radius: var(--ctrl-r-lg);
-  box-sizing: border-box;
-}
-
-/* Dropdown trigger trailing pad for chevron */
-.dropdown--xs,
-.dropdown.xs {
-  padding-right: calc(var(--ctrl-pad-xs) + 12px);
-  min-width: 80px;
-}
-.dropdown--sm,
-.dropdown.sm {
-  padding-right: calc(var(--ctrl-pad-sm) + 14px);
-  min-width: 96px;
-}
-.dropdown {
-  padding-right: calc(var(--ctrl-pad-md) + 14px);
-  min-width: 150px;
-}
-.dropdown--lg,
-.dropdown.lg {
-  padding-right: calc(var(--ctrl-pad-lg) + 16px);
-  min-width: 180px;
-}
-
-/* Button specific padding adjustments */
-.btn {
-  gap: var(--sp-xs);
-  line-height: 1;
-}
-.btn--xs {
-  gap: 4px;
-}
-.btn--sm {
-  padding: 0 12px;
-  gap: 6px;
-}
-.btn--lg {
-  padding: 0 20px;
-  gap: var(--sp-sm);
-}
-
-.btn--icon {
-  width: var(--ctrl-height);
-  padding: 0;
-  aspect-ratio: 1 / 1;
-}
-
-.btn--icon.btn--sm {
-  width: 30px;
-  padding: 0;
-}
-
-.btn--icon.btn--xs {
-  width: 24px;
-  padding: 0;
-}
-
-/* Disabled & loading states */
-.btn:disabled,
-.btn.is-disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  pointer-events: none;
-  transform: none !important;
-  box-shadow: none !important;
-  filter: none !important;
-}
-
-.btn.is-loading {
-  cursor: wait;
-  pointer-events: none;
-  opacity: 0.82;
-}
-
-/* Spinner & icon helpers */
-@keyframes btn-spin {
-  to { transform: rotate(360deg); }
-}
-
-.btn__spinner {
-  width: 13px;
-  height: 13px;
-  border: 2px solid currentColor;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: btn-spin 0.65s linear infinite;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.btn__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.btn__text {
-  display: inline-flex;
-  align-items: center;
-}
-
-/* ============================================================
-   Form controls
-   ============================================================ */
 
 .field {
   display: flex;
@@ -1178,8 +351,15 @@ textarea {
   gap: var(--sp-xs);
   margin-bottom: var(--sp-md);
 }
-
-/* inline field used inside plugin cards */
+.field__label {
+  font-size: var(--fs-sm);
+  color: var(--c-text-muted);
+  font-weight: var(--fw-medium);
+}
+.field__desc {
+  font-size: var(--fs-xs);
+  color: var(--c-text-faint);
+}
 .set-field {
   display: flex;
   flex-direction: column;
@@ -1198,1687 +378,6 @@ textarea {
   width: 100%;
 }
 
-.range {
-  appearance: none;
-  position: relative;
-  height: 6px;
-  background: transparent;
-  cursor: pointer;
-  width: 100%;
-}
-.range::-webkit-slider-thumb {
-  appearance: none;
-  opacity: 0;
-  width: 12px;
-  height: 12px;
-}
-/* Layer 3: custom thumb (accent circle, purely visual, no interaction) */
-.range-thumb {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--c-accent);
-  border: none;
-  box-shadow: var(--shadow-accent);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  z-index: 2;
-  transition: transform var(--transition), box-shadow var(--transition);
-}
-.range-wrap:hover .range-thumb {
-  transform: translate(-50%, -50%) scale(1.1);
-  box-shadow: 0 0 0 4px var(--c-accent-glass);
-}
-
-  /* Range three-layer: track rail (z 0) + marker dot (z 1) + input thumb (z 2). */
-.range-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-}
-.range-track {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 6px;
-  transform: translateY(-50%);
-  border-radius: var(--r-pill);
-  background: linear-gradient(to right, var(--c-accent) 0%, var(--c-accent) var(--fill, 50%), var(--c-border-strong) var(--fill, 50%));
-  background-clip: content-box;
-  padding: 2px 0;
-  pointer-events: none;
-  z-index: 0;
-}
-.range-mark {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 8px;
-  height: 8px;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  background: var(--c-border-strong);
-  cursor: help;
-  z-index: 1;
-  transition: background var(--transition), box-shadow var(--transition);
-}
-.range-mark.is-crossed {
-  background: var(--c-accent);
-  box-shadow: 0 0 6px var(--c-accent-soft);
-}
-.field__label {
-  font-size: var(--fs-sm);
-  color: var(--c-text-muted);
-  font-weight: var(--fw-medium);
-}
-
-.field__desc {
-  font-size: var(--fs-xs);
-  color: var(--c-text-faint);
-}
-
-/* Setting row slider: a fixed-width knob with a numeric value badge — instead
-   of a full-width slider stretched across the whole row. */
-.range-wrap.slider {
-  width: 180px;
-  flex-shrink: 0;
-}
-.value-badge {
-  min-width: 40px;
-  padding: 2px 8px;
-  border-radius: var(--r-pill);
-  background: var(--c-bg-elevated);
-  border: 1px solid var(--c-border);
-  color: var(--c-text-muted);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-medium);
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  transition: border-color var(--transition);
-}
-.value-badge:hover {
-  border-color: var(--c-accent);
-  box-shadow: 0 0 0 2px var(--c-accent-soft);
-}
-
-.input,
-.select {
-  border-radius: var(--r-sm);
-  border: 1px solid var(--c-border-strong);
-  background: var(--ctrl-bg);
-  color: var(--c-text);
-  box-sizing: border-box;
-  transition: border-color var(--transition), box-shadow var(--transition);
-}
-.input:hover,
-.select:hover {
-  border-color: var(--c-accent);
-  box-shadow: 0 0 0 2px var(--c-accent-soft);
-}
-.input:focus,
-.select:focus {
-  outline: none;
-  border-color: var(--c-accent);
-  box-shadow: 0 0 0 3px var(--c-accent-soft);
-}
-
-/* Hide the native number-input spinners (up/down triangles) — they clash
-   with the glass UI; numeric values are typed or set by the control. */
-input[type='number']::-webkit-outer-spin-button,
-input[type='number']::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-input[type='number'] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.select {
-  appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--c-text-muted) 50%),
-    linear-gradient(135deg, var(--c-text-muted) 50%, transparent 50%);
-  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
-  background-size: 5px 5px;
-  background-repeat: no-repeat;
-  padding-right: 34px;
-  cursor: pointer;
-}
-
-/* small variant for inline toolbar use (card title rows, filters) */
-.select--sm {
-  height: 26px;
-  padding: 0 22px 0 8px;
-  font-size: var(--fs-xs);
-  background-position: calc(100% - 12px) 50%, calc(100% - 8px) 50%;
-  background-size: 4px 4px;
-}
-
-.select option {
-  background: var(--c-bg-elevated);
-  color: var(--c-text);
-}
-
-/* ============================================================
-   Select — custom JS dropdown (components/ui.jsx). The trigger
-   is a <button>; the menu is portal-rendered plain DOM, so every
-   rule here applies (no native <option> popup to fight) and long
-   lists scroll inside .dropdown-menu.
-   ============================================================ */
-
-.dropdown-wrap {
-  display: inline-block;
-}
-
-.dropdown {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--c-border-strong);
-  background: var(--ctrl-bg);
-  color: var(--c-text);
-  text-align: left;
-  cursor: pointer;
-  user-select: none;
-  box-sizing: border-box;
-  transition: border-color var(--transition), box-shadow var(--transition);
-}
-.dropdown:hover:not(:disabled) {
-  border-color: var(--c-accent);
-  box-shadow: 0 0 0 2px var(--c-accent-soft);
-}
-.dropdown:focus-visible {
-  outline: none;
-  border-color: var(--c-accent);
-  box-shadow: 0 0 0 3px var(--c-accent-soft);
-}
-.dropdown:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.dropdown--xs::after,
-.dropdown.xs::after {
-  right: 6px;
-  width: 4px;
-  height: 4px;
-}
-
-.dropdown--sm::after,
-.dropdown.sm::after {
-  right: 8px;
-  width: 5px;
-  height: 5px;
-}
-
-/* Popup menu — portal-rendered into <body> at fixed viewport
-   coordinates from the trigger (position set inline). Grows with
-   its content up to a cap and scrolls when the list is long. */
-.dropdown-menu {
-  position: fixed;
-  z-index: 90;
-  width: max-content;
-  max-height: 280px;
-  box-sizing: border-box;
-  overflow-x: hidden;
-  overflow-y: auto;
-  background: var(--c-bg-elevated);
-  border: 1px solid var(--c-accent-glass);
-  border-radius: var(--r-md);
-  box-shadow: var(--glass-highlight), var(--shadow-lg), var(--shadow-accent);
-  padding: 4px;
-  transform-origin: top;
-  animation: dropdownIn 140ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.dropdown-menu__item {
-  padding: 7px 10px;
-  border-radius: var(--r-sm);
-  font-size: var(--fs-sm);
-  color: var(--c-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  user-select: none;
-  transition: background var(--transition), color var(--transition);
-}
-.dropdown-menu__item.is-highlight {
-  background: var(--c-accent-soft);
-  color: var(--c-accent);
-}
-.dropdown-menu__item.is-selected {
-  background: var(--c-accent-glass);
-  color: var(--c-accent);
-  font-weight: var(--fw-medium);
-}
-.dropdown-menu__empty {
-  padding: 7px 10px;
-  font-size: var(--fs-sm);
-  color: var(--c-text-muted);
-  cursor: default;
-}
-
-/* Compact menu paired with the sm trigger. */
-.dropdown-menu--sm {
-  max-height: 240px;
-}
-.dropdown-menu--sm .dropdown-menu__item,
-.dropdown-menu--sm .dropdown-menu__empty {
-  padding: 5px 8px;
-  font-size: var(--fs-xs);
-}
-
-/* Opens upward (trigger near the viewport bottom). */
-.dropdown-menu--up {
-  transform-origin: bottom;
-  animation-name: dropdownInUp;
-}
-
-@keyframes dropdownIn {
-  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes dropdownInUp {
-  from { opacity: 0; transform: translateY(4px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-/* Colour swatch pickers (settings → design tokens). */
-.swatch-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-md);
-  margin-top: 4px;
-}
-.swatch {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-size: var(--fs-xs);
-  color: var(--c-text-muted);
-}
-.swatch input[type='color'] {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 1px solid var(--c-border-strong);
-  border-radius: var(--r-sm);
-  background: none;
-  cursor: pointer;
-  transition: border-color var(--transition), box-shadow var(--transition);
-}
-.swatch input[type='color']:hover {
-  border-color: var(--c-accent);
-  box-shadow: 0 0 0 2px var(--c-accent-soft);
-}
-.swatch input[type='color']::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-.swatch input[type='color']::-webkit-color-swatch {
-  border: none;
-  border-radius: var(--r-sm);
-}
-
-/* Toggle switch */
-.toggle {
-  position: relative;
-  width: 44px;
-  height: 24px;
-  border-radius: var(--r-pill);
-  background: var(--c-surface-active);
-  border: 1px solid var(--c-border-strong);
-  transition: background var(--transition), border-color var(--transition),
-    box-shadow var(--transition);
-  flex-shrink: 0;
-  cursor: pointer;
-}
-.toggle:hover {
-  box-shadow: 0 0 0 2px var(--c-accent-soft);
-}
-.toggle__knob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--c-text-muted);
-  transition: transform var(--transition-slow), background var(--transition);
-}
-.toggle.is-on {
-  background: var(--c-accent);
-  border-color: var(--c-accent);
-}
-.toggle.is-on .toggle__knob {
-  transform: translateX(20px);
-  background: var(--c-text-on-accent);
-}
-
-/* ============================================================
-   Segmented Control — sizes (xs / sm / md / lg) & tokens
-   ============================================================ */
-.segmented {
-  position: relative; /* anchor for the travelling thumb */
-  display: inline-flex;
-  align-items: center;
-  background: var(--ctrl-bg);
-  border: 1px solid var(--c-border-strong);
-  border-radius: var(--ctrl-r-md);
-  padding: 3px;
-  gap: 3px;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-.segmented button {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: calc(var(--ctrl-h-md) - 8px);
-  padding: 0 12px;
-  border-radius: var(--r-xs);
-  font-size: var(--fs-xs);
-  color: var(--c-text);
-  font-weight: var(--fw-medium);
-  box-sizing: border-box;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background var(--transition), color var(--transition),
-    box-shadow var(--transition);
-}
-.segmented button.is-icon-only {
-  padding: 0 8px;
-  width: calc(var(--ctrl-h-md) - 8px);
-}
-
-.segmented button:hover {
-  color: var(--c-accent);
-}
-.segmented button:active {
-  transform: scale(0.94);
-  color: var(--c-accent-strong);
-}
-
-/* Segmented Size Presets */
-.segmented--xs {
-  border-radius: var(--ctrl-r-xs);
-  padding: 2px;
-  gap: 2px;
-}
-.segmented--xs button {
-  height: calc(var(--ctrl-h-xs) - 6px); /* 18px */
-  padding: 0 6px;
-  font-size: var(--fs-xs);
-  gap: 3px;
-}
-.segmented--xs button.is-icon-only {
-  padding: 0;
-  width: calc(var(--ctrl-h-xs) - 6px);
-}
-
-.segmented--sm {
-  border-radius: var(--ctrl-r-sm);
-  padding: 2px;
-  gap: 2px;
-}
-.segmented--sm button {
-  height: calc(var(--ctrl-h-sm) - 6px); /* 24px */
-  padding: 0 8px;
-  font-size: var(--fs-xs);
-  gap: 4px;
-}
-.segmented--sm button.is-icon-only {
-  padding: 0;
-  width: calc(var(--ctrl-h-sm) - 6px);
-}
-
-.segmented--lg {
-  border-radius: var(--ctrl-r-lg);
-  padding: 4px;
-  gap: 4px;
-}
-.segmented--lg button {
-  height: calc(var(--ctrl-h-lg) - 10px); /* 32px */
-  padding: 0 16px;
-  font-size: var(--fs-sm);
-  gap: 6px;
-}
-.segmented--lg button.is-icon-only {
-  padding: 0;
-  width: calc(var(--ctrl-h-lg) - 10px);
-}
-/* Active option sits on a SOLID theme-color block that travels with it: the
-   thumb is z-below the labels (like the nav's active fill behind the text),
-   and its colour is the pure 主题色 — no translucent tint, no hairline. */
-.segmented button.is-active {
-  color: var(--c-text-on-accent);
-}
-.segmented button.is-active:hover {
-  color: var(--c-text-on-accent);
-}
-
-/* the travelling solid block: same geometry as before (measured per button),
-   just solid accent + pushed behind the label via z-index. */
-.segmented__thumb {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 0; /* underneath the labels (buttons are z-index 1) */
-  border-radius: var(--r-xs);
-  overflow: hidden;
-  background: var(--c-accent);
-  border: none;
-  box-shadow: var(--shadow-accent);
-  transition:
-    transform var(--dur-slow) var(--ease-spring),
-    width var(--dur-slow) var(--ease-spring),
-    height var(--dur-slow) var(--ease-spring),
-    opacity var(--transition);
-  will-change: transform, width, height;
-  pointer-events: none;
-}
-
-/* ============================================================
-   Rows / settings lists
-   ============================================================ */
-
-.setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-md);
-  padding: var(--sp-sm) 0;
-}
-.setting-row + .setting-row {
-  border-top: 1px solid var(--c-border);
-}
-
-.setting-row__label {
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-medium);
-}
-.setting-row__desc {
-  font-size: var(--fs-xs);
-  color: var(--c-text-faint);
-  margin-top: 2px;
-  max-width: 520px;
-}
-
-/* Live luminance readout under the threshold row — the number is the
-   centre-region measurement the auto theme compares against the threshold. */
-.threshold-readout {
-  display: block;
-  margin-top: 6px;
-  color: var(--c-text-muted);
-}
-.threshold-readout b {
-  color: var(--c-accent);
-  font-variant-numeric: tabular-nums;
-}
-.threshold-readout__hint {
-  color: var(--c-text-faint);
-}
-
-.setting-row__control {
-  /* Uniform control column: fixed width, content flush right at the card
-     edge (like the plain space-between layout), and the slider / segmented
-     controls below stretch to fill it — so every row's control has the same
-     footprint and both edges line up. */
-  flex: 0 0 240px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--sp-xs);
-}
-/* Fill the column: slider rows (badge + slider) and segmented rows end up
-   with the same width, so the right side reads as one aligned block. */
-.setting-row__control > .range-wrap.slider,
-.setting-row__control > .segmented {
-  flex: 1 1 0;
-  width: 100%;
-  min-width: 0;
-}
-.setting-row__control > .segmented button {
-  flex: 1 1 0;
-}
-
-/* ============================================================
-   Plugin cards
-   ============================================================ */
-
-.plugin-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: var(--sp-md);
-}
-
-/* ============================================================
-   Background picker (settings)
-   ============================================================ */
-
-.bg-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: var(--sp-sm);
-}
-
-.bg-tile {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow: hidden;
-  border-radius: var(--r-md);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-  transition: transform var(--transition), box-shadow var(--transition);
-}
-.bg-tile:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--glass-highlight), var(--glass-shadow);
-}
-.bg-tile.is-current {
-  border-color: var(--c-accent);
-  box-shadow: 0 0 0 2px var(--c-accent-glass);
-}
-.bg-tile.is-applying {
-  opacity: 0.6;
-  pointer-events: none;
-}
-.bg-tile img {
-  width: 100%;
-  aspect-ratio: 16/10;
-  object-fit: cover;
-  display: block;
-}
-.bg-tile__ph {
-  aspect-ratio: 16/10;
-  display: grid;
-  place-items: center;
-  color: var(--c-text-faint);
-  background: var(--c-bg-elevated);
-}
-.bg-tile__name {
-  font-size: var(--fs-xs);
-  padding: 0 8px 6px;
-  color: var(--c-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.bg-tile__check {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  font-size: var(--fs-xs);
-  color: var(--c-text-on-accent);
-  background: var(--c-accent);
-  border-radius: var(--r-pill);
-  padding: 1px 7px;
-}
-
-/* Reveal-the-file-in-Explorer button: floats top-left, appears on hover.
-   A span because the tile itself is a <button>. */
-.bg-tile__reveal {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: var(--r-xs);
-  color: var(--c-text-faint);
-  opacity: 0;
-  transition: opacity var(--transition), color var(--transition), background var(--transition);
-  cursor: pointer;
-}
-.bg-tile:hover .bg-tile__reveal,
-.bg-tile__reveal:hover {
-  opacity: 1;
-}
-.bg-tile__reveal:hover {
-  color: var(--c-accent);
-  background: var(--c-accent-glass);
-}
-
-/* Theme-mode picker: three preview tiles (reusing the bg-tile language) so
-   the light/dark mode switch is its own distinct control — not another
-   segmented bar. Each tile shows a mini wireframe of the app shell (sidebar +
-   content lines) in that mode's palette. */
-.theme-mode-grid {
-  grid-template-columns: repeat(3, minmax(120px, 1fr));
-  max-width: 420px;
-}
-.theme-mode-grid .bg-tile__ph {
-  display: flex;
-  overflow: hidden;
-  padding: 0;
-  background: transparent;
-  /* explicit preview height — aspect-ratio didn't resolve reliably inside
-     the flex tile, leaving the mock ~31px tall in a ~97px box */
-  height: 96px;
-}
-.theme-mode__ph > .theme-mode-mock {
-  flex: 1 1 50%;
-  min-width: 0;
-}
-.theme-mode-mock {
-  display: flex;
-  gap: 4px;
-  padding: 6px;
-  overflow: hidden;
-  height: 100%; /* fill the preview box, not just its content */
-  background: var(--mock-bg);
-}
-.theme-mode-mock--light {
-  --mock-bg: #eef1f7;
-  --mock-sidebar: #dce3ef;
-  --mock-line: rgba(20, 28, 40, 0.16);
-  --mock-card: #ffffff;
-  --mock-card-border: rgba(20, 28, 40, 0.1);
-}
-.theme-mode-mock--dark {
-  --mock-bg: #0d0f14;
-  --mock-sidebar: #181d28;
-  --mock-line: rgba(255, 255, 255, 0.16);
-  --mock-card: #1a2030;
-  --mock-card-border: rgba(255, 255, 255, 0.09);
-}
-.theme-mode-mock__sidebar {
-  flex-shrink: 0;
-  width: 16%;
-  border-radius: 2px;
-  background: var(--mock-sidebar);
-}
-.theme-mode-mock__content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.theme-mode-mock__bar {
-  height: 5px;
-  border-radius: 2px;
-  background: var(--mock-sidebar);
-  margin-bottom: 2px;
-}
-.theme-mode-mock__line {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--mock-line);
-}
-.theme-mode-mock__line--short {
-  width: 50%;
-}
-.theme-mode-mock__card {
-  flex: 1;
-  margin-top: 2px;
-  border-radius: 3px;
-  background: var(--mock-card);
-  border: 1px solid var(--mock-card-border);
-}
-
-/* .plugin is now an inner content block; the glass "card" styling lives on the
-   wrapping .card (see PluginCard.jsx). So .plugin carries no background, border,
-   padding, hover or entrance animation of its own — just internal layout. */
-.plugin {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-sm);
-}
-.plugin.is-disabled {
-  opacity: 0.6;
-}
-
-.plugin__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-sm);
-}
-
-.plugin__name {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  overflow: hidden;
-  font-weight: var(--fw-bold);
-  font-size: var(--fs-md);
-}
-.plugin__name-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* Status dot next to the plugin name — green when enabled in the current
-   config, gray when disabled. A lighter-weight alternative to a pill chip. */
-.plugin__dot {
-  flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--c-success);
-  box-shadow: 0 0 6px var(--c-success);
-}
-.plugin__dot.is-off {
-  background: var(--c-text-faint);
-  box-shadow: none;
-}
-
-/* Description sits in the header row between the title and the version pill,
-   truncating with an ellipsis when it doesn't fit. */
-.plugin__desc {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--c-text-muted);
-  font-size: var(--fs-xs);
-}
-
-.plugin__version {
-  flex-shrink: 0;
-  font-size: var(--fs-xs);
-  color: var(--c-info);
-  background: var(--c-info-soft);
-  padding: 1px 8px;
-  border-radius: var(--r-pill);
-  display: inline-block;
-}
-
-/* Version pill + "reveal in Explorer" button, grouped at the head's right. */
-.plugin__head-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.plugin__reveal {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: var(--r-xs);
-  color: var(--c-text-faint);
-  cursor: pointer;
-  transition: color var(--transition), background var(--transition);
-}
-.plugin__reveal:hover {
-  color: var(--c-accent);
-  background: var(--c-accent-soft);
-}
-
-/* Current-parameter overview on the tile — a compact preview, not the full
-   editor (that lives in the parameter-config modal). */
-.plugin__params {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  border-top: 1px solid var(--c-border);
-  padding-top: var(--sp-sm);
-}
-.plugin__param {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-sm);
-  min-width: 0;
-}
-/* Label block: the short param name on top, the (possibly long) description
-   as a truncated second line underneath; both ellipsize, full text in the
-   tooltip. */
-.plugin__param-label {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.plugin__param-name {
-  color: var(--c-text);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-medium);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.plugin__param-desc {
-  color: var(--c-text-faint);
-  font-size: var(--fs-xs);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.plugin__param-value {
-  flex-shrink: 0;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  color: var(--c-text);
-}
-.plugin__param-more {
-  color: var(--c-text-faint);
-  font-size: var(--fs-xs);
-}
-
-.plugin__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-xs);
-}
-
-.plugin__toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* ============================================================
-   Process monitor
-   ============================================================ */
-
-.process-table {
-  width: 100%;
-  border-collapse: collapse;
-  /* Fixed layout: column widths come from the header row (config 30%,
-     delete 48px, path takes the rest), so a long unbroken exe path can no
-     longer stretch its column and push the other columns out of the card.
-     In auto layout the column width follows the content's min-content
-     width (a path has no spaces, so it is the full string width) and the
-     span's ellipsis is purely visual — the column still eats the space. */
-  table-layout: fixed;
-}
-
-.process-table th {
-  text-align: left;
-  font-size: var(--fs-xs);
-  color: var(--c-text-faint);
-  font-weight: var(--fw-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  padding: var(--sp-xs) var(--sp-sm);
-  border-bottom: 1px solid var(--c-border);
-}
-
-.process-table td {
-  /* Compact rows: tighter vertical padding than the default so the rules
-     list reads as a dense table, not a stack of form rows. */
-  padding: var(--sp-xs) var(--sp-sm);
-  border-bottom: 1px solid var(--c-border);
-  font-size: var(--fs-sm);
-  vertical-align: middle;
-}
-
-.process-table tbody tr:hover {
-  /* Soft accent tint — matches the app-wide hover language (menu items,
-     segmented, sidebar). A solid surface color reads as a big black slab
-     over the glass card, so rows get the subtle tint instead. */
-  background: var(--c-accent-soft);
-  transition: background var(--transition);
-}
-
-.process-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-xs);
-  color: var(--c-text-muted);
-  font-size: var(--fs-xs);
-  font-family: var(--font-mono);
-  padding: 4px 10px;
-  background: var(--c-bg-elevated);
-  border-radius: var(--r-pill);
-  border: 1px solid var(--c-border);
-  max-width: 100%;
-}
-
-/* The monitored exe path in the rules table — plain text label, no box.
-   A bordered pill with a solid background reads as a (disabled) input,
-   which this isn't; hover shows the full path in the tooltip.
-   width:100% (not max-width) pins the span to the fixed-layout column width
-   even while its content is shorter, so JS can read a STABLE available
-   width (getBoundingClientRect) without the measurement disturbing layout. */
-.process-path {
-  display: block;
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  color: var(--c-text);
-}
-
-/* Row delete: link-style icon button (no box), muted until hover, then the
-   app's danger language (same as the config delete badge). */
-.rule-delete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 24px;
-  min-width: 24px;
-  padding: 0 4px;
-  border-radius: var(--r-xs);
-  color: var(--c-text-faint);
-  transition: color var(--transition), background var(--transition);
-}
-.rule-delete:hover {
-  color: var(--c-danger);
-  background: var(--c-danger-soft);
-  text-decoration: none;
-}
-
-/* Narrow delete column: keep the icon centered. */
-.process-table__del {
-  text-align: center;
-}
-
-/* ============================================================
-   Log console
-   ============================================================ */
-
-.log-filters {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-xs);
-}
-
-.log-console {
-  /* Fixed dark terminal well — never changes with theme so log colors stay
-     consistent. Noise overlay via has-noise. */
-  position: relative;
-  overflow: hidden;
-  background: #12151c;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: var(--r-md);
-  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.4);
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  line-height: 1.6;
-  height: 320px;
-  overflow-y: auto;
-  padding: var(--sp-sm);
-  user-select: text;   /* the app disables selection globally; logs must stay copyable */
-  cursor: text;
-}
-.log-console ::selection {
-  background: rgba(94, 166, 255, 0.35);
-  color: inherit;
-}
-.log-console::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: var(--noise-svg);
-  background-size: 180px 180px;
-  mix-blend-mode: soft-light;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.3;
-}
-.log-console > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* Newest line fades in. Only :last-child animates: the selector starts
-   matching the freshly-appended node (and stops matching the previous one),
-   so a ring-buffer trim never replays the animation on the whole list. */
-.log-line:last-child {
-  animation: logLineIn 240ms ease-out;
-}
-@keyframes logLineIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.log-line {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-xs);
-  color: var(--c-text-muted);
-}
-.log-line.is-info {
-  color: var(--c-success);
-}
-.log-line.is-warn {
-  color: var(--c-warning);
-}
-.log-line.is-error {
-  color: var(--c-danger);
-}
-
-/* expand chevron: real element (the old ::before could not be clicked) */
-.log-line__chevron {
-  flex-shrink: 0;
-  width: 14px;
-  text-align: center;
-  color: var(--c-accent);
-  opacity: 0.7;
-  cursor: pointer;
-  user-select: none;
-  transition: transform var(--transition), color var(--transition), background var(--transition);
-}
-.log-line.is-open .log-line__chevron {
-  /* stays inline at the start of the panel; made more prominent with a
-     round accent-tinted backdrop so the collapse affordance is obvious */
-  transform: rotate(90deg);
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--c-accent-soft);
-  color: var(--c-accent);
-  opacity: 1;
-  font-size: 13px;
-  font-weight: var(--fw-bold);
-}
-.log-line.is-open .log-line__chevron:hover {
-  background: var(--c-accent);
-  color: var(--c-text-on-accent);
-}
-
-/* labeled meta row: level / time / tag, always one line */
-.log-line__meta {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-/* level badge: color carries the semantics, no text label needed */
-.log-level-chip {
-  font-size: 10px;
-  padding: 1px 7px;
-  border-radius: var(--r-pill);
-  font-weight: var(--fw-medium);
-  line-height: 1.5;
-}
-.log-level-chip--info {
-  background: var(--c-success-soft);
-  color: var(--c-success);
-}
-.log-level-chip--warn {
-  background: var(--c-warning-soft);
-  color: var(--c-warning);
-}
-.log-level-chip--error {
-  background: var(--c-danger-soft);
-  color: var(--c-danger);
-}
-
-.log-line__time {
-  font-family: var(--font-mono);
-  font-size: var(--fs-xs);
-  color: var(--c-text-faint);
-}
-
-/* relative age ("刚刚 / N 分钟前") — accent-tinted so it reads separately
-   from the absolute timestamp that follows it */
-.log-line__time-rel {
-  color: var(--c-info);
-  font-weight: var(--fw-medium);
-}
-
-.log-line__tag {
-  font-size: 10px;
-  padding: 1px 7px;
-  border-radius: var(--r-pill);
-  background: var(--c-bg-elevated);
-  color: var(--c-text-muted);
-  border: 1px solid var(--c-border);
-}
-
-/* collapsed: single ellipsized line; expanded: panel-like block with a
-   level-colored left bar so the open region stands out */
-.log-line__text {
-  flex: 1 1 0;          /* take all remaining width, shrinkable for ellipsis */
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.log-line.is-open {
-  flex-wrap: wrap;
-  gap: 4px 6px;
-  padding: 6px 10px;
-  margin: 2px 0;
-  background: var(--c-bg-elevated);
-  border: 1px solid var(--c-border);
-  border-left: 3px solid var(--c-accent);
-  border-radius: var(--r-sm);
-  align-items: center;
-}
-.log-line.is-open.is-info {
-  border-left-color: var(--c-success);
-}
-.log-line.is-open.is-warn {
-  border-left-color: var(--c-warning);
-}
-.log-line.is-open.is-error {
-  border-left-color: var(--c-danger);
-}
-.log-line.is-open .log-line__text {
-  flex-basis: 100%;
-  white-space: pre-wrap;
-  word-break: break-all;
-  overflow: visible;
-}
-
-/* ============================================================
-   Tags / chips
-   ============================================================ */
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: var(--r-pill);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-medium);
-  background: var(--c-info-soft);
-  color: var(--c-info);
-  transition: filter var(--transition);
-}
-.chip:hover {
-  box-shadow: 0 0 0 2px var(--c-accent-soft);
-}
-.chip--success {
-  background: var(--c-success-soft);
-  color: var(--c-success);
-}
-.chip--danger {
-  background: var(--c-danger-soft);
-  color: var(--c-danger);
-}
-.chip--warning {
-  background: var(--c-warning-soft);
-  color: var(--c-warning);
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--c-overlay);
-  backdrop-filter: blur(6px) saturate(0.8);
-  -webkit-backdrop-filter: blur(6px) saturate(0.8);
-  display: grid;
-  place-items: center;
-  z-index: 100;
-  -webkit-app-region: no-drag;
-  animation: overlayIn 200ms ease both;
-}
-.modal-overlay--closing {
-  animation: overlayOut 200ms ease forwards;
-}
-
-.modal {
-  width: 420px;
-  max-width: 90vw;
-  max-height: 80vh;
-  display: flex;
-  flex-direction: column;
-  background: var(--glass-bg-strong);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--r-xl);
-  padding: var(--sp-lg);
-  box-shadow: var(--glass-highlight), var(--shadow-lg);
-  animation: modalIn 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.modal--closing {
-  animation: modalOut 200ms ease forwards;
-}
-
-@keyframes overlayIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes overlayOut {
-  to { opacity: 0; }
-}
-@keyframes modalIn {
-  from { opacity: 0; transform: translateY(12px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes modalOut {
-  to { opacity: 0; transform: translateY(12px) scale(0.96); }
-}
-
-.modal__title {
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-bold);
-  margin-bottom: var(--sp-sm);
-}
-
-.modal__body {
-  margin-bottom: var(--sp-lg);
-  overflow-y: auto;
-  flex: 1;
-}
-
-.modal__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--sp-sm);
-}
-
-.empty {
-  text-align: center;
-  color: var(--c-text-faint);
-  padding: var(--sp-xl);
-  font-size: var(--fs-sm);
-}
-
-.page-title {
-  font-size: var(--fs-2xl);
-  font-weight: var(--fw-bold);
-  line-height: var(--lh-tight);
-  letter-spacing: var(--ls-tight);
-  margin-bottom: var(--sp-md);
-}
-
-.page-sub {
-  color: var(--c-text-muted);
-  font-size: var(--fs-sm);
-  margin-bottom: var(--sp-xl);
-}
-
-.section-gap {
-  height: var(--sp-md);
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
-}
-
-/* ==== entrance animations (tasteful; play once, not on scroll) ====
-   The whole-page "rise together" effect was removed on purpose: it felt flat
-   and uniform. Instead each .card animates on its own (see the .card rule) and,
-   where a page shows several cards, they enter one after another via the
-   --card-i stagger index (set per card in JSX). */
-
-/* Fade + gentle rise used by .card. */
-@keyframes cardIn {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Reduced motion: kill ALL animation/transition, not just the card entrance —
-   modals, toasts, the header-title slide and the status pulse included. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* ============================================================
-   Tooltip (reusable hover bubble; see components/Tooltip.jsx)
-   ============================================================ */
-
-.tooltip {
-  position: relative;
-  display: inline-flex;
-}
-
-.tooltip__bubble {
-  position: absolute;
-  z-index: 60;
-  padding: 5px 10px;
-  border-radius: var(--r-sm);
-  background: var(--c-bg-elevated);
-  color: var(--c-text);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-medium);
-  white-space: nowrap;
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-highlight), var(--shadow-md);
-  opacity: 0;
-  visibility: hidden;
-  scale: 0.96;
-  transform-origin: var(--tooltip-origin, center);
-  transition: opacity var(--transition), visibility var(--transition), scale var(--transition);
-  pointer-events: none;
-}
-
-.tooltip__bubble.is-open {
-  opacity: 1;
-  visibility: visible;
-  scale: 1;
-}
-
-/* Drop-down placement per data-side on the trigger wrapper. */
-.tooltip[data-side='right'] .tooltip__bubble {
-  left: calc(100% + 10px);
-  top: 50%;
-  translate: 0 -50%;
-  --tooltip-origin: left center;
-}
-.tooltip[data-side='left'] .tooltip__bubble {
-  right: calc(100% + 10px);
-  top: 50%;
-  translate: 0 -50%;
-  --tooltip-origin: right center;
-}
-.tooltip[data-side='top'] .tooltip__bubble {
-  bottom: calc(100% + 8px);
-  left: 50%;
-  translate: -50% 0;
-  --tooltip-origin: center bottom;
-}
-.tooltip[data-side='bottom'] .tooltip__bubble {
-  top: calc(100% + 8px);
-  left: 50%;
-  translate: -50% 0;
-  --tooltip-origin: center top;
-}
-
-@media (max-width: 720px) {
-  .sidebar {
-    /* the sidebar already transitions its --sidebar-w; wider→collapsed is smooth */
-    width: var(--sidebar-w-collapsed);
-    /* Lift the whole sidebar (and the icon tooltips inside it) above .app-main,
-       which shares .app > * { z-index:1 } — otherwise the tooltip bubble is
-       drawn under the content that comes later in the DOM. */
-    z-index: 50;
-  }
-
-  /* Brand subtitle/name and nav LABELS fade out (not the .sidebar-nav__icon,
-     which must stay visible when collapsed — that is the whole point). */
-  .sidebar-brand__text,
-  .sidebar-nav__label,
-  .sidebar-foot {
-    max-width: 0;
-    opacity: 0;
-    visibility: hidden;
-    overflow: hidden;
-    transition: max-width var(--transition-slow), opacity var(--transition-slow),
-      visibility var(--transition-slow);
-  }
-
-  /* Keep the icon centered-ish when the text vanishes. */
-  .sidebar-nav__item {
-    justify-content: center;
-    gap: 0;
-    padding: 0;
-    color: var(--c-text);
-  }
-  /* collapsed: drop the side inset so icons stay centred in the narrow rail */
-  .sidebar-nav {
-    padding: 0;
-  }
-  .sidebar-nav__item:hover::after {
-    background: var(--glass-bg-strong);
-  }
-
-  /* The label tooltip is now a reusable <Tooltip> component (Tooltip.jsx). */
-
-  /* Brand dot row centers when text is hidden. */
-  .sidebar-brand {
-    justify-content: center;
-    padding: 0 0 var(--sp-lg);
-  }
-
-  .app-content {
-    padding: var(--sp-lg);
-  }
-}
-
-/* Smoothly widen/expand when leaving the narrow range. */
-.sidebar-brand__text,
-.sidebar-nav__label,
-.sidebar-foot {
-  transition: max-width var(--transition-slow), opacity var(--transition-slow),
-    visibility var(--transition-slow);
-}
-
-
-
-
-/* ============================================================
-   Ported from the app work (stash) — non-LiquidGlass UI features
-   ============================================================ */
-
-/* Stacked variant: label block on top, control/children below (background tab). */
-.setting-row--column {
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--sp-sm);
-}
-
-/* IconButton — small circular flat icon button (components/ui.jsx), non-glass.
-   Replaces the LiquidGlass 24px pill; kept the same footprint. */
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1px solid var(--c-border);
-  background: var(--c-bg-elevated);
-  color: var(--c-text-faint);
-  cursor: pointer;
-  transition: color var(--transition), background var(--transition),
-    border-color var(--transition);
-}
-.icon-btn:hover {
-  color: var(--c-accent);
-  background: var(--c-accent-soft);
-  border-color: var(--c-accent-glass);
-}
-.icon-btn:active {
-  transform: scale(0.92);
-  color: var(--c-accent-strong);
-}
-.icon-btn.icon-btn--danger {
-  color: var(--c-danger);
-}
-.icon-btn.icon-btn--danger:hover {
-  color: var(--c-danger);
-  background: var(--c-danger-soft);
-  border-color: transparent;
-}
-.icon-btn.icon-btn--danger:active {
-  color: var(--c-danger);
-}
-
-/* ============================================================
-   Detailed Data-Grid List Mode (Rich Dense List)
-   ============================================================ */
-.plugin-list {
-  display: flex;
-  flex-direction: column;
-}
-
-/* List Table Header */
-.plugin-list-header {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-md);
-  padding: 6px var(--sp-md);
-  font-size: 11px;
-  font-weight: var(--fw-bold);
-  color: var(--c-text-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--c-border);
-  user-select: none;
-}
-.plugin-list-header__name {
-  flex: 0 0 160px;
-}
-.plugin-list-header__desc {
-  flex: 1 1 200px;
-  min-width: 0;
-}
-.plugin-list-header__params {
-  flex: 1 1 240px;
-  min-width: 0;
-}
-.plugin-list-header__status {
-  flex: 0 0 68px;
-  text-align: center;
-}
-.plugin-list-header__actions {
-  flex: 0 0 64px;
-  text-align: right;
-}
-
-/* Detailed List Row (Horizontal Dense Grid) */
-.plugin-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-md);
-  padding: 10px var(--sp-md);
-  border-radius: var(--r-sm);
-  overflow: hidden;
-  cursor: pointer;
-  box-sizing: border-box;
-  transition: background var(--transition), border-color var(--transition);
-  animation: rowIn var(--dur-slow) var(--ease-out) backwards;
-  animation-delay: calc(var(--row-i, 0) * var(--row-step, 45ms));
-}
-.plugin-row + .plugin-row {
-  border-top: 1px solid var(--c-border);
-}
-.plugin-row:hover {
-  background: var(--c-surface-hover);
-}
-.plugin-row.is-disabled {
-  opacity: 0.65;
-}
-.plugin-row.is-disabled:hover {
-  opacity: 0.92;
-}
-
-/* Col 1: Plugin Identity (Name + Version) */
-.plugin-row__identity {
-  flex: 0 0 160px;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-.plugin-row__name-wrap {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.plugin-row__name {
-  font-weight: var(--fw-bold);
-  font-size: var(--fs-sm);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--c-text);
-}
-.plugin-row__ver {
-  font-size: 10px;
-  color: var(--c-text-faint);
-  line-height: 1.1;
-}
-
-/* Col 2: Plugin Description */
-.plugin-row__desc {
-  flex: 1 1 200px;
-  min-width: 0;
-  font-size: var(--fs-xs);
-  color: var(--c-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Col 3: Parameter Pills Preview */
-.plugin-row__params {
-  flex: 1 1 240px;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 4px;
-  overflow: hidden;
-}
-.plugin-row__params .pill {
-  padding: 1px 7px;
-  font-size: 11px;
-}
-.plugin-row__params-empty {
-  font-size: 11px;
-  color: var(--c-text-faint);
-}
-
-/* Col 4: Status Toggle Column */
-.plugin-row__status {
-  flex: 0 0 68px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-/* Col 5: Secondary Actions (Config & Reveal) */
-.plugin-row__actions {
-  flex: 0 0 64px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-@keyframes rowIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Pill — shared small rounded badge (components/ui.jsx), ONE component with
-   BUTTON-like variants: `tone`, default = theme accent (follows 主题色),
-   "muted | success | danger | warning | info" switch the hue. Every variant
-   shares the same shell (radius / padding / font / hairline border) so version
-   chips, log-level chips, param-value chips, current-config chips all read as
-   the same control — only the tint+accent colour changes. */
 .pill {
   position: relative;
   display: inline-flex;
@@ -2889,7 +388,7 @@ input[type='number'] {
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
   white-space: nowrap;
-  border: 1px solid transparent; /* same box for every tone; tone draws its line */
+  border: 1px solid transparent;
   background: var(--c-accent-soft);
   color: var(--c-accent);
   border-color: color-mix(in srgb, var(--c-accent) 30%, transparent);
@@ -2919,369 +418,92 @@ input[type='number'] {
   color: var(--c-info);
   border-color: color-mix(in srgb, var(--c-info) 30%, transparent);
 }
-
-/* label / value inside a value chip (key is dimmer, value mono) */
 .pill__key { color: var(--c-text-faint); }
 .pill__val { color: var(--c-text); font-family: var(--font-mono); }
-.pill--muted .pill__val { color: var(--c-text); }
 
-/* Wider variant for content-heavy dialogs (e.g. plugin details). */
-.modal--wide {
-  width: 820px;
-}
 
-/* ---- plugin detail dialog ---- */
-.plugin-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-md);
-}
-.plugin-detail__grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--sp-sm);
-}
-.plugin-detail__cell--wide {
-  grid-column: 1 / -1;
-}
-.plugin-detail__label {
+
+
+.notice {
+  padding: var(--sp-xs) var(--sp-sm);
+  border-radius: var(--r-sm);
   font-size: var(--fs-xs);
-  color: var(--c-text-muted);
-  margin-bottom: 2px;
-}
-.plugin-detail__value {
-  font-size: var(--fs-sm);
-  word-break: break-all;
-}
-.plugin-detail__value--mono {
-  font-family: var(--font-mono, monospace);
-  font-size: var(--fs-xs);
-  color: var(--c-text-muted);
-}
-.plugin-detail__section-title {
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-bold);
-  color: var(--c-text-muted);
-  border-bottom: 1px solid var(--c-border);
-  padding-bottom: 6px;
-}
-.plugin-detail__params {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-sm);
-  max-height: 220px;
-  overflow-y: auto;
-}
-.plugin-detail__param {
-  padding: var(--sp-sm);
-  background: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: var(--r-md);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.plugin-detail__param-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.plugin-detail__param-name {
-  font-weight: var(--fw-medium);
-}
-.plugin-detail__param-type {
-  font-size: var(--fs-xs);
-  color: var(--c-text-faint);
-}
-.plugin-detail__param-key {
-  margin-left: auto;
-  font-size: var(--fs-xs);
-  color: var(--c-info);
+  line-height: var(--lh-normal);
   background: var(--c-info-soft);
-  padding: 1px 6px;
-  border-radius: 4px;
+  color: var(--c-info);
+  border-left: 3px solid var(--c-info);
 }
-.plugin-detail__param-desc {
-  font-size: var(--fs-xs);
-  color: var(--c-text-muted);
+.notice--warning {
+  background: var(--c-warning-soft);
+  color: var(--c-warning);
+  border-left-color: var(--c-warning);
 }
-.plugin-detail__param-default {
-  font-size: var(--fs-xs);
-  color: var(--c-text-faint);
+.notice--danger {
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+  border-left-color: var(--c-danger);
 }
-/* 高度由组件按插件文档上报的尺寸内联设置 (自动贴合内容), 这里只给
-   未上报时的兜底和外观。 */
-.plugin-detail__frame {
-  width: 100%;
-  min-height: 96px;
-  border: 1px solid var(--c-border);
-  border-radius: var(--r-md);
-  background: #10151c;
-}
-.plugin-detail__empty {
-  color: var(--c-text-faint);
-  font-size: var(--fs-sm);
-  padding: var(--sp-sm) 0;
+.notice--success {
+  background: var(--c-success-soft);
+  color: var(--c-success);
+  border-left-color: var(--c-success);
 }
 
-/* ============================================================
-   Plugins Page: Grid Card, Toolbar, Search & Filter Views
-   ============================================================ */
-
-.plugin-toolbar {
-  display: flex;
+.chip {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--sp-md);
-  margin-bottom: var(--sp-md);
-  padding-bottom: var(--sp-sm);
-  border-bottom: 1px solid var(--c-border);
-}
-
-.plugin-toolbar__left {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-sm);
-  flex: 1;
-  min-width: 260px;
-}
-
-.plugin-search-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 210px;
-  max-width: 100%;
-}
-
-.plugin-search__icon {
-  position: absolute;
-  left: 10px;
-  display: flex;
-  align-items: center;
-  color: var(--c-text-faint);
-  pointer-events: none;
-}
-
-.plugin-search__input {
-  width: 100%;
-  padding-left: 32px !important;
-  padding-right: 28px !important;
-  height: 32px;
-  font-size: var(--fs-xs);
+  gap: 6px;
+  padding: 3px 10px;
   border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  background: var(--c-info-soft);
+  color: var(--c-info);
+  transition: filter var(--transition);
+}
+.chip:hover {
+  box-shadow: 0 0 0 2px var(--c-accent-soft);
+}
+.chip--success {
+  background: var(--c-success-soft);
+  color: var(--c-success);
+}
+.chip--danger {
+  background: var(--c-danger-soft);
+  color: var(--c-danger);
+}
+.chip--warning {
+  background: var(--c-warning-soft);
+  color: var(--c-warning);
 }
 
-.plugin-search__clear {
-  position: absolute;
-  right: 8px;
-  background: none;
-  border: none;
-  color: var(--c-text-faint);
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 2px 4px;
-}
-.plugin-search__clear:hover {
-  color: var(--c-text);
-}
-
-.segmented-count-badge {
-  font-size: 10px;
-  padding: 1px 6px;
+.value-badge {
+  min-width: 40px;
+  padding: 2px 8px;
   border-radius: var(--r-pill);
-  background: var(--c-bg-subtle);
-  color: var(--c-text-faint);
-  line-height: 1.2;
-  transition: all var(--transition);
-}
-.segmented button.is-active .segmented-count-badge {
-  background: rgba(255, 255, 255, 0.25);
-  color: #fff;
-}
-
-.plugin-toolbar__right {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-xs);
-}
-
-/* Plugin Grid Layout */
-.plugin-grid-layout {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-  gap: var(--sp-md);
-  align-items: stretch;
-}
-
-/* Individual Grid Card Item */
-.plugin-card-item {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  padding: var(--sp-md);
-  border-radius: var(--r-lg);
   background: var(--c-bg-elevated);
   border: 1px solid var(--c-border);
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  transition: box-shadow var(--transition), border-color var(--transition), background var(--transition);
-  animation: cardIn var(--dur-slow) var(--ease-out) backwards;
-  animation-delay: calc(var(--item-i, 0) * 45ms);
-  overflow: hidden;
+  color: var(--c-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  transition: border-color var(--transition);
 }
-
-.plugin-card-item:hover {
-  border-color: var(--c-accent-glass);
-  box-shadow: var(--glass-highlight), var(--shadow-md);
-  background: var(--c-surface-hover);
-}
-
-.plugin-card-item:active:not(:has(.plugin-card-item__toggle:active, .plugin-card-item__actions:active)) {
-  background: var(--c-surface-active);
-}
-
-.plugin-card-item:focus-visible {
-  outline: none;
+.value-badge:hover {
+  border-color: var(--c-accent);
   box-shadow: 0 0 0 2px var(--c-accent-soft);
 }
 
-.plugin-card-item.is-disabled {
-  opacity: 0.72;
-}
-.plugin-card-item.is-disabled:hover {
-  opacity: 0.95;
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.plugin-card-item__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--sp-sm);
-  min-width: 0;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
-
-.plugin-card-item__titles {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.plugin-card-item__title-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.plugin-card-item__name {
-  font-size: var(--fs-md);
-  font-weight: var(--fw-bold);
-  color: var(--c-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.plugin-card-item__author {
-  font-size: var(--fs-xs);
-  color: var(--c-text-faint);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.plugin-card-item__toggle {
-  flex-shrink: 0;
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-}
-
-.plugin-card-item__body {
-  margin-top: var(--sp-sm);
-  flex: 1;
-  min-height: 38px;
-}
-
-.plugin-card-item__desc {
-  margin: 0;
-  font-size: var(--fs-xs);
-  line-height: 1.5;
-  color: var(--c-text-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  word-break: break-word;
-}
-
-.plugin-card-item__params {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: var(--sp-sm);
-  padding-top: var(--sp-xs);
-  border-top: 1px dashed var(--c-border);
-}
-
-.plugin-card-item__footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: var(--sp-md);
-  padding-top: var(--sp-xs);
-  border-top: 1px solid var(--c-border);
-}
-
-.plugin-card-item__status-tag {
-  font-size: 11px;
-  font-weight: var(--fw-medium);
-  border-radius: var(--r-pill);
-  padding: 1px 8px;
-}
-.plugin-card-item__status-tag.is-on {
-  color: var(--c-success);
-  background: var(--c-success-soft);
-}
-.plugin-card-item__status-tag.is-off {
-  color: var(--c-text-faint);
-  background: var(--c-bg-subtle);
-}
-
-.plugin-card-item__actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Empty filtered results */
-.plugin-empty-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--sp-2xl) var(--sp-md);
-  text-align: center;
-  color: var(--c-text-muted);
-  gap: var(--sp-sm);
-}
-.plugin-empty-box__title {
-  font-weight: var(--fw-medium);
-  color: var(--c-text);
-  font-size: var(--fs-sm);
-}
-
-/* List mode row tweaks */
-.plugin-row.is-disabled {
-  opacity: 0.65;
-}
-.plugin-row.is-disabled:hover {
-  opacity: 0.95;
-}
-

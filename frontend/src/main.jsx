@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { createHashRouter, RouterProvider } from 'react-router-dom'
 import './style.css'
@@ -9,7 +9,7 @@ import HomePage from './pages/HomePage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import PluginsPage from './pages/PluginsPage.jsx'
 import ProcessPage from './pages/ProcessPage.jsx'
-import ToastContainer from './components/toast.jsx'
+import ToastContainer from './ui'
 
 // Hash-based router: the app runs over both file:// (prod) and localhost
 // (dev), where BrowserRouter would break on refresh / deep links.

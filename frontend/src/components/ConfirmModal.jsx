@@ -1,7 +1,7 @@
-// ConfirmModal.jsx — generic confirmation dialog for destructive or
+﻿// ConfirmModal.jsx — generic confirmation dialog for destructive or
 // irreversible actions. Reused anywhere a "are you sure?" step is needed.
 
-import { Modal, Button } from './ui'
+import { Modal, Button } from '../ui'
 
 export default function ConfirmModal({
   open,

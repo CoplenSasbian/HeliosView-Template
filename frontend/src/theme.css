@@ -58,62 +58,63 @@
      dark mode so light text pops on bright backgrounds */
   --card-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.55);
 
-  /* ---- typography ---- */
-  --font-sans: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei",
-    "PingFang SC", sans-serif;
-  --font-mono: "Cascadia Code", "JetBrains Mono", ui-monospace, Consolas,
-    monospace;
+  /* ---- typography scale (Tailwind / Radix / AntD aligned) ---- */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
 
-  --fs-xs: 0.72rem;
-  --fs-sm: 0.82rem;
-  --fs-md: 0.92rem;
-  --fs-lg: 1.05rem;
-  --fs-xl: 1.3rem;
-  --fs-2xl: 1.7rem;
-  --fs-3xl: 2.2rem;
+  --fs-xs: 0.75rem;   /* 12px */
+  --fs-sm: 0.8125rem; /* 13px */
+  --fs-md: 0.875rem;  /* 14px - Main body standard */
+  --fs-lg: 1rem;      /* 16px - Section titles */
+  --fs-xl: 1.25rem;   /* 20px */
+  --fs-2xl: 1.5rem;   /* 24px - Page titles */
+  --fs-3xl: 1.875rem; /* 30px */
 
   --fw-normal: 400;
   --fw-medium: 500;
+  --fw-semibold: 600;
   --fw-bold: 700;
 
-  /* line-heights + letter-spacing for a tighter, more intentional read */
-  --lh-tight: 1.2;
-  --lh-snug: 1.42;
-  --lh-normal: 1.6;
-  --ls-tight: -0.012em; /* headings */
+  /* line-heights + letter-spacing for standard legibility */
+  --lh-tight: 1.25;
+  --lh-snug: 1.375;
+  --lh-normal: 1.5;
+  --lh-relaxed: 1.625;
+  --ls-tight: -0.015em; /* headings */
   --ls-normal: 0;
-  --ls-wide: 0.03em; /* uppercase labels / chips */
+  --ls-wide: 0.025em;   /* badges / uppercase labels */
 
-  /* ---- spacing ---- */
+  /* ---- spacing (4px standard geometric grid) ---- */
+  --sp-3xs: 2px;
   --sp-2xs: 4px;
   --sp-xs: 8px;
   --sp-sm: 12px;
   --sp-md: 16px;
-  --sp-lg: 24px;
-  --sp-xl: 32px;
-  --sp-2xl: 48px;
+  --sp-lg: 20px;
+  --sp-xl: 24px;
+  --sp-2xl: 32px;
+  --sp-3xl: 48px;
 
-  /* ---- layout ---- */
-  --sidebar-w: 232px;
-  --sidebar-w-collapsed: 72px;
-  --header-h: 48px; /* matches the native <helios-window-title-bar> inline height */
-
-  /* ---- radii (the four main radii are also derived by the design panel's
-         cornerRadius token; keep these in sync with its default of 12) ---- */
-  --r-xs: 8px;
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 22px;
+  /* ---- radii scale (standard 4px / 6px / 8px / 12px / 16px) ---- */
+  --r-2xs: 2px;
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-2xl: 20px;
   --r-pill: 9999px;
 
-  /* ---- shadows: layered + slightly colored for depth without muddiness ---- */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.34), 0 1px 3px rgba(0, 0, 0, 0.26);
-  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.36);
-  --shadow-accent: 0 8px 24px var(--c-accent-glow);
-  --shadow-card-hover: 0 14px 40px rgba(0, 0, 0, 0.55);
-  --card-inner-hover: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  /* ---- shadows: modern layered elevation (Tailwind / Radix aligned) ---- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.55), 0 8px 16px rgba(0, 0, 0, 0.35);
+  --shadow-accent: 0 4px 16px var(--c-accent-glow);
+  --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --card-inner-hover: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 
   /* ---- overlays ---- */
   --c-overlay: rgba(8, 10, 16, 0.55);
@@ -158,31 +159,36 @@
     0 0 0 1px rgba(255, 255, 255, 0.03) inset;
   --glass-shadow: 2px 2px 4px rgba(0, 0, 0, 0.45);
 
+  /* ---- layout ---- */
+  --sidebar-w: 232px;
+  --sidebar-w-collapsed: 72px;
+  --header-h: 48px; /* matches the native <helios-window-title-bar> inline height */
+
   /* ---- control tokens (shared by buttons, inputs, selects, segmented) ---- */
-  --ctrl-h-xs: 24px;
-  --ctrl-pad-xs: 8px;
+  --ctrl-h-xs: 22px;
+  --ctrl-pad-xs: 6px;
   --ctrl-fs-xs: var(--fs-xs);
   --ctrl-r-xs: var(--r-xs);
 
-  --ctrl-h-sm: 30px;
+  --ctrl-h-sm: 28px;
   --ctrl-pad-sm: 10px;
   --ctrl-fs-sm: var(--fs-xs);
   --ctrl-r-sm: var(--r-sm);
 
-  --ctrl-h-md: 38px;
-  --ctrl-pad-md: 14px;
+  --ctrl-h-md: 36px;
+  --ctrl-pad-md: 12px;
   --ctrl-fs-md: var(--fs-sm);
-  --ctrl-r-md: var(--r-sm);
+  --ctrl-r-md: var(--r-md);
 
-  --ctrl-h-lg: 42px;
+  --ctrl-h-lg: 40px;
   --ctrl-pad-lg: 16px;
   --ctrl-fs-lg: var(--fs-md);
   --ctrl-r-lg: var(--r-md);
 
   --ctrl-height: var(--ctrl-h-md);
   --ctrl-pad-x: var(--ctrl-pad-md);
-  --transition: 160ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  --transition: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 250ms cubic-bezier(0.16, 1, 0.3, 1);
 
   --background-blur: blur(16px);
 

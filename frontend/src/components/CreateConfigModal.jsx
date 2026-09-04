@@ -1,9 +1,9 @@
-// CreateConfigModal.jsx — modal for creating a new config: a single name
+﻿// CreateConfigModal.jsx — modal for creating a new config: a single name
 // input (Enter submits). Owns its input state; the name is reported to the
 // parent via onSubmit(name) on confirm.
 
 import { useEffect, useState } from 'react'
-import { Modal, Button, Field, Input } from './ui'
+import { Modal, Button, Field, Input } from '../ui'
 
 export default function CreateConfigModal({ open, busy, onClose, onSubmit }) {
   const [name, setName] = useState('')

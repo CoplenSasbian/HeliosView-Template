@@ -1,12 +1,12 @@
-// AppLayout — the app shell: sidebar navigation + header + routed content.
+﻿// AppLayout — the app shell: sidebar navigation + header + routed content.
 // Uses react-router (<Outlet/> + <NavLink/>) so navigation is URL-driven
 // (HashRouter) instead of a hand-rolled NAV state machine.
 
 import {NavLink, Outlet, useLocation} from 'react-router-dom'
 import {useEffect, useState, useRef, useCallback} from 'react'
-import {IconHome, IconSettings, IconPlugin, IconMonitor, IconLogo} from './components/icons'
-import {HeliosTitleBar, HeliosWindowControls} from './components/helios'
-import Tooltip from './components/Tooltip'
+import {IconHome, IconSettings, IconPlugin, IconMonitor, IconLogo} from './ui'
+import {HeliosTitleBar, HeliosWindowControls} from './ui'
+import Tooltip from './ui/Tooltip.jsx'
 import { AppProviders, useConfig } from './context'
 
 

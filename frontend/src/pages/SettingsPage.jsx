@@ -1,15 +1,15 @@
-// SettingsPage — app settings: general behaviors (auto-start)
+﻿// SettingsPage — app settings: general behaviors (auto-start)
 // and appearance (theme, background, design). Settings come from
 // SettingsContext; appearance state from AppearanceContext.
 // Note: config management (create/delete/edit/activate) deliberately lives
 // elsewhere — HomePage activates, PluginsPage creates/deletes/edits.
 
 import { useState, useEffect, useRef, forwardRef } from 'react'
-import { Card, Toggle, Button, Segmented, Range, Notice, Select, ColorPicker, SettingRow, ValueBadge } from '../components/ui'
-import { IconFolder } from '../components/icons'
+import { Card, Toggle, Button, Segmented, Range, Notice, Select, ColorPicker, SettingRow, ValueBadge } from '../ui'
+import { IconFolder } from '../ui'
 import { call } from '../bridge'
-import { useSettings } from '../context/SettingsContext.jsx'
-import { toast } from '../components/toast'
+import { useSettings } from '../context'
+import { toast } from '../ui'
 import { useAppearance, bgList, bgLoadThumb, solidBackgroundCss, DEFAULT_ACCENT, SOLID_KEY } from '../context/AppearanceContext.jsx'
 
 // Mini wireframe of the app shell (a sidebar strip + a few content lines and
