@@ -25,7 +25,7 @@ export default function CreateConfigModal({ open, busy, onClose, onSubmit }) {
       onClose={onClose}
       actions={
         <>
-          <Button onClick={onClose}>取消</Button>
+          <Button variant="ghost" onClick={onClose}>取消</Button>
           <Button variant="primary" disabled={busy || !name.trim()} onClick={submit}>
             {busy ? '创建中…' : '创建'}
           </Button>

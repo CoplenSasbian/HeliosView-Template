@@ -1,19 +1,21 @@
-// PluginCard.jsx — one plugin tile in the grid: name / description / version
-// in the header row, plus a compact overview of the CURRENT parameter values
-// (the full editor lives in the parameter-config modal). Clicking the card
-// opens that modal.
+// PluginCard.jsx — one plugin ROW in the plugins-page list: a status dot + name
+// + short description in the head, the CURRENT parameter values as compact
+// chips underneath, and version + action buttons pinned to the right.
 //
-// The clickable .card wraps the plain .plugin content block; the .card carries
-// the glass styling + entrance animation (staggered via `index`), while .plugin
-// only holds the inner layout.
+// The row lives inside a single Card on the plugins page — no nested card-in-
+// card — so the page reads as one continuous surface instead of a grid of
+// boxes. Clicking the row opens the plugin DETAIL dialog; the gear opens the
+// parameter-config modal; the head action area stops propagation so those
+// clicks never open the detail dialog.
 //
 // Note: the overview intentionally excludes the per-config `_enabled` flag —
-// it is not a declared parameter and was dropped from the tile.
+// it is not a declared parameter and is shown only as the status dot.
 
-import { IconFolder } from './icons'
+import { IconFolder, IconSettings, IconPlugin } from './icons'
+import { Pill, Toggle } from './ui'
 
-// How many declared params to preview on the tile ("overview only").
-const PREVIEW_MAX = 4
+// How many declared params to show as chips in the overview ("+n" for the rest).
+const PARAMS_SHOWN = 4
 
 // One-line formatting for a parameter value in the overview.
 function formatValue(info, value) {
@@ -41,86 +43,210 @@ function formatValue(info, value) {
   }
 }
 
-export default function PluginCard({ plugin, index = 0, values = {}, infos = [], onClick, onReveal }) {
-  // _enabled is the per-config plugin on/off flag, not a declared parameter —
-  // shown as a status dot next to the name, kept out of the param overview.
-  const enabled = values._enabled
+export default function PluginCard({
+  plugin,
+  index = 0,
+  mode = 'grid',
+  values = {},
+  infos = [],
+  onClick,
+  onReveal,
+  onConfig,
+  onToggle,
+}) {
+  const enabled = values._enabled ?? true
   const declared = (infos ?? []).filter((i) => i.name !== '_enabled')
-  const shown = declared.slice(0, PREVIEW_MAX)
+  const shown = declared.slice(0, mode === 'grid' ? 6 : PARAMS_SHOWN)
   const extra = declared.length - shown.length
 
-  return (
-    <div
-      className="card card--plugin"
-      style={{ '--card-i': index }}
-      onClick={onClick}
-      // Focusable + Enter/Space activation so keyboard users get the global
-      // :focus-visible ring and can open the modal without a mouse.
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClick?.()
-        }
-      }}
-    >
-      <div className="plugin">
-        <div className="plugin__head">
-          <div className="plugin__name">
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onClick?.()
+    }
+  }
+
+  if (mode === 'grid') {
+    return (
+      <div
+        className={`plugin-card-item${enabled ? '' : ' is-disabled'}`}
+        role="button"
+        tabIndex={0}
+        style={{ '--item-i': index }}
+        onClick={onClick}
+        onKeyDown={handleKeyDown}
+      >
+        <div className="plugin-card-item__header">
+          <div className="plugin-card-item__icon-wrap">
+            <span className="plugin-card-item__icon">
+              <IconPlugin width={20} height={20} />
+            </span>
             <span
               className={`plugin__dot${enabled ? '' : ' is-off'}`}
               title={enabled ? '已启用' : '已停用'}
             />
-            <span className="plugin__name-text">{plugin.name}</span>
           </div>
-          {plugin.description && (
-            <div className="plugin__desc" title={plugin.description}>
-              {plugin.description}
+
+          <div className="plugin-card-item__titles">
+            <div className="plugin-card-item__title-row">
+              <span className="plugin-card-item__name" title={plugin.name}>
+                {plugin.name}
+              </span>
+              <Pill tone="muted">v{plugin.version}</Pill>
             </div>
-          )}
-          <span className="plugin__head-actions">
-            <span className="plugin__version">v{plugin.version}</span>
+            {plugin.author && (
+              <span className="plugin-card-item__author" title={`作者: ${plugin.author}`}>
+                {plugin.author}
+              </span>
+            )}
+          </div>
+
+          <div
+            className="plugin-card-item__toggle"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <Toggle
+              on={enabled}
+              title={enabled ? '点击停用插件' : '点击启用插件'}
+              onChange={(val) => onToggle?.(val)}
+            />
+          </div>
+        </div>
+
+        <div className="plugin-card-item__body">
+          <p className="plugin-card-item__desc" title={plugin.description || '暂无插件描述'}>
+            {plugin.description || '暂无描述信息'}
+          </p>
+        </div>
+
+        {declared.length > 0 && (
+          <div className="plugin-card-item__params">
+            {shown.map((info) => {
+              const label = info.label || info.name
+              const text = formatValue(info, values[info.name])
+              const tip = `${label}: ${text}${info.desc ? ` — ${info.desc}` : ''}`
+              return (
+                <Pill key={info.name} tone="muted" title={tip}>
+                  <span className="pill__key">{label}</span>
+                  <span className="pill__val">{text}</span>
+                </Pill>
+              )
+            })}
+            {extra > 0 && <span className="plugin-row__param-more">+{extra}</span>}
+          </div>
+        )}
+
+        <div
+          className="plugin-card-item__footer"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <span className={`plugin-card-item__status-tag${enabled ? ' is-on' : ' is-off'}`}>
+            {enabled ? '运行就绪' : '已停用'}
+          </span>
+          <div className="plugin-card-item__actions">
             <button
               type="button"
-              className="plugin__reveal"
+              className="icon-btn"
+              title="参数配置"
+              onClick={(e) => {
+                e.stopPropagation()
+                onConfig?.()
+              }}
+            >
+              <IconSettings width={14} height={14} />
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
               title="在资源管理器中显示"
               onClick={(e) => {
-                e.stopPropagation() // don't open the param modal
+                e.stopPropagation()
                 onReveal?.()
               }}
             >
-              <IconFolder width={13} height={13} />
+              <IconFolder width={14} height={14} />
             </button>
-          </span>
-        </div>
-
-        {shown.length > 0 && (
-          <div className="plugin__params">
-            {shown.map((info) => {
-              const text = formatValue(info, values[info.name])
-              return (
-                <div className="plugin__param" key={info.name}>
-                  <span className="plugin__param-label">
-                    <span className="plugin__param-name" title={info.label || info.name}>
-                      {info.label || info.name}
-                    </span>
-                    {info.desc && (
-                      <span className="plugin__param-desc" title={info.desc}>
-                        {info.desc}
-                      </span>
-                    )}
-                  </span>
-                  <span className="plugin__param-value" title={text}>
-                    {text}
-                  </span>
-                </div>
-              )
-            })}
-            {extra > 0 && <div className="plugin__param-more">… 还有 {extra} 项</div>}
           </div>
-        )}
+        </div>
       </div>
+    )
+  }
+
+  // mode === 'list'
+  return (
+    <div
+      className={`plugin-row${enabled ? '' : ' is-disabled'}`}
+      role="button"
+      tabIndex={0}
+      style={{ '--row-i': index }}
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+    >
+      <div className="plugin-row__head">
+        <span
+          className={`plugin__dot${enabled ? '' : ' is-off'}`}
+          title={enabled ? '已启用' : '已停用'}
+        />
+        <span className="plugin-row__name" title={plugin.name}>{plugin.name}</span>
+        {plugin.description && (
+          <span className="plugin__desc" title={plugin.description}>
+            {plugin.description}
+          </span>
+        )}
+        <span
+          className="plugin-row__actions"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <Pill>v{plugin.version}</Pill>
+          <Toggle
+            on={enabled}
+            title={enabled ? '点击停用插件' : '点击启用插件'}
+            onChange={(val) => onToggle?.(val)}
+          />
+          <button
+            type="button"
+            className="icon-btn"
+            title="参数配置"
+            onClick={(e) => {
+              e.stopPropagation()
+              onConfig?.()
+            }}
+          >
+            <IconSettings width={14} height={14} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            title="在资源管理器中显示"
+            onClick={(e) => {
+              e.stopPropagation()
+              onReveal?.()
+            }}
+          >
+            <IconFolder width={14} height={14} />
+          </button>
+        </span>
+      </div>
+
+      {shown.length > 0 && (
+        <div className="plugin-row__params">
+          {shown.map((info) => {
+            const label = info.label || info.name
+            const text = formatValue(info, values[info.name])
+            const tip = `${label}: ${text}${info.desc ? ` — ${info.desc}` : ''}`
+            return (
+              <Pill key={info.name} tone="muted" title={tip}>
+                <span className="pill__key">{label}</span>
+                <span className="pill__val">{text}</span>
+              </Pill>
+            )
+          })}
+          {extra > 0 && <span className="plugin-row__param-more">+{extra}</span>}
+        </div>
+      )}
     </div>
   )
 }

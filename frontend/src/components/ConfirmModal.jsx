@@ -20,7 +20,7 @@ export default function ConfirmModal({
       onClose={onClose}
       actions={
         <>
-          <Button onClick={onClose} disabled={busy}>取消</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>取消</Button>
           <Button
             variant={danger ? 'danger' : 'primary'}
             disabled={busy}

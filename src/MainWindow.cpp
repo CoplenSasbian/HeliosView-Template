@@ -114,8 +114,15 @@ MainWindow::MainWindow(int width, int height, const char* title, bool silent)
     // the saved position — or center it on the primary monitor for a fresh
     // install — and show it fully rendered, so the first visible frame is the
     // loaded page at its final position: no flash, no jump. Silent startup
-    // stays in the tray.
+    // stays in the tray: the WebView is torn down as soon as the page finishes
+    // loading (same memory saving as a hide-to-tray) and recreated on the
+    // window's first show.
     navigationCompleted.connect(&MainWindow::onNavigationCompleted, this);
+
+    // The window's first display needs the show-from-tray treatment when it
+    // comes from a silent startup (no WebView alive at that point); on a
+    // normal startup the WebView is already up and this is a no-op.
+    firstShown.connect(&MainWindow::onFirstShown, this);
 
     // Remember the main-window geometry: track position/size in memory, then
     // persist once when the window is closed (setupSettings restores it on the
@@ -166,11 +173,25 @@ MainWindow::~MainWindow()
 // WebView (TrySuspend) so rendering stops and most browser-process resources
 // are released while the page stays alive. Coming back: hidden → recreate +
 // reload the frontend, minimized → resume in place (no reload, no blank flash).
+// A silent (--silent) startup applies the hidden case up front: the WebView is
+// destroyed right after the initial page load (see onNavigationCompleted), and
+// the window's first show recreates it (onFirstShown → onShown).
 void MainWindow::onHidden()
 {
     AppContext::instance()->logger().Info("webview", "window hidden -> destroy WebView, free its processes");
     m_frontendReady = false; /* no broadcasts while there is no WebView */
     destroyWebView();
+}
+
+void MainWindow::onFirstShown()
+{
+    // The window's FIRST display: on a normal startup the WebView is already
+    // alive from InitAsync, so there is nothing to do — recreating it here
+    // would reload the freshly loaded page. On a silent startup the WebView
+    // was destroyed once the page finished loading, so bringing the window up
+    // needs exactly what a show-from-tray does.
+    if (m_frontendReady) return;
+    onShown();
 }
 
 void MainWindow::onMinimized()
@@ -221,8 +242,31 @@ void MainWindow::onNavigationCompleted(int error)
     // in the console/log file instead of a silent blank window.
     if (error != 0)
         AppContext::instance()->logger().Error("webview", "navigation completed with error: {}", error);
-    if (m_silent || m_frontendShown) return;
+
+    // First navigation only — every later navigation is a destroy/recreate
+    // reload and must not re-run this block. Normal startup: show the window
+    // here, once the page is actually rendered. Silent startup (auto-start
+    // into the tray): the window never shows, so this is the moment to tear
+    // the WebView down instead — otherwise the tray keeps the WebView2 browser
+    // process alive unseen (the memory saving of a hide-to-tray never happens).
+    // Either path sets m_frontendShown so a later reload cannot re-show the
+    // window or re-teardown the WebView.
+    if (m_frontendShown) return;
     m_frontendShown = true;
+
+    if (m_silent)
+    {
+        // If the user already opened the window while the initial page was
+        // still loading (tray click during startup), keep the freshly loaded
+        // WebView for the visible window instead of tearing it out from under
+        // the user.
+        if (isVisible()) return;
+        AppContext::instance()->logger().Info(
+            "webview", "silent startup: page loaded -> destroy WebView (tray-only)");
+        m_frontendReady = false; /* no broadcasts while there is no WebView */
+        destroyWebView();
+        return;
+    }
 
     if (m_settings.windowWidth > 0 && m_settings.windowHeight > 0 &&
         m_settings.windowX >= 0 && m_settings.windowY >= 0)
@@ -454,6 +498,7 @@ void MainWindow::setupBridge()
     // handlers below stay separate (they mutate state, not just read it).
     bindJson<>("config_get", this, &MainWindow::config_get);
     bindJson<std::string>("plugins_getParamValues", this, &MainWindow::pluginsGetParamValues);
+    bindJson<std::string>("plugins_customInfo", this, &MainWindow::pluginsCustomInfo);
     bindJson<std::string>("plugins_activate", this, &MainWindow::pluginsActivate);
     bindJson<std::string, std::string, std::string>("plugins_pickPath", this, &MainWindow::pluginsPickPath);
     bindJson<std::string, std::vector<ParamSetReq>>("plugins_setParams", this, &MainWindow::pluginsSetParams);
@@ -470,6 +515,7 @@ void MainWindow::setupBridge()
     bindJson<>("log_history", this, &MainWindow::logHistory);
     bindJson<std::string, std::string>("shell_reveal", this, &MainWindow::shellReveal);
     bindJson<std::string>("shell_openDir", this, &MainWindow::shellOpenDir);
+    bindJson<std::string>("shell_openUrl", this, &MainWindow::shellOpenUrl);
 }
 
 // ---- whole-object config state ----------------------------------------------
@@ -493,7 +539,8 @@ std::execution::task<boost::json::value> MainWindow::config_get()
         IPlugin* plugin = m_pluginManager.getPluginByName(name);
         plugins.push_back(boost::json::object{{"name", name},
                                               {"version", plugin ? plugin->version() : 0},
-                                              {"description", plugin ? plugin->description() : ""}});
+                                              {"description", plugin ? plugin->description() : ""},
+                                              {"dll", m_pluginManager.getPluginPath(name)}});
     }
     result["plugins"] = std::move(plugins);
 
@@ -561,24 +608,39 @@ std::execution::task<boost::json::object> MainWindow::pluginsGetParamValues(std:
     co_return co_await paramValuesFor(target);
 }
 
+std::execution::task<std::string> MainWindow::pluginsCustomInfo(std::string name)
+{
+    // The plugin's customInfo() may read its own persisted data (KV store) —
+    // keep the disk work off the UI thread, then hop back before completing
+    // (the bridge resolve runs on the message-loop thread).
+    co_await std::execution::schedule(AppContext::instance()->async().get_scheduler());
+    std::string html;
+    if (IPlugin* plugin = m_pluginManager.getPluginByName(name))
+        html = plugin->customInfo() ? plugin->customInfo() : "";
+    co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+    co_return html;
+}
+
 std::execution::task<bool> MainWindow::pluginsActivate(std::string config)
 {
     // activateConfig may block in plugin execute() — switch to the pool
     // scheduler inside this coroutine instead of blocking the UI thread.
     co_await std::execution::schedule(AppContext::instance()->async().get_scheduler());
     // The WebView bridge calls (the broadcast in AnnounceConfigActivated and
-    // the binding's resolve on co_return) must run on the UI thread — the C
-    // layer no longer marshals off-thread calls — so hop back first.
+    // the binding's resolve / reject on completion) must run on the UI thread
+    // — the C layer no longer marshals off-thread calls — so hop back first.
+    std::exception_ptr fail;
     try
     {
         m_pluginManager.activateConfig(config); // blocking part stays off the UI thread
     }
     catch (...)
     {
-        co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
-        throw; // rethrown on the UI thread → the JS promise rejects there
+        fail = std::current_exception(); // rethrown on the UI thread below
     }
     co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+    if (fail)
+        std::rethrow_exception(fail); // → the JS promise rejects on the UI thread
     AnnounceConfigActivated(config, "activate");
     co_return true;
 }
@@ -619,6 +681,11 @@ std::execution::task<bool> MainWindow::pluginsSetParams(std::string config, std:
     if (switched && !cfg.switchConfig(target))
         throw std::runtime_error(std::format("Config '{}' not found", target));
 
+    // save() resumes on a pool thread; the broadcast and the binding's
+    // resolve/reject on completion must run on the UI thread — MSVC forbids
+    // co_await inside a catch block, so capture the exception here and
+    // rethrow it below, after the hop back.
+    std::exception_ptr fail;
     try
     {
         for (auto& item : params)
@@ -639,15 +706,12 @@ std::execution::task<bool> MainWindow::pluginsSetParams(std::string config, std:
     catch (...)
     {
         if (switched) cfg.switchConfig(prev);
-        // save() resumes on a pool thread; the binding's reject must run on
-        // the UI thread — hop back, then rethrow.
-        co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
-        throw;
+        fail = std::current_exception();
     }
     if (switched) cfg.switchConfig(prev);
-    // Back on the message-loop thread (save() resumed on the pool): the
-    // broadcast and the resolve on co_return are UI-thread calls.
     co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+    if (fail)
+        std::rethrow_exception(fail); // → the JS promise rejects on the UI thread
     BroadcastParamsSaved();
     co_return true;
 }
@@ -660,16 +724,17 @@ std::execution::task<bool> MainWindow::pluginsCreateConfig(std::string name)
     // createConfig persists via async file I/O, so the coroutine resumes on a
     // pool thread; hop back to the UI thread before the bridge calls below.
     bool ok = false;
+    std::exception_ptr fail;
     try {
         ok = co_await m_pluginManager.getPluginConfig().createConfig(name);
     }
     catch (...)
     {
-        // createConfig() may fail on the pool; reject on the UI thread.
-        co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
-        throw;
+        fail = std::current_exception(); // createConfig() may fail on the pool
     }
     co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+    if (fail)
+        std::rethrow_exception(fail); // → the JS promise rejects on the UI thread
     if (!ok)
         throw std::runtime_error(std::format("配置 '{}' 已存在", name));
 
@@ -766,17 +831,20 @@ std::execution::task<boost::json::value> MainWindow::settings_set(boost::json::v
     ApplyProcessMonitor();
 
     // save() completes on the pool; the WebView bridge calls (broadcast and
-    // the resolve on co_return) must run on the UI thread.
+    // the resolve/reject on completion) must run on the UI thread — MSVC
+    // forbids co_await inside a catch block, so capture the exception here
+    // and rethrow it below, after the hop back.
+    std::exception_ptr fail;
     try {
         co_await m_settings.save(AppContext::instance()->async());
     }
     catch (...)
     {
-        // save() may fail on the pool; reject on the UI thread.
-        co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
-        throw;
+        fail = std::current_exception(); // save() may fail on the pool
     }
     co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+    if (fail)
+        std::rethrow_exception(fail); // → the JS promise rejects on the UI thread
     BroadcastSettingsChanged(); // keep UI + tray menu in sync
     AppContext::instance()->logger().Info("bridge", "settings_set applied");
     // Return the same flattened view as settings_get so callers stay consistent.
@@ -823,12 +891,14 @@ void MainWindow::AnnounceConfigActivated(const std::string& config, const char* 
     BroadcastConfigActivated(reason);
 
     // System notification on config switch (manual, tray or auto-switch).
-    if (m_tray && m_tray->valid())
-    {
-        const bool off = config == "close";
-        const std::string msg = off ? "当前未启用任何配置" : ("当前配置：" + config);
+    // Use the OS toast API (custom title) instead of the classic tray balloon,
+    // which on Win10/11 can only show the exe name (e.g. "GameTrigger.exe") as
+    // its title. Fall back to the balloon if toasts are unavailable.
+    const bool off = config == "close";
+    const std::string msg = off ? "当前未启用任何配置" : ("当前配置：" + config);
+    const bool shown = helios::notificationShow(off ? "配置已关闭" : "配置已切换", msg.c_str());
+    if (!shown && m_tray && m_tray->valid())
         m_tray->notify(off ? "配置已关闭" : "配置已切换", msg.c_str());
-    }
 }
 
 void MainWindow::ActivateConfig(const std::string& config, const char* reason)
@@ -977,18 +1047,20 @@ std::execution::task<boost::json::value> MainWindow::wallpaperFetch(bool fresh, 
     // Runs on the Async pool inside Wallpaper::fetch; returns a data: URL for
     // Bing's wallpaper `idx` days ago (0 = today, -1 = yesterday, ...).
     std::string dataUrl;
+    std::exception_ptr fail;
     try {
         dataUrl = co_await m_wallpaper.fetch(fresh, idx);
     }
     catch (...)
     {
-        // fetch() may fail on the pool; reject on the UI thread.
-        co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
-        throw;
+        fail = std::current_exception(); // fetch() may fail on the pool
     }
-    // fetch() resumes on a pool thread; hop back so the binding's resolve on
-    // co_return runs on the UI thread (the C layer no longer marshals).
+    // fetch() resumes on a pool thread; hop back so the binding's resolve /
+    // reject on completion runs on the UI thread (the C layer no longer
+    // marshals off-thread calls).
     co_await std::execution::schedule(AppContext::instance()->app().get_scheduler());
+    if (fail)
+        std::rethrow_exception(fail); // → the JS promise rejects on the UI thread
     AppContext::instance()->logger().Info("bridge", "wallpaper_fetch(fresh={}, idx={}) -> {}", fresh, idx,
                    dataUrl.empty() ? "<fallback gradient>" : "ok");
     co_return boost::json::value{{"ok", !dataUrl.empty()}, {"url", dataUrl}};
@@ -1082,6 +1154,14 @@ std::execution::task<bool> MainWindow::shellOpenDir(std::string type)
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
     co_return helios::openUrl(dir.string());
+}
+
+// Open an external URL in the user's default browser (plugin docs etc.).
+std::execution::task<bool> MainWindow::shellOpenUrl(std::string url)
+{
+    if (url.empty())
+        co_return false;
+    co_return helios::openUrl(url);
 }
 
 // ---- frontend loading ------------------------------------------------------

@@ -2,7 +2,7 @@
 // presentation: values come from the parent (current values + local draft),
 // changes are reported via onChange(name, value), saving via onSave().
 
-import { Modal, Button, Toggle } from './ui'
+import { Modal, Button, Toggle, SettingRow } from './ui'
 import ParamControl from './ParamControl'
 
 export default function ParamConfigModal({
@@ -32,10 +32,10 @@ export default function ParamConfigModal({
       onClose={onClose}
       actions={
         <>
-          <Button onClick={restoreDefaults} disabled={!infos.length}>
+          <Button variant="ghost" onClick={restoreDefaults} disabled={!infos.length}>
             恢复默认值
           </Button>
-          <Button onClick={onClose}>关闭</Button>
+          <Button variant="ghost" onClick={onClose}>关闭</Button>
           <Button
             variant="primary"
             disabled={saving || !canSave || !targetConfig}
@@ -46,18 +46,16 @@ export default function ParamConfigModal({
         </>
       }
     >
-      <div className="setting-row">
-        <div>
-          <div className="setting-row__label">启用该插件</div>
-          <div className="setting-row__desc">
-            关闭后, 切换到当前配置时不会执行此插件
-          </div>
-        </div>
-        <Toggle
-          on={draft._enabled ?? values._enabled ?? true}
-          onChange={(v) => onChange('_enabled', v)}
-        />
-      </div>
+      <SettingRow
+        label="启用该插件"
+        desc="关闭后, 切换到当前配置时不会执行此插件"
+        control={
+          <Toggle
+            on={draft._enabled ?? values._enabled ?? true}
+            onChange={(v) => onChange('_enabled', v)}
+          />
+        }
+      />
 
       {infos.map((param) => (
         <ParamControl

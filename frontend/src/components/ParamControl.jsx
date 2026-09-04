@@ -3,7 +3,7 @@
 // the parameter-config modal; also exports normalizeValue(), the save-time
 // counterpart that maps a UI value back to the JSON type the C++ side expects.
 
-import { Toggle, Button, Field, Input, Range, Select } from './ui'
+import { Toggle, Button, Field, Input, Range, Select, SettingRow, Pill } from './ui'
 import { call } from '../bridge'
 
 // Normalize a value to the JSON type expected by the C++ side, so that
@@ -31,12 +31,10 @@ export default function ParamControl({ param, value, onChange }) {
   switch (param.type) {
     case 'bool':
       return (
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">{param.label || param.desc || param.name}</div>
-          </div>
-          <Toggle on={!!value} onChange={onChange} />
-        </div>
+        <SettingRow
+          label={param.label || param.desc || param.name}
+          control={<Toggle on={!!value} onChange={onChange} />}
+        />
       )
     case 'int':
     case 'double': {
@@ -57,7 +55,7 @@ export default function ParamControl({ param, value, onChange }) {
             hasRange ? (
               <span style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>{label}</span>
-                <span className="chip">{value}</span>
+                <Pill tone="muted">{value}</Pill>
               </span>
             ) : (
               label
@@ -87,14 +85,13 @@ export default function ParamControl({ param, value, onChange }) {
     case 'folder':
       return (
         <Field label={param.label || param.desc || param.name}>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Input
               style={{ flex: 1 }}
               value={value ?? ''}
               onChange={(e) => onChange(e.target.value)}
             />
             <Button
-              size="sm"
               onClick={async () => {
                 try {
                   const res = await call(

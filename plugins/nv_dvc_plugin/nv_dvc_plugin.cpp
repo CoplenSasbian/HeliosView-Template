@@ -48,7 +48,22 @@ public:
         return "NVIDIA 数字振动 (Digital Vibrance) 自动调节";
     }
 
-    void initialize(ILogger* logger) noexcept override {
+    // 宿主 UI 在"插件详情"里展示的自定义信息: 一句话说明 + NVIDIA 官方文档链接
+    const char* customInfo() noexcept override {
+        uiBuffer_ =
+            "<div style=\"font-family:system-ui,'Segoe UI',sans-serif;color:#dbe2ea;"
+            "padding:4px 2px;font-size:13px;line-height:1.7\">"
+            "<div style=\"font-weight:600;margin-bottom:6px\">数字振动 (Digital Vibrance)</div>"
+            "<div style=\"margin-bottom:8px\">激活配置时自动调整 NVIDIA 数字振动颜色增强级别 "
+            "(0-100)。数字振动会提升屏幕色彩饱和度, 让游戏画面更鲜艳; "
+            "级别用各配置下本插件的 <code>level</code> 参数设置。</div>"
+            "<a href=\"https://www.nvidia.com/content/Control-Panel-Help/vLatest/en-us/mergedProjects/nvdsp/CS_Adjust_Color_Settings_Advanced.htm\" "
+            "style=\"color:#5ea6ff\">NVIDIA 官方文档：控制面板 - 调整桌面颜色设置（数字振动）</a>"
+            "</div>";
+        return uiBuffer_.c_str();
+    }
+
+    void initialize(ILogger* logger, IPluginContext* /*context*/) noexcept override {
         this->logger = logger;
         parameters.reserve(1);
 
@@ -201,6 +216,7 @@ private:
 
     ILogger* logger = nullptr;
     std::vector<PluginParameterInfo> parameters;
+    std::string uiBuffer_;   // customInfo() 返回缓冲
 
     HMODULE m_nvapi = nullptr;
     bool m_available = false;

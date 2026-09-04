@@ -13,7 +13,7 @@
 
 :root {
   /* Root font-size: all rem-based sizes scale from this. The design panel
-     can override it via --root-font-size (set by wallpaper.js applyDesign). */
+     can override it via --root-font-size (set by AppearanceContext applyDesign). */
   font-size: var(--root-font-size, 16px);
 
   /* ---- film-grain noise (shared by cards, modals, solid-bg) ---- */
@@ -129,7 +129,7 @@
 
      The four blob HUES live in --aur1..4 as plain colors; the gradients below
      only add the alpha via color-mix. When the user picks a custom accent,
-     wallpaper.js applyDesign() overwrites --aur1..4 with a hue family derived
+     AppearanceContext applyDesign() overwrites --aur1..4 with a hue family derived
      from that accent, so the backdrop never clashes with the UI accent. */
   --aur1: #6348ff;
   --aur2: #22c4ff;
@@ -158,13 +158,43 @@
     0 0 0 1px rgba(255, 255, 255, 0.03) inset;
   --glass-shadow: 2px 2px 4px rgba(0, 0, 0, 0.45);
 
-  /* ---- control ---- */
-  --ctrl-height: 38px;
-  --ctrl-pad-x: 14px;
+  /* ---- control tokens (shared by buttons, inputs, selects, segmented) ---- */
+  --ctrl-h-xs: 24px;
+  --ctrl-pad-xs: 8px;
+  --ctrl-fs-xs: var(--fs-xs);
+  --ctrl-r-xs: var(--r-xs);
+
+  --ctrl-h-sm: 30px;
+  --ctrl-pad-sm: 10px;
+  --ctrl-fs-sm: var(--fs-xs);
+  --ctrl-r-sm: var(--r-sm);
+
+  --ctrl-h-md: 38px;
+  --ctrl-pad-md: 14px;
+  --ctrl-fs-md: var(--fs-sm);
+  --ctrl-r-md: var(--r-sm);
+
+  --ctrl-h-lg: 42px;
+  --ctrl-pad-lg: 16px;
+  --ctrl-fs-lg: var(--fs-md);
+  --ctrl-r-lg: var(--r-md);
+
+  --ctrl-height: var(--ctrl-h-md);
+  --ctrl-pad-x: var(--ctrl-pad-md);
   --transition: 160ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 260ms cubic-bezier(0.22, 1, 0.36, 1);
 
   --background-blur: blur(16px);
+
+  /* motion language — shared so every control reads as the same hand.
+     --ease-out is the global "settle" curve; --ease-spring is the overshoot
+     used for travelled thumbs/switches (feels physical but stays flat). */
+  --dur-fast: 110ms;
+  --dur: 180ms;
+  --dur-slow: 300ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.6, 0, 0.4, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Theme switching is data-driven by JS (background luminance → data-theme),

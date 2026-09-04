@@ -1,5 +1,8 @@
 #pragma once
+#include <boost/json.hpp>
 #include <memory>
+#include <mutex>
+#include <IPlugin.h>
 #include <PluginParamerter.h>
 #include <string>
 #include <string_view>
@@ -10,6 +13,7 @@ class Logger;
 class IPlugin;
 
 class PluginManager;
+
 class PluginConfig
 {
 
@@ -40,6 +44,39 @@ private:
     struct Impl;
     std::unique_ptr<Impl> m_;
     PluginManager& pluginManager_;
+};
+
+// Host services exposed to plugins (IPluginContext): the currently active
+// config name, OS toast notifications, and a persistent per-plugin KV store.
+// One instance is created per loaded plugin (configured with the plugin's
+// storage file), so each plugin gets its own KV namespace.
+class PluginHostContext : public IPluginContext
+{
+public:
+    PluginHostContext(PluginConfig& config, std::string kvFilePath)
+        : config_(config), kvFilePath_(std::move(kvFilePath))
+    {
+    }
+
+    const char* activeConfigName() noexcept override;
+    bool notifyUser(const char* title, const char* message) noexcept override;
+    void kvSet(const char* key, const char* value) noexcept override;
+    const char* kvGet(const char* key) noexcept override;
+    void kvRemove(const char* key) noexcept override;
+
+private:
+    // Load the JSON file into kv_ (no-op after the first time). NOT locked —
+    // callers hold mutex_.
+    void ensureLoaded() noexcept;
+    // Flush kv_ to the JSON file. Callers hold mutex_.
+    void save() noexcept;
+
+    PluginConfig& config_;
+    std::string kvFilePath_;
+    std::mutex mutex_;
+    bool loaded_ = false;
+    boost::json::object kv_;               // key -> string value
+    std::string getBuffer_;                // kvGet return buffer (stable until next kv call)
 };
 
 

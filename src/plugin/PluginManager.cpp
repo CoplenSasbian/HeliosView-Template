@@ -14,11 +14,113 @@
 #include "../AppContext.h"
 #include "../Logger.h"
 #include <HeliosViewCore/Dialogs.h>
+#include <HeliosViewCore/Notification.h>
 
 #ifdef _WIN32
 constexpr char kPluginExtension[] = ".dll";
 #endif
 namespace fs = std::filesystem;
+
+// Replace characters that cannot appear in a Windows file name so a plugin
+// name can be used as a storage-file base name.
+static std::string SanitizeFileName(const char* name)
+{
+    std::string out = name ? name : "";
+    for (char& c : out)
+        if (c == '<' || c == '>' || c == ':' || c == '"' || c == '/' || c == '\\'
+            || c == '|' || c == '?' || c == '*')
+            c = '_';
+    if (out.empty())
+        out = "plugin";
+    return out;
+}
+
+// ---- IPluginContext host implementation ------------------------------------
+// The active config name comes straight from PluginConfig; the user-facing
+// notification goes through HeliosView's OS toast API (custom title/body,
+// thread-safe, initialized once at startup in main.cpp).
+const char* PluginHostContext::activeConfigName() noexcept
+{
+    return config_.getActiveConfigName().c_str();
+}
+
+bool PluginHostContext::notifyUser(const char* title, const char* message) noexcept
+{
+    return helios::notificationShow(title, message);
+}
+
+// KV store: <key -> string> JSON file per plugin. Not thread-safe on its own —
+// every public method serializes through mutex_.
+void PluginHostContext::ensureLoaded() noexcept
+{
+    if (loaded_)
+        return;
+    loaded_ = true;
+    try
+    {
+        std::ifstream in(kvFilePath_);
+        std::stringstream ss;
+        ss << in.rdbuf();
+        if (!ss.str().empty())
+        {
+            boost::json::value v = boost::json::parse(ss.str());
+            if (v.is_object())
+                kv_ = std::move(v.as_object());
+        }
+    }
+    catch (...)
+    {
+        // Corrupt/missing file: start with an empty store (a later kvSet
+        // overwrites the file). Plugin data must never take the app down.
+        kv_.clear();
+    }
+}
+
+void PluginHostContext::save() noexcept
+{
+    try
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(std::filesystem::path(kvFilePath_).parent_path(), ec);
+        std::ofstream out(kvFilePath_, std::ios::trunc);
+        out << boost::json::serialize(boost::json::value(kv_));
+    }
+    catch (...)
+    {
+        // Best-effort persistence.
+    }
+}
+
+void PluginHostContext::kvSet(const char* key, const char* value) noexcept
+{
+    if (!key)
+        return;
+    std::lock_guard<std::mutex> lock(mutex_);
+    ensureLoaded();
+    kv_[key] = value ? value : "";
+    save();
+}
+
+const char* PluginHostContext::kvGet(const char* key) noexcept
+{
+    if (!key)
+        return "";
+    std::lock_guard<std::mutex> lock(mutex_);
+    ensureLoaded();
+    auto it = kv_.if_contains(key);
+    getBuffer_ = (it && it->is_string()) ? it->as_string().c_str() : "";
+    return getBuffer_.c_str();
+}
+
+void PluginHostContext::kvRemove(const char* key) noexcept
+{
+    if (!key)
+        return;
+    std::lock_guard<std::mutex> lock(mutex_);
+    ensureLoaded();
+    kv_.erase(key);
+    save();
+}
 
 struct JsonPluginParameterValue : public PluginParameterValue
 {
@@ -508,6 +610,10 @@ struct PluginPkg
     CreatePluginFunc createPlugin = nullptr;
     DestroyPluginFunc destroyPlugin = nullptr;
     GetPluginVersionFunc getPluginVersion = nullptr;
+    // The per-plugin IPluginContext (active config + toast + KV store). Created
+    // with the plugin's own KV file once its name is known — lives as long as
+    // the plugin.
+    std::unique_ptr<PluginHostContext> context;
     std::string filePath;   // dll 的完整路径 (用于“在资源管理器中显示”)
 
     PluginPkg() = default;
@@ -528,6 +634,7 @@ struct PluginPkg
           createPlugin(std::exchange(other.createPlugin, nullptr)),
           destroyPlugin(std::exchange(other.destroyPlugin, nullptr)),
           getPluginVersion(std::exchange(other.getPluginVersion, nullptr)),
+          context(std::move(other.context)),
           filePath(std::move(other.filePath))
     {
     }
@@ -542,6 +649,7 @@ struct PluginPkg
             createPlugin = std::exchange(other.createPlugin, nullptr);
             destroyPlugin = std::exchange(other.destroyPlugin, nullptr);
             getPluginVersion = std::exchange(other.getPluginVersion, nullptr);
+            context = std::move(other.context);
             filePath = std::move(other.filePath);
         }
         return *this;
@@ -568,6 +676,7 @@ private:
         createPlugin = nullptr;
         destroyPlugin = nullptr;
         getPluginVersion = nullptr;
+        context.reset();
     }
 };
 
@@ -658,7 +767,12 @@ std::execution::task<void> PluginManager::loadPlugins()
                 continue;
             }
             pkg.plugin = plugin;
-            pkg.plugin->initialize(&logger_);
+            // One IPluginContext per plugin: the KV file lives under the app
+            // settings dir, keyed by a sanitized plugin name (one namespace
+            // per plugin).
+            const std::string kvFile = (SettingDir() / "plugin_data" / SanitizeFileName(plugin->name())).string() + ".json";
+            pkg.context = std::make_unique<PluginHostContext>(pluginConfig_, kvFile);
+            pkg.plugin->initialize(&logger_, pkg.context.get());
             auto [it, inserted] = m_->plugins.emplace(plugin->name(), std::move(pkg));
             if (!inserted)
             {

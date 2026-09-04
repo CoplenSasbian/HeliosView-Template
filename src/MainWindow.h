@@ -81,8 +81,11 @@ private:
     void onResized(int32_t w, int32_t h);          // Window::resized
     void onMoved(int32_t x, int32_t y);            // Window::moved
     // Low-footprint window lifecycle: hidden → destroy, minimized → suspend,
-    // shown → recreate, restored → resume.
+    // shown → recreate, restored → resume. onFirstShown handles the window's
+    // FIRST display: a no-op on a normal startup (WebView already up), but from
+    // a silent startup it is the show-from-tray path (WebView was torn down).
     void onHidden();
+    void onFirstShown();
     void onMinimized();
     void onShown();
     void onRestored();
@@ -98,6 +101,9 @@ private:
     // parameterized plugins_getParamValues read.
     std::execution::task<boost::json::object> paramValuesFor(const std::string& config);
     std::execution::task<boost::json::object> pluginsGetParamValues(std::string config);
+    // Ask one plugin for its custom info (HTML), shown in the plugin
+    // detail dialog's "自定义信息" section ("" when the plugin provides none).
+    std::execution::task<std::string> pluginsCustomInfo(std::string name);
     std::execution::task<bool> pluginsActivate(std::string config);
     std::execution::task<PickPathResp> pluginsPickPath(std::string type, std::string title, std::string filter);
     std::execution::task<bool> pluginsSetParams(std::string config, std::vector<ParamSetReq> params);
@@ -166,6 +172,8 @@ private:
     std::execution::task<bool> shellReveal(std::string type, std::string name);
     // Open an app directory in Explorer, navigating INTO it (logs).
     std::execution::task<bool> shellOpenDir(std::string type);
+    // Open an external URL in the user's default browser (e.g. plugin docs).
+    std::execution::task<bool> shellOpenUrl(std::string url);
     // Return the last entries of the current log file (see Logger::recentFromLogFile)
     // so the frontend console can show the history after a (re)load.
     std::execution::task<boost::json::value> logHistory();
@@ -185,8 +193,11 @@ private:
     // True once the WebView is up (loadFrontend): broadcasts before that would
     // be dropped by the C layer.
     bool m_frontendReady = false;
-    // True once the window has been shown (navigationCompleted) — guard so a
-    // later navigation cannot re-show it.
+    // True once the FIRST navigation completed: normal startup → the window
+    // was shown; silent (--silent) startup → the WebView was torn down for
+    // tray-only running. Guards the first-navigation block so a later
+    // destroy/recreate navigation cannot re-show the window or re-teardown
+    // the WebView.
     bool m_frontendShown = false;
     size_t m_logSinkId = 0;   // logger listener id, removed in destructor
 };

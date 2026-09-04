@@ -35,7 +35,22 @@ public:
         return "屏蔽/恢复粘滞键 (Sticky Keys block & restore)";
     }
 
-    void initialize(ILogger* logger) noexcept override {
+    // 宿主 UI 在"插件详情"里展示的自定义信息: 一句话说明 + 官方文档链接
+    const char* customInfo() noexcept override {
+        uiBuffer_ =
+            "<div style=\"font-family:system-ui,'Segoe UI',sans-serif;color:#dbe2ea;"
+            "padding:4px 2px;font-size:13px;line-height:1.7\">"
+            "<div style=\"font-weight:600;margin-bottom:6px\">粘滞键屏蔽</div>"
+            "<div style=\"margin-bottom:8px\">激活配置时保存当前粘滞键状态并屏蔽 "
+            "(含连续按 5 次 Shift 的确认弹窗)，切走配置或退出时恢复原状——"
+            "避免游戏中误触发粘滞键弹窗。粘滞键是辅助功能，正常打字场景建议保持开启。</div>"
+            "<a href=\"https://www.microsoft.com/en-us/windows/accessibility-features\" "
+            "style=\"color:#5ea6ff\">Microsoft：Windows 辅助功能（键盘 / 粘滞键）</a>"
+            "</div>";
+        return uiBuffer_.c_str();
+    }
+
+    void initialize(ILogger* logger, IPluginContext* /*context*/) noexcept override {
         this->logger = logger;
         parameters.reserve(1);
 
@@ -148,6 +163,7 @@ private:
 
     ILogger* logger = nullptr;
     std::vector<PluginParameterInfo> parameters;
+    std::string uiBuffer_;   // customInfo() 返回缓冲
 
     bool m_blocked = false;
     DWORD m_originalFlags = 0;

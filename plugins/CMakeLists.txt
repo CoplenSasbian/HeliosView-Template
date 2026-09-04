@@ -27,8 +27,8 @@ function(add_plugins name dir)
 endfunction()
 
 
-add_plugins(test ${CMAKE_CURRENT_SOURCE_DIR}/test_plugin)
 add_plugins(sticky_keys ${CMAKE_CURRENT_SOURCE_DIR}/sticky_keys_plugin)
+add_plugins(health ${CMAKE_CURRENT_SOURCE_DIR}/health_plugin)
 add_plugins(hdr ${CMAKE_CURRENT_SOURCE_DIR}/hdr_plugin)
 add_plugins(power ${CMAKE_CURRENT_SOURCE_DIR}/power_plugin)
 add_plugins(nv_dvc ${CMAKE_CURRENT_SOURCE_DIR}/nv_dvc_plugin)

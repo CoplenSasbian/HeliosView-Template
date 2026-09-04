@@ -23,6 +23,7 @@
 #include "MainWindow.h"
 #include "utils/SingleInstanceGuard.h"
 
+#include <HeliosViewCore/Notification.h>
 #include <print>
 #include <string_view>
 // Platform-independent app entry, called by entry.cpp (WinMain on Windows,
@@ -51,6 +52,11 @@ int AppMain(int argc, char* argv[])
         return 2;
     }
 
+    // OS toast backend: registers the AppUserModelID + Start Menu shortcut an
+    // unpackaged app needs before any notificationShow() can work. Must be
+    // called once at startup; the toast API is what lets us set a real custom
+    // notification title (the classic tray balloon only ever shows the exe name).
+    helios::notificationInit("Game Trigger");
 
 
 

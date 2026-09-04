@@ -64,7 +64,22 @@ public:
         return "切换 Windows 电源方案";
     }
 
-    void initialize(ILogger* logger) noexcept override {
+    // 宿主 UI 在"插件详情"里展示的自定义信息: 一句话说明 + 官方文档链接
+    const char* customInfo() noexcept override {
+        uiBuffer_ =
+            "<div style=\"font-family:system-ui,'Segoe UI',sans-serif;color:#dbe2ea;"
+            "padding:4px 2px;font-size:13px;line-height:1.7\">"
+            "<div style=\"font-weight:600;margin-bottom:6px\">电源方案切换</div>"
+            "<div style=\"margin-bottom:8px\">激活配置时把 Windows 电源方案切换到指定项 "
+            "(下拉列出本机全部方案，含 GUID 与名称)。适合打游戏时切\"高性能\"、"
+            "日常用\"平衡\"来省电。可用 <code>powercfg /list</code> 查看本机方案。</div>"
+            "<a href=\"https://learn.microsoft.com/en-us/windows-hardware/design/device-experiences/powercfg-command-line-options\" "
+            "style=\"color:#5ea6ff\">Microsoft：powercfg 命令行选项</a>"
+            "</div>";
+        return uiBuffer_.c_str();
+    }
+
+    void initialize(ILogger* logger, IPluginContext* /*context*/) noexcept override {
         this->logger = logger;
         parameters.reserve(1);
 
@@ -183,6 +198,7 @@ private:
 
     ILogger* logger = nullptr;
     std::vector<PluginParameterInfo> parameters;
+    std::string uiBuffer_;   // customInfo() 返回缓冲
 
     std::vector<GUID> m_schemeGuids;
     std::vector<std::string> m_schemeNames;

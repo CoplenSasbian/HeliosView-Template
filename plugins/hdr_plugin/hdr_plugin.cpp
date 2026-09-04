@@ -254,7 +254,22 @@ public:
         return "切换 HDR (原生 DisplayConfig / Win+Alt+B)";
     }
 
-    void initialize(ILogger* logger) noexcept override {
+    // 宿主 UI 在"插件详情"里展示的自定义信息: 一句话说明 + 官方文档链接
+    const char* customInfo() noexcept override {
+        uiBuffer_ =
+            "<div style=\"font-family:system-ui,'Segoe UI',sans-serif;color:#dbe2ea;"
+            "padding:4px 2px;font-size:13px;line-height:1.7\">"
+            "<div style=\"font-weight:600;margin-bottom:6px\">HDR 切换</div>"
+            "<div style=\"margin-bottom:8px\">激活配置时开启/关闭 HDR：Win11 24H2+ 走系统 "
+            "HDR API，Win10 2004+ 走高级颜色状态 API，两者都不可用时模拟 Win+Alt+B "
+            "并读取 DXGI 状态校验结果。HDR 需要显示器与连接链路支持。</div>"
+            "<a href=\"https://support.microsoft.com/en-us/windows/what-is-hdr-in-windows-f5fbf5cb-149d-4a0d-8be1-9ed78c68d3b4\" "
+            "style=\"color:#5ea6ff\">Microsoft：什么是 Windows 中的 HDR</a>"
+            "</div>";
+        return uiBuffer_.c_str();
+    }
+
+    void initialize(ILogger* logger, IPluginContext* /*context*/) noexcept override {
         this->logger = logger;
         parameters.reserve(1);
 
@@ -375,6 +390,7 @@ private:
 
     ILogger* logger = nullptr;
     std::vector<PluginParameterInfo> parameters;
+    std::string uiBuffer_;   // customInfo() 返回缓冲
     bool m_available = false;
 };
 

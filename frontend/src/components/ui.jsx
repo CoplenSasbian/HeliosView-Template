@@ -1,17 +1,47 @@
 // ui.jsx — small shared UI primitives used across pages. All styling is
 // variables-driven (see style.css / theme.css); no hardcoded values here.
-import { useRef, useState, useEffect, useLayoutEffect, useCallback, useId } from 'react'
+import { useRef, useState, useEffect, useLayoutEffect, useCallback, useId, forwardRef } from 'react'
 import { createPortal } from 'react-dom'
 
 // Button — wraps the .btn styles; variant maps to btn--{variant}
-// (primary / ghost / danger / link), size to btn--{size} (sm).
-export function Button({ variant, size, className, ...rest }) {
+// (primary / ghost / subtle / danger / link), size to btn--{size} (xs / sm / lg / icon).
+export const Button = forwardRef(function Button(
+  {
+    children,
+    variant,
+    size,
+    className,
+    loading = false,
+    disabled = false,
+    icon,
+    iconRight,
+    type = 'button',
+    ...rest
+  },
+  ref,
+) {
   const cls = ['btn']
   if (variant) cls.push(`btn--${variant}`)
   if (size) cls.push(`btn--${size}`)
+  if (loading) cls.push('is-loading')
   if (className) cls.push(className)
-  return <button type="button" className={cls.join(' ')} {...rest} />
-}
+
+  return (
+    <button
+      ref={ref}
+      type={type}
+      className={cls.join(' ')}
+      disabled={disabled || loading}
+      aria-busy={loading}
+      {...rest}
+    >
+      {loading && <span className="btn__spinner" aria-hidden="true" />}
+      {!loading && icon && <span className="btn__icon btn__icon--left">{icon}</span>}
+      {children != null && <span className="btn__text">{children}</span>}
+      {!loading && iconRight && <span className="btn__icon btn__icon--right">{iconRight}</span>}
+    </button>
+  )
+})
 
 export function Toggle({ on, onChange, title }) {
   return (
@@ -28,12 +58,45 @@ export function Toggle({ on, onChange, title }) {
   )
 }
 
-// Segmented — option bar; renderAction(value) may append a small element to
-// each option (e.g. a delete badge); option.icon (a component) renders before
-// the label. Keep it a span: a <button> cannot nest.
+// Segmented — option bar with a translucent bubble thumb that SLIDES between
+// options (measures the active button and moves the thumb to it with a spring).
+// The thumb is pure presentation (aria-hidden); the real state stays on the
+// buttons. renderAction(value) may append a small element to each option (e.g.
+// a delete badge); option.icon (a component) renders before the label.
+//
+// One travelling layer: .segmented__thumb — a tinted bubble OVER the labels;
+// always visible so the settled control keeps the raised look, and the spring
+// travel reads as the bubble carrying the highlight with it.
 export function Segmented({ options, value, onChange, renderAction, className }) {
+  const wrapRef = useRef(null)
+  const glassRef = useRef(null)
+  const activeIdx = options?.findIndex((o) => o.value === value) ?? -1
+
+  useLayoutEffect(() => {
+    const wrap = wrapRef.current
+    const btn = wrap?.querySelectorAll('button')[activeIdx]
+
+    // Move the tinted bubble over the active option. It is ALWAYS shown (like
+    // the cards' settled glass), so the control keeps its raised look at rest,
+    // and during the spring travel the highlight visibly follows the bubble.
+    const el = glassRef.current
+    if (!el) return
+    if (!btn) { el.style.opacity = '0'; return }
+    const padding = 2
+    el.style.opacity = '1'
+    el.style.width = `${btn.offsetWidth + padding * 2}px`
+    el.style.height = `${btn.offsetHeight + padding * 2}px`
+    el.style.transform = `translate(${btn.offsetLeft - padding}px, ${btn.offsetTop - padding}px)`
+  }, [activeIdx, options, value])
+
   return (
-    <div className={`segmented ${className ? ` ${className}` : ''}`}>
+    <div
+      className={`segmented${className ? ` ${className}` : ''}`}
+      ref={wrapRef}
+    >
+      {/* the moving bubble: a translucent raised thumb OVER the label — tint +
+          hairline so the active option reads as a raised bubble */}
+      <span className="segmented__thumb" ref={glassRef} aria-hidden="true"  />
       {options.map((o) => (
         <button
           key={o.value}
@@ -88,10 +151,13 @@ export function Field({ label, children }) {
 }
 
 // Input — styled text/number input (.input).
-export function Input({ className, type = 'text', ...rest }) {
+export function Input({ className, size, type = 'text', ...rest }) {
+  const cls = ['input']
+  if (size) cls.push(`input--${size}`)
+  if (className) cls.push(className)
   return (
     <input
-      className={`input${className ? ` ${className}` : ''}`}
+      className={cls.join(' ')}
       type={type}
       {...rest}
     />
@@ -121,7 +187,7 @@ export function ColorPicker({ value, onChange, label, className, ...rest }) {
 // long lists scroll, and it floats above cards/modals.
 // options: [{value, label}]; value/onChange controlled; extra props (title,
 // …) land on the trigger button.
-export function Select({ options, value, onChange, className, disabled, placeholder, ...rest }) {
+export function Select({ options, value, onChange, className, size, disabled, placeholder, ...rest }) {
   const [open, setOpen] = useState(false)
   const [highlight, setHighlight] = useState(-1)
   // Viewport-fixed position of the open menu: {left, minWidth, top|bottom, up}.
@@ -131,7 +197,9 @@ export function Select({ options, value, onChange, className, disabled, placehol
   const itemRefs = useRef([])
   const uid = useId()
 
-  const isSm = className?.split(/\s+/).includes('sm') ?? false
+  const isSm = size === 'sm' || (className?.split(/\s+/).includes('sm') ?? false)
+  const isXs = size === 'xs' || (className?.split(/\s+/).includes('xs') ?? false)
+  const isLg = size === 'lg' || (className?.split(/\s+/).includes('lg') ?? false)
 
   const strValue = value != null ? String(value) : ''
   const selectedIdx = options?.findIndex((o) => String(o.value) === strValue) ?? -1
@@ -152,10 +220,6 @@ export function Select({ options, value, onChange, className, disabled, placehol
       // Anchor the menu to the trigger's left edge; the layout effect below
       // right-aligns it only if the right edge would run off the viewport.
       left: rect.left,
-      // The menu is at least as wide as the trigger (never smaller), and only
-      // grows beyond it when an option label is longer. A fixed floor (e.g.
-      // 140 for the sm variant) made menus wider than their trigger whenever
-      // the labels were short — the width should track the trigger instead.
       minWidth: rect.width,
       top: rect.bottom + GAP, // start below; the layout effect flips up if needed
       bottom: undefined,
@@ -281,12 +345,17 @@ export function Select({ options, value, onChange, className, disabled, placehol
     }
   }
 
+  const dropdownCls = ['dropdown']
+  if (size) dropdownCls.push(`dropdown--${size}`)
+  if (className) dropdownCls.push(className)
+  if (open) dropdownCls.push('is-open')
+
   return (
     <div className="dropdown-wrap" ref={rootRef}>
       <button
         type="button"
         {...rest}
-        className={`dropdown${className ? ` ${className}` : ''}${open ? ' is-open' : ''}`}
+        className={dropdownCls.join(' ')}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
@@ -327,35 +396,69 @@ export function Select({ options, value, onChange, className, disabled, placehol
   )
 }
 
-// Range — styled slider (.range). Also paints the elapsed-track fill: it
-// writes the --fill CSS variable (0–100%) from value/min/max so the track
-// gradient in style.css shows the accent up to the thumb. Controlled updates
-// arrive via the effect; during a drag the change handler writes it straight
-// onto the element so the fill never lags a frame behind the thumb.
-export function Range({ className, min = 0, max = 100, value, onChange, ...rest }) {
+// Range — three-layer slider:
+//   1. .range-track — the visual rail (z 0, pointer-events none)
+//   2. .range-mark  — the marker dot (z 1, pointer-events none, gray→accent)
+//   3. <input>     — transparent input that handles drag + thumb (z 2)
+// Also paints the elapsed-track fill (--fill) on the wrapper so the track
+// gradient picks it up. Extras:
+//   mark — a POINT on the track: number | { value, text }. The mark is a
+//          small dot; its hint rides the native `title` on the input.
+export function Range({ className, min = 0, max = 100, value, onChange, mark, ...rest }) {
   const ref = useRef(null)
-  const paintFill = (el, v) => {
+  const wrapRef = useRef(null)
+  // Paint --fill onto the wrapper (track gradient reads it).
+  const paintFill = (v) => {
     const lo = Number(min), hi = Number(max)
     const pct = hi > lo ? ((Number(v) - lo) / (hi - lo)) * 100 : 0
-    el.style.setProperty('--fill', `${Math.max(0, Math.min(100, pct))}%`)
+    wrapRef.current?.style.setProperty('--fill', `${Math.max(0, Math.min(100, pct))}%`)
   }
-  useEffect(() => {
-    if (ref.current) paintFill(ref.current, value ?? min)
-  }, [value, min, max])
+  useEffect(() => { paintFill(value ?? min) }, [value, min, max])
+
+  const pct = (v) => {
+    const lo = Number(min), hi = Number(max)
+    if (!(hi > lo)) return 0
+    return Math.max(0, Math.min(100, ((Number(v) - lo) / (hi - lo)) * 100))
+  }
+  const current = Number(value ?? min)
+
+  const markNum = mark != null ? (typeof mark === 'object' ? mark.value : mark) : null
+  const markText = mark != null
+    ? (typeof mark === 'object' && mark.text) || (markNum != null ? `当前值：${Math.round(markNum)}` : '')
+    : null
+  const markPct = markNum != null ? pct(markNum) : null
+
+  // Position the mark at the thumb's linear offset along the track:
+  //   left = f·100% + (6 − 12·f)px,  f = pct/100,  thumbW = 12px
+  const onTrack = (p) => `calc(${p.toFixed(3)}% + ${(6 - 12 * p / 100).toFixed(3)}px)`
+
   return (
-    <input
-      ref={ref}
-      className={`range${className ? ` ${className}` : ''}`}
-      type="range"
-      min={min}
-      max={max}
-      value={value}
-      onChange={(e) => {
-        paintFill(e.currentTarget, e.currentTarget.value)
-        onChange?.(e)
-      }}
-      {...rest}
-    />
+    <div ref={wrapRef} className={`range-wrap${className ? ` ${className}` : ''}`}>
+      {/* Layer 1: visual track rail (behind everything) */}
+      <div className="range-track" aria-hidden="true" />
+      {/* Layer 2: marker dot */}
+      {markPct != null && (
+        <span
+          className={`range-mark${current >= markNum ? ' is-crossed' : ''}`}
+          style={{ left: onTrack(markPct) }}
+          title={markText}
+        />
+      )}
+      {/* Layer 3: custom thumb (purely visual, no interaction) */}
+      <span className="range-thumb" style={{ left: onTrack(pct(current)) }} aria-hidden="true" />
+      {/* Layer 4: transparent input (handles drag, native thumb hidden) */}
+      <input
+        ref={ref}
+        className="range"
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        title={`当前值：${Math.round(current)}`}
+        onChange={(e) => { paintFill(e.currentTarget.value); onChange?.(e) }}
+        {...rest}
+      />
+    </div>
   )
 }
 
@@ -364,7 +467,7 @@ export function Notice({ tone, children }) {
   return <p className={`notice${tone ? ` notice--${tone}` : ''}`}>{children}</p>
 }
 
-export function Modal({ open, title, onClose, children, actions }) {
+export function Modal({ open, title, onClose, children, actions, className }) {
   const [visible, setVisible] = useState(open)
   const [closing, setClosing] = useState(false)
   const prevOpen = useRef(open)
@@ -406,7 +509,7 @@ export function Modal({ open, title, onClose, children, actions }) {
   if (!visible) return null
 
   const overlayCls = `modal-overlay${showClosing ? ' modal-overlay--closing' : ''}`
-  const modalCls   = `modal has-noise${showClosing ? ' modal--closing' : ''}`
+  const modalCls   = `modal has-noise${showClosing ? ' modal--closing' : ''}${className ? ` ${className}` : ''}`
 
   return (
     <div
@@ -429,4 +532,37 @@ export function Modal({ open, title, onClose, children, actions }) {
 
 export function Chip({ tone, children }) {
   return <span className={`chip${tone ? ` chip--${tone}` : ''}`}>{children}</span>
+}
+
+// Pill — the shared small rounded badge, ONE component with BUTTON-style
+// variants: `tone` (default = theme accent, "muted | success | danger |
+// warning | info"). Same shell everywhere (see style.css .pill) so version
+// chips / log-level chips / param-value chips all read identically, and the
+// colour follows the tone. Renders a plain span so it can sit inline.
+export function Pill({ tone, className, children, ...rest }) {
+  const cls = ['pill']
+  if (tone) cls.push(`pill--${tone}`)
+  if (className) cls.push(className)
+  return <span className={cls.join(' ')} {...rest}>{children}</span>
+}
+
+// SettingRow — the recurring "settings line" pattern (label + optional desc on
+// the left, a control on the right). Used by every page's settings card and the
+// plugin modals; keeps raw .setting-row markup out of callers.
+export function SettingRow({ label, desc, control, className, children, style }) {
+  return (
+    <div className={`setting-row${className ? ` ${className}` : ''}`} style={style}>
+      <div>
+        {label && <div className="setting-row__label">{label}</div>}
+        {desc && <div className="setting-row__desc">{desc}</div>}
+      </div>
+      {control && <div className="setting-row__control">{control}</div>}
+      {children}
+    </div>
+  )
+}
+
+// ValueBadge — the little numeric readout beside sliders (threshold / blur / …).
+export function ValueBadge({ children }) {
+  return <span className="value-badge">{children}</span>
 }

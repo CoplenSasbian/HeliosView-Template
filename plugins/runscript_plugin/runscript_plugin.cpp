@@ -40,7 +40,22 @@ public:
         return "激活配置时执行脚本/程序 (bat, ps1, exe…)";
     }
 
-    void initialize(ILogger* logger) noexcept override {
+    // 宿主 UI 在"插件详情"里展示的自定义信息: 一句话说明 + 官方文档链接
+    const char* customInfo() noexcept override {
+        uiBuffer_ =
+            "<div style=\"font-family:system-ui,'Segoe UI',sans-serif;color:#dbe2ea;"
+            "padding:4px 2px;font-size:13px;line-height:1.7\">"
+            "<div style=\"font-weight:600;margin-bottom:6px\">脚本/程序执行</div>"
+            "<div style=\"margin-bottom:8px\">激活配置时启动指定脚本或程序 "
+            "(bat/cmd/ps1/vbs/exe…)，可用于拉起游戏工具、切换音效、同步外设等。"
+            "脚本路径保存在各配置的 <code>command</code> 参数里，每个配置可以不同。</div>"
+            "<a href=\"https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/cmd\" "
+            "style=\"color:#5ea6ff\">Microsoft：cmd 命令参考</a>"
+            "</div>";
+        return uiBuffer_.c_str();
+    }
+
+    void initialize(ILogger* logger, IPluginContext* /*context*/) noexcept override {
         this->logger = logger;
         parameters.reserve(1);
 
@@ -131,6 +146,7 @@ private:
 
     ILogger* logger = nullptr;
     std::vector<PluginParameterInfo> parameters;
+    std::string uiBuffer_;   // customInfo() 返回缓冲
 };
 
 } // namespace

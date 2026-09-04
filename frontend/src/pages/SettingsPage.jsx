@@ -1,22 +1,16 @@
 // SettingsPage — app settings: general behaviors (auto-start, popup position)
-// and config management (active config / delete / create). Settings come from
-// SettingsContext, config state/ops from ConfigContext; only the modal/local
-// state (create/delete dialogs) lives in this page.
+// and appearance (theme, background, design). Settings come from
+// SettingsContext; appearance state from AppearanceContext.
+// Note: config management (create/delete/edit/activate) deliberately lives
+// elsewhere — HomePage activates, PluginsPage creates/deletes/edits.
 
-import { useState, useEffect, useRef } from 'react'
-import { Card, Toggle, Chip, Button, Segmented, Range, Notice, Select, ColorPicker } from '../components/ui'
+import { useState, useEffect, useRef, forwardRef } from 'react'
+import { Card, Toggle, Button, Segmented, Range, Notice, Select, ColorPicker, SettingRow, ValueBadge } from '../components/ui'
 import { IconFolder } from '../components/icons'
 import { call } from '../bridge'
 import { useSettings } from '../context/SettingsContext.jsx'
-import { useConfig } from '../context/ConfigContext.jsx'
-import CreateConfigModal from '../components/CreateConfigModal'
-import ConfirmModal from '../components/ConfirmModal'
 import { toast } from '../components/toast'
-import { getThemePrefs, setAppearancePrefs, reapplyTheme,
-         getDesign, setDesign, applyDesign,
-         bgList, bgLoadThumb, getCurrentBg, getSolidColor, applyBackground,
-         applySolidBg, clearBackground, solidBackgroundCss,
-         DEFAULT_ACCENT } from '../wallpaper'
+import { useAppearance, bgList, bgLoadThumb, solidBackgroundCss, DEFAULT_ACCENT, SOLID_KEY } from '../context/AppearanceContext.jsx'
 
 // 0=左上角 1=右上角 2=左下角 3=右下角 — must match the native popupPosition.
 const POPUP_OPTIONS = [
@@ -43,6 +37,34 @@ function MockUi({ theme }) {
   )
 }
 
+// BgTile — the shared clickable tile used by all pickers here (theme mode,
+// solid color, background image, default aurora): a preview slot, the name
+// line, the "当前" check, and a theme-accent bar that fades in on hover/focus.
+// The accent needs no prop: applyDesign() keeps --c-accent in sync with the
+// user's 主题色, so the hover bar follows it automatically. `children` rides
+// inside the button for extras (e.g. the image reveal icon).
+const BgTile = forwardRef(function BgTile(
+  { name, preview, current = false, applying = false, disabled = false, title, onClick, children },
+  ref,
+) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className={`bg-tile${current ? ' is-current' : ''}${applying ? ' is-applying' : ''}`}
+      title={title}
+      onClick={onClick}
+      disabled={disabled || applying}
+    >
+      {preview}
+      <span className="bg-tile__name">{name}</span>
+      {current && <span className="bg-tile__check">✓ 当前</span>}
+      <span className="bg-tile__accent" aria-hidden="true" />
+      {children}
+    </button>
+  )
+})
+
 // One clickable tile in the background picker. The native thumbnail (few KB) is
 // fetched only once the tile scrolls into view (IntersectionObserver), so a
 // large bg dir never decodes all previews at once.
@@ -68,21 +90,19 @@ function BgThumb({ name, thumb, current, applying, onLoadThumb, onPick, onReveal
   }, [thumb, onLoadThumb])
 
   return (
-    <button
+    <BgTile
       ref={ref}
-      type="button"
-      className={`bg-tile${current ? ' is-current' : ''}${applying ? ' is-applying' : ''}`}
+      name={name}
+      current={current}
+      applying={applying}
       title={name}
       onClick={onPick}
-      disabled={applying}
-    >
-      {thumb ? (
+      preview={thumb ? (
         <img src={thumb} alt={name} loading="lazy" />
       ) : (
         <span className="bg-tile__ph">…</span>
       )}
-      <span className="bg-tile__name">{name}</span>
-      {current && <span className="bg-tile__check">✓ 当前</span>}
+    >
       {/* reveal the image file in Explorer; a span because the tile is a <button> */}
       <span
         className="bg-tile__reveal"
@@ -95,29 +115,31 @@ function BgThumb({ name, thumb, current, applying, onLoadThumb, onPick, onReveal
       >
         <IconFolder width={12} height={12} />
       </span>
-    </button>
+    </BgTile>
   )
 }
 
 export default function SettingsPage() {
   const { autoStart, popupPosition, loading, setAutoStart, setPopupPosition } = useSettings()
-  const { activeConfig, createConfig: createConfigCtx, deleteConfig: deleteConfigCtx } = useConfig()
+  const {
+    themeMode,
+    themeThreshold,
+    currentLuminance,
+    currentBg,
+    design,
+    setThemeMode,
+    setThemeThreshold,
+    updateDesign,
+    applyBackground,
+    applySolidBg,
+    clearBackground,
+  } = useAppearance()
 
-  const [showCreateConfig, setShowCreateConfig] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState(null)
-  const [deleting, setDeleting] = useState(false)
-
-  // ---- appearance: background library + luminance→theme ----
-  const [themePrefs, setThemePrefsState] = useState(() => getThemePrefs())
-  const [design, setDesignState] = useState(() => getDesign())
   const [bgImages, setBgImages] = useState([])      // names in the bg dir
   const [bgThumbs, setBgThumbs] = useState({})      // name -> data URL (lazy)
+  const [bgLoading, setBgLoading] = useState(true)
+  const [bgError, setBgError] = useState('')
 
-  // JS-internal UI key only — never written to JSON. The persisted shape uses
-  // two clean fields (backgroundName for photos, solidColor for fills); we just
-  // prefix the color with "solid:" here to compare it against bgCurrent.
-  const SOLID_KEY = 'solid:'
   // Curated solid fills for the "纯色" tab (plain CSS colors, no loading). Each
   // has a friendly name for the UI; only the hex is persisted (business field
   // stays a clean color string). Colors that had no natural name were swapped
@@ -133,23 +155,19 @@ export default function SettingsPage() {
     { name: '玄黑', hex: '#0a0a0a' },
   ]
 
-  const [bgCurrent, setBgCurrent] = useState(() => {
-    const solid = getSolidColor()
-    return solid ? `${SOLID_KEY}${solid}` : getCurrentBg()
-  })
-  const [bgLoading, setBgLoading] = useState(true)
   // Which background source tab is open. If a solid color is the current choice
   // (or nothing → the generated aurora), land on the 纯色 tab by default.
   const [bgTab, setBgTab] = useState(() =>
-    bgCurrent.startsWith(SOLID_KEY) || bgCurrent === '' ? 'solid' : 'image'
+    currentBg.startsWith(SOLID_KEY) || currentBg === '' ? 'solid' : 'image'
   )
   // A solid color chosen via the picker that isn't one of the presets → the
   // "自定义" tile is current and shows that color as its preview.
   const customInputRef = useRef(null)
   const isCustomCurrent =
-    bgCurrent.startsWith(SOLID_KEY) && !SOLID_PRESETS.some((p) => p.hex === bgCurrent.slice(SOLID_KEY.length))
-  const customHex = isCustomCurrent ? bgCurrent.slice(SOLID_KEY.length) : '#5ea6ff'
+    currentBg.startsWith(SOLID_KEY) && !SOLID_PRESETS.some((p) => p.hex === currentBg.slice(SOLID_KEY.length))
+  const customHex = isCustomCurrent ? currentBg.slice(SOLID_KEY.length) : '#5ea6ff'
   const [applying, setApplying] = useState('')
+
   const MODE_TILES = [
     { value: 'auto', label: '跟随背景', preview: 'auto' },
     { value: 'dark', label: '深色', preview: 'dark' },
@@ -173,38 +191,15 @@ export default function SettingsPage() {
     { value: 'image', label: '图片' },
   ]
 
-  const changeDesign = (patch) => {
-    // Update local React state, apply CSS instantly; the persist happens inside
-    // setDesign via the unified debounced writer — no per-slider debounce here.
-    const next = { ...getDesign(), ...patch }
-    setDesignState(next)
-    applyDesign(next)
-    setDesign(next)
-  }
+  const changeDesign = (patch) => updateDesign(patch)
 
-  // Load the available images and mirror the current background selection.
-  // NOTE: deliberately does NOT call loadAppearance() here — that re-reads
-  // native and overwrites the in-memory appearance cache, so any design
-  // choice (font size / density / accent …) made this session would be
-  // clobbered by whatever stale value is persisted (old app.json files may
-  // even lack density entirely), resetting the controls to defaults on every
-  // page entry. main.jsx already hydrated the cache from native before React
-  // mounted; everything below reads that same cache.
-  const [bgError, setBgError] = useState('')
   const loadBg = async () => {
     setBgLoading(true)
     setBgError('')
     try {
-      setThemePrefsState(getThemePrefs())
-      setDesignState(getDesign())
       const res = await bgList()
       setBgImages(res.ok ? res.names : [])
       setBgError(res.ok ? '' : res.error)
-      // Mirror the initial-state derivation: a solid color wins over the photo
-      // name. Using getCurrentBg() alone would blank it to "" for solids and
-      // wrongly mark "默认极光" as current (the bug seen after page switches).
-      const solid = getSolidColor()
-      setBgCurrent(solid ? `${SOLID_KEY}${solid}` : getCurrentBg())
     } finally {
       setBgLoading(false)
     }
@@ -229,7 +224,6 @@ export default function SettingsPage() {
         toast.error(`读取背景图失败：${name}`)
         return
       }
-      setBgCurrent(name)
       toast.success(`已应用背景：${name}`)
     } finally {
       setApplying('')
@@ -248,7 +242,6 @@ export default function SettingsPage() {
         toast.error(`应用纯色背景失败：${hex}`)
         return
       }
-      setBgCurrent(key)
       if (!opts.silent) {
         toast.success(opts.name ? `已应用纯色背景：${opts.name}` : '已应用纯色背景')
       }
@@ -272,26 +265,12 @@ export default function SettingsPage() {
   }, [bgTab])
 
   const clearBg = async () => {
-    clearBackground()
-    setBgCurrent('')
+    await clearBackground()
     toast.success('已恢复默认极光背景')
   }
 
-  const updateTheme = (next) => {
-    // Apply locally immediately and re-evaluate the theme on every change;
-    // native persist is debounced inside setAppearancePrefs (unified writer).
-    // ORDER MATTERS: setAppearancePrefs updates the wallpaper.js module cache
-    // synchronously, and reapplyTheme resolves the theme from it — calling
-    // them the other way round applies the PREVIOUS mode (each click lagged
-    // one step behind: dead first click, then wrong theme).
-    const merged = { ...themePrefs, ...next }
-    setThemePrefsState(merged)
-    setAppearancePrefs({ mode: merged.mode, threshold: merged.threshold })
-    reapplyTheme(merged)
-  }
-
-  const changeMode = (mode) => updateTheme({ ...themePrefs, mode })
-  const changeThreshold = (v) => updateTheme({ ...themePrefs, threshold: Number(v) })
+  const changeMode = (mode) => setThemeMode(mode)
+  const changeThreshold = (v) => setThemeThreshold(Number(v))
 
   const toggleAutoStart = async (on) => {
     try {
@@ -315,197 +294,178 @@ export default function SettingsPage() {
     }
   }
 
-  const createConfig = async (name) => {
-    setCreating(true)
-    try {
-      await createConfigCtx(name)
-      setShowCreateConfig(false)
-      toast.success(`配置「${name}」已创建并激活`)
-    } catch (e) {
-      toast.error(String(e?.error ?? e ?? '创建失败'))
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  const deleteConfig = async () => {
-    if (!deleteTarget) return
-    setDeleting(true)
-    try {
-      await deleteConfigCtx(deleteTarget)
-      setDeleteTarget(null)
-      toast.success(`配置「${deleteTarget}」已删除`)
-    } catch (e) {
-      toast.error(String(e?.error ?? e ?? '删除失败'))
-    } finally {
-      setDeleting(false)
-    }
-  }
-
   return (
     <div>
       <div className="page-title">应用设置</div>
-      <p className="page-sub">常规行为、启动与配置管理</p>
+      <p className="page-sub">常规行为、外观与设计</p>
 
-      <Card title="外观">
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">界面主题</div>
-            <div className="setting-row__desc">跟随背景时，亮背景用浅色主题，暗背景用深色主题</div>
-          </div>
-        </div>
+      <Card title="主题">
+        <SettingRow
+          label="界面主题"
+          desc="跟随背景时，亮背景用浅色主题，暗背景用深色主题"
+        />
         <div className="bg-grid theme-mode-grid">
           {MODE_TILES.map((m) => (
-            <button
+            <BgTile
               key={m.value}
-              type="button"
-              className={`bg-tile${themePrefs.mode === m.value ? ' is-current' : ''}`}
+              name={m.label}
+              current={themeMode === m.value}
               onClick={() => changeMode(m.value)}
-            >
-              <span className="bg-tile__ph theme-mode__ph">
-                {m.preview === 'auto' ? (
-                  <>
-                    <MockUi theme="light" />
-                    <MockUi theme="dark" />
-                  </>
-                ) : (
-                  <MockUi theme={m.preview} />
-                )}
-              </span>
-              <span className="bg-tile__name">{m.label}</span>
-              {themePrefs.mode === m.value && <span className="bg-tile__check">✓ 当前</span>}
-            </button>
+              preview={
+                <span className="bg-tile__ph theme-mode__ph">
+                  {m.preview === 'auto' ? (
+                    <>
+                      <MockUi theme="light" />
+                      <MockUi theme="dark" />
+                    </>
+                  ) : (
+                    <MockUi theme={m.preview} />
+                  )}
+                </span>
+              }
+            />
           ))}
         </div>
 
         <div className="section-gap" />
 
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">亮度判定阈值</div>
-            <div className="setting-row__desc">背景多亮才切浅色主题</div>
-          </div>
-          <div className="setting-row__control">
-            <span className="value-badge">{themePrefs.threshold}</span>
-            <Range
-              className="slider"
-              min={40} max={200}
-              value={themePrefs.threshold}
-              disabled={themePrefs.mode !== 'auto'}
-              onChange={(e) => changeThreshold(e.target.value)}
-            />
-          </div>
-        </div>
+        <SettingRow
+          label="亮度判定阈值"
+          desc={
+            <>
+              背景多亮才切浅色主题。探测取背景中央约 60% 区域（内容所在处）的平均亮度，而非整图
+              <span className="threshold-readout">
+                {currentLuminance != null && <span className="threshold-readout__hint"> / 255</span>}
+              </span>
+            </>
+          }
+          control={
+            <>
+              <ValueBadge>{themeThreshold}</ValueBadge>
+              <Range
+                className="slider"
+                min={40} max={200}
+                value={themeThreshold}
+                mark={currentLuminance != null
+                  ? { value: currentLuminance, text: `当前背景亮度：${Math.round(currentLuminance)}` }
+                  : undefined}
+                disabled={themeMode !== 'auto'}
+                onChange={(e) => changeThreshold(e.target.value)}
+              />
+            </>
+          }
+        />
+      </Card>
 
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">玻璃模糊</div>
-            <div className="setting-row__desc">毛玻璃表面的模糊强度</div>
-          </div>
-          <div className="setting-row__control">
-            <span className="value-badge">{design.glassBlur}px</span>
-            <Range
-              className="slider"
-              min={4} max={48}
-              value={design.glassBlur}
-              onChange={(e) => changeDesign({ glassBlur: Number(e.target.value) })}
-            />
-          </div>
-        </div>
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">字体大小</div>
-            <div className="setting-row__desc">整体界面文字的基础尺寸</div>
-          </div>
-          <div className="setting-row__control">
+      <div className="section-gap" />
+
+      <Card title="字体与密度">
+        <SettingRow
+          label="字体大小"
+          desc="整体界面文字的基础尺寸"
+          control={
             <Segmented
               options={FONT_SIZE_OPTIONS}
               value={design.fontSize ?? 'md'}
               onChange={(v) => changeDesign({ fontSize: v })}
             />
-          </div>
-        </div>
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">界面密度</div>
-            <div className="setting-row__desc">间距与控件尺寸的紧凑程度</div>
-          </div>
-          <div className="setting-row__control">
+          }
+        />
+        <SettingRow
+          label="界面密度"
+          desc="间距与控件尺寸的紧凑程度"
+          control={
             <Segmented
               options={DENSITY_OPTIONS}
               value={design.density ?? 'md'}
               onChange={(v) => changeDesign({ density: v })}
             />
-          </div>
-        </div>
+          }
+        />
+      </Card>
 
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">圆角</div>
-            <div className="setting-row__desc">卡片与控件的圆润程度</div>
-          </div>
-          <div className="setting-row__control">
-            <span className="value-badge">{design.cornerRadius}px</span>
-            <Range
-              className="slider"
-              min={4} max={32}
-              value={design.cornerRadius}
-              onChange={(e) => changeDesign({ cornerRadius: Number(e.target.value) })}
-            />
-          </div>
-        </div>
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">主题色</div>
-            <div className="setting-row__desc">界面主色；强调色、柔光等衍生色调由主色自动计算</div>
-          </div>
-          <div className="setting-row__control">
+      <div className="section-gap" />
+
+      <Card title="设计">
+        <SettingRow
+          label="玻璃模糊"
+          desc="毛玻璃表面的模糊强度"
+          control={
+            <>
+              <ValueBadge>{design.glassBlur}px</ValueBadge>
+              <Range
+                className="slider"
+                min={4} max={48}
+                value={design.glassBlur}
+                onChange={(e) => changeDesign({ glassBlur: Number(e.target.value) })}
+              />
+            </>
+          }
+        />
+        <SettingRow
+          label="圆角"
+          desc="卡片与控件的圆润程度"
+          control={
+            <>
+              <ValueBadge>{design.cornerRadius}px</ValueBadge>
+              <Range
+                className="slider"
+                min={4} max={32}
+                value={design.cornerRadius}
+                onChange={(e) => changeDesign({ cornerRadius: Number(e.target.value) })}
+              />
+            </>
+          }
+        />
+        <SettingRow
+          label="主题色"
+          desc="界面主色；强调色、柔光等衍生色调由主色自动计算"
+          control={
             <ColorPicker
               value={design.accentColor || DEFAULT_ACCENT}
               onChange={(v) => changeDesign({ accentColor: v })}
             />
-          </div>
-        </div>
+          }
+        />
+      </Card>
 
-        <div className="section-gap" />
+      <div className="section-gap" />
 
-        {/* 背景：纯色（CSS 直接上色）/ 图片（bg 目录）两类 */}
-        <div className="setting-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
-          <div>
-            <div className="setting-row__label">背景</div>
-            <div className="setting-row__desc">纯色用 CSS 色块（无需图片）；图片沿用软件目录下的 bg/</div>
-          </div>
+      <Card title="背景">
+        <SettingRow
+          className="setting-row--column"
+          label="背景来源"
+          desc="纯色用 CSS 色块（无需图片）；图片沿用软件目录下的 bg/"
+        >
           <Segmented options={BG_TABS} value={bgTab} onChange={setBgTab} />
-        </div>
+        </SettingRow>
 
         {bgTab === 'solid' ? (
           <>
             <div className="bg-grid">
               {/* 默认极光（= 清除选择）：预览用渐变变量，选中则恢复生成式背景 */}
-              <button
-                type="button"
-                className={`bg-tile${bgCurrent === '' ? ' is-current' : ''}`}
+              <BgTile
+                name="默认极光"
+                current={currentBg === ''}
                 onClick={clearBg}
-              >
-                <span className="bg-tile__ph" style={{ background: 'var(--bg-base)' }}>极光</span>
-                <span className="bg-tile__name">默认极光</span>
-                {bgCurrent === '' && <span className="bg-tile__check">✓ 当前</span>}
-              </button>
+                preview={<span className="bg-tile__ph" style={{ background: 'var(--bg-base)' }}>极光</span>}
+              />
               {SOLID_PRESETS.map(({ name, hex }) => {
                 const key = `${SOLID_KEY}${hex}`
-                const cur = bgCurrent === key
                 return (
-                  <button
+                  <BgTile
                     key={hex}
-                    type="button"
-                    className={`bg-tile${cur ? ' is-current' : ''}`}
+                    name={name}
+                    current={currentBg === key}
+                    applying={applying === key}
                     onClick={() => pickSolid(hex, { name })}
-                    disabled={applying === key}
-                  >
-                    <span className="bg-tile__ph" style={{ background: solidBackgroundCss(hex), backgroundBlendMode: 'soft-light, normal' }} />
-                    <span className="bg-tile__name">{name}</span>
-                    {cur && <span className="bg-tile__check">✓ 当前</span>}
-                  </button>
+                    preview={
+                      <span
+                        className="bg-tile__ph"
+                        style={{ background: solidBackgroundCss(hex), backgroundBlendMode: 'soft-light, normal' }}
+                      />
+                    }
+                  />
                 )
               })}
               {/* 自定义任意纯色：调起系统取色器。包一层 relative 容器，色块是普通
@@ -520,6 +480,7 @@ export default function SettingsPage() {
                   >＋</span>
                   <span className="bg-tile__name">自定义</span>
                   {isCustomCurrent && <span className="bg-tile__check">✓ 当前</span>}
+                  <span className="bg-tile__accent" aria-hidden="true" />
                 </div>
                 <input
                   ref={customInputRef}
@@ -544,22 +505,20 @@ export default function SettingsPage() {
         ) : bgLoading ? (
           <p className="field__desc">读取中…</p>
         ) : bgImages.length ? (
-          <>
-            <div className="bg-grid">
-              {bgImages.map((name) => (
-                <BgThumb
-                  key={name}
-                  name={name}
-                  thumb={bgThumbs[name]}
-                  current={name === bgCurrent}
-                  applying={applying === name}
-                  onLoadThumb={() => thumbFor(name)}
-                  onPick={() => pickBackground(name)}
-                  onReveal={() => call('shell_reveal', 'bg', name)}
-                />
-              ))}
-            </div>
-          </>
+          <div className="bg-grid">
+            {bgImages.map((name) => (
+              <BgThumb
+                key={name}
+                name={name}
+                thumb={bgThumbs[name]}
+                current={name === currentBg}
+                applying={applying === name}
+                onLoadThumb={() => thumbFor(name)}
+                onPick={() => pickBackground(name)}
+                onReveal={() => call('shell_reveal', 'bg', name)}
+              />
+            ))}
+          </div>
         ) : bgError === 'bridge' ? (
           <Notice tone="error">
             无法获取背景图列表：native 端未包含 bg 列表功能。请重新构建 C++（本机 exe
@@ -571,7 +530,7 @@ export default function SettingsPage() {
           </Notice>
         )}
 
-        <div className="setting-row" style={{ marginTop: '12px' }}>
+        <div style={{ marginTop: '12px' }}>
           {/* 仅图片模式需要“刷新目录” */}
           {bgTab === 'image' && (
             <Button variant="ghost" size="sm" onClick={loadBg} disabled={bgLoading}>
@@ -584,81 +543,31 @@ export default function SettingsPage() {
       <div className="section-gap" />
 
       <Card title="常规">
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">开机启动</div>
-            <div className="setting-row__desc">登录 Windows 时自动在后台启动 GameTrigger</div>
-          </div>
-          <div className="setting-row__control">
+        <SettingRow
+          label="开机启动"
+          desc="登录 Windows 时自动在后台启动 GameTrigger"
+          control={
             <Toggle
               on={autoStart}
               onChange={toggleAutoStart}
               title={loading ? '加载中…' : autoStart ? '已开启' : '已关闭'}
             />
-          </div>
-        </div>
+          }
+        />
 
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">插件输出弹窗位置</div>
-            <div className="setting-row__desc">插件通知在屏幕的哪个角落弹出</div>
-          </div>
-          <div className="setting-row__control">
+        <SettingRow
+          label="插件输出弹窗位置"
+          desc="插件通知在屏幕的哪个角落弹出"
+          control={
             <Select
               options={POPUP_OPTIONS}
               value={popupPosition}
               disabled={loading}
               onChange={changePopupPosition}
             />
-          </div>
-        </div>
+          }
+        />
       </Card>
-
-      <div className="section-gap" />
-
-      <Card title="配置管理">
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">当前配置</div>
-            <div className="setting-row__desc">当前激活的配置文件</div>
-          </div>
-          <div className="setting-row__control">
-            <Chip>{activeConfig || '—'}</Chip>
-            <Button
-              variant="danger"
-              size="sm"
-              disabled={!activeConfig || deleting}
-              onClick={() => setDeleteTarget(activeConfig)}
-            >
-              删除
-            </Button>
-          </div>
-        </div>
-
-        <div className="section-gap" />
-
-        <Button variant="primary" onClick={() => setShowCreateConfig(true)}>
-          + 新建配置
-        </Button>
-      </Card>
-
-      <CreateConfigModal
-        open={showCreateConfig}
-        busy={creating}
-        onClose={() => setShowCreateConfig(false)}
-        onSubmit={createConfig}
-      />
-
-      <ConfirmModal
-        open={!!deleteTarget}
-        title="删除配置"
-        message={`确定删除配置「${deleteTarget}」？该操作会删除对应的配置文件，不可恢复。`}
-        confirmText="删除"
-        busy={deleting}
-        danger
-        onClose={() => { if (!deleting) setDeleteTarget(null) }}
-        onConfirm={deleteConfig}
-      />
     </div>
   )
 }

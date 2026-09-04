@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLogger } from '../context/LoggerContext.jsx'
+import { Pill } from './ui'
 
 function getLevelClass(level) {
   switch (level) {
@@ -17,11 +18,12 @@ function getLevelClass(level) {
   }
 }
 
+// Level → Pill tone (info logs read as success-tinted, warn→warning, error→danger).
 function getLevelTone(level) {
   switch (level) {
-    case 'Warning': return 'warn'
-    case 'Error':   return 'error'
-    default:        return 'info'
+    case 'Warning': return 'warning'
+    case 'Error':   return 'danger'
+    default:        return 'success'
   }
 }
 
@@ -144,14 +146,12 @@ export default function LogConsole({ filters }) {
             </span>
             {isOpen && (
               <span className="log-line__meta">
-                <span className={`log-level-chip log-level-chip--${getLevelTone(log.level)}`}>
-                  {log.level ?? '--'}
-                </span>
+                <Pill tone={getLevelTone(log.level)}>{log.level ?? '--'}</Pill>
                 <span className="log-line__time" title={timeLabel}>
                   {relLabel && <span className="log-line__time-rel">{relLabel} · </span>}
                   {timeLabel}
                 </span>
-                <span className="log-line__tag">{log.tag ?? '--'}</span>
+                <Pill tone="muted">{log.tag ?? '--'}</Pill>
               </span>
             )}
             <span

@@ -5,7 +5,7 @@
 // from ConfigContext; only the new-rule form lives in this page.
 
 import { useState, useRef, useLayoutEffect } from 'react'
-import { Card, Toggle, Button, Select } from '../components/ui'
+import { Card, Toggle, Button, Select, SettingRow, Pill, Input } from '../components/ui'
 import { IconTrash } from '../components/icons'
 import { useConfig } from '../context/ConfigContext.jsx'
 import { useProcess } from '../context/ProcessContext.jsx'
@@ -172,34 +172,28 @@ export default function ProcessPage() {
       <p className="page-sub">当以下程序启动时，自动切换到对应配置；全部退出后回到「关闭」</p>
 
       <Card title="自动切换">
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">启用进程监控</div>
-            <div className="setting-row__desc">
-              {running
-                ? '监控运行中（WMI 进程事件）'
-                : enabled
-                  ? '已启用，但还没有匹配规则'
-                  : '停用'}
-            </div>
-          </div>
-          <div className="setting-row__control">
+        <SettingRow
+          label="启用进程监控"
+          desc={
+            running
+              ? '监控运行中（WMI 进程事件）'
+              : enabled
+                ? '已启用，但还没有匹配规则'
+                : '停用'
+          }
+          control={
             <Toggle
               on={enabled}
               onChange={toggleEnabled}
               title={loading ? '加载中…' : enabled ? '已启用' : '已停用'}
             />
-          </div>
-        </div>
-        <div className="setting-row">
-          <div>
-            <div className="setting-row__label">当前配置</div>
-            <div className="setting-row__desc">被监控程序触发后自动切换到这里</div>
-          </div>
-          <div className="setting-row__control">
-            <span className="process-badge">{activeConfig || '—'}</span>
-          </div>
-        </div>
+          }
+        />
+        <SettingRow
+          label="当前配置"
+          desc="被监控程序触发后自动切换到这里"
+          control={<Pill tone="muted">{activeConfig || '—'}</Pill>}
+        />
       </Card>
 
       <div className="section-gap" />
@@ -249,8 +243,7 @@ export default function ProcessPage() {
         <div className="section-gap" />
 
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input
-            className="input"
+          <Input
             style={{ flex: 1, minWidth: 240 }}
             placeholder="程序路径，例如 C:\Games\GameA\GameA.exe"
             value={newExe}

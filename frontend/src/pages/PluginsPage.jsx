@@ -3,14 +3,16 @@
 // config list / active config come from ConfigContext.
 // ConfigSelector / PluginCard / CreateConfigModal / ParamConfigModal.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button } from '../components/ui'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Button, Card, Input } from '../components/ui'
+import { IconGrid, IconList, IconSearch } from '../components/icons'
 import { useChannel } from '../hooks/useChannel.js'
 import { useConfig } from '../context/ConfigContext.jsx'
 import { usePlugins } from '../context/PluginContext.jsx'
 import { call } from '../bridge'
 import ConfigSelector from '../components/ConfigSelector'
 import PluginCard from '../components/PluginCard'
+import PluginDetailModal from '../components/PluginDetailModal'
 import CreateConfigModal from '../components/CreateConfigModal'
 import ParamConfigModal from '../components/ParamConfigModal'
 import ConfirmModal from '../components/ConfirmModal'
@@ -23,6 +25,8 @@ export default function PluginsPage() {
   const [draft, setDraft] = useState({})
   const [saving, setSaving] = useState(false)
   const [configPlugin, setConfigPlugin] = useState(null)
+  // 详情弹窗中查看的插件对象（null = 关闭）
+  const [detailPlugin, setDetailPlugin] = useState(null)
   const [creating, setCreating] = useState(false)
   const [showCreateConfig, setShowCreateConfig] = useState(false)
   // 待删除的配置名（null = 未在确认弹窗中）
@@ -31,10 +35,32 @@ export default function PluginsPage() {
   // 当前编辑的配置（null = 跟随激活配置）。选择它只是决定编辑哪一份，
   // 不会激活；激活只能通过主页的“切换配置”完成。
   const [editConfig, setEditConfig] = useState(null)
+  // 视图模式：'grid' 网格卡片流 vs 'list' 紧凑列表（持久化到 localStorage）
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('gt_plugins_view') || 'grid'
+    } catch {
+      return 'grid'
+    }
+  })
+  // 搜索关键词
+  const [searchQuery, setSearchQuery] = useState('')
+  // 状态筛选：'all' | 'enabled' | 'disabled'
+  const [statusFilter, setStatusFilter] = useState('all')
+
   // 配置列表 / 当前配置由 ConfigContext 维护；插件列表 + 参数元数据由
   // PluginContext 维护；本页只自管 params 值（跟随编辑目标）。
   const { configs, activeConfig, createConfig: createConfigCtx, deleteConfig: deleteConfigCtx } = useConfig()
   const { plugins, infos, clear: clearPlugins, refresh: refreshPlugins } = usePlugins()
+
+  const handleViewModeChange = (mode) => {
+    setViewMode(mode)
+    try {
+      localStorage.setItem('gt_plugins_view', mode)
+    } catch {
+      // ignore
+    }
+  }
 
   // 拉当前参数值（config 空 = 激活配置）。
   const refresh = useCallback(async (config) => {
@@ -159,6 +185,47 @@ export default function PluginsPage() {
   const params = data?.params ?? {}   // 当前值：{plugin: {param: value}}
   const targetConfig = editConfig ?? activeConfig
 
+  // 合并草稿与服务器当前值，实时判定插件是否启用
+  const isPluginEnabled = useCallback(
+    (pluginName) => {
+      if (draft[pluginName]?._enabled !== undefined) {
+        return Boolean(draft[pluginName]._enabled)
+      }
+      return Boolean(params[pluginName]?._enabled ?? true)
+    },
+    [draft, params]
+  )
+
+  // 快捷启闭单个插件（加入草稿）
+  const handleTogglePlugin = (pluginName, nextEnabled) => {
+    setParam(pluginName, '_enabled', nextEnabled)
+  }
+
+  // 统计数据
+  const totalCount = pluginsList.length
+  const enabledCount = useMemo(
+    () => pluginsList.filter((p) => isPluginEnabled(p.name)).length,
+    [pluginsList, isPluginEnabled]
+  )
+  const disabledCount = totalCount - enabledCount
+
+  // 搜索和状态过滤
+  const filteredPlugins = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    return pluginsList.filter((p) => {
+      const enabled = isPluginEnabled(p.name)
+      if (statusFilter === 'enabled' && !enabled) return false
+      if (statusFilter === 'disabled' && enabled) return false
+      if (q) {
+        const matchName = p.name?.toLowerCase().includes(q)
+        const matchDesc = p.description?.toLowerCase().includes(q)
+        const matchAuthor = p.author?.toLowerCase().includes(q)
+        if (!matchName && !matchDesc && !matchAuthor) return false
+      }
+      return true
+    })
+  }, [pluginsList, searchQuery, statusFilter, isPluginEnabled])
+
   return (
     <div>
       <div className="page-title">插件</div>
@@ -184,27 +251,174 @@ export default function PluginsPage() {
 
       <div className="section-gap" />
 
-      {pluginsList.length ? (
-        <div className="plugin-grid">
-          {pluginsList.map((p, i) => (
-            <PluginCard
-              key={p.name}
-              plugin={p}
-              index={i + 1}
-              values={params[p.name] ?? {}}
-              infos={infos[p.name] ?? []}
-              onClick={() => setConfigPlugin(p.name)}
-              onReveal={() => call('shell_reveal', 'plugin', p.name)}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="card" style={{ '--card-i': 1 }}>
+      <Card
+        title="插件"
+        hint={
+          pluginsList.length
+            ? `${enabledCount} 个已启用 / 共 ${pluginsList.length} 个`
+            : undefined
+        }
+        index={1}
+        actions={pluginsList.length ? (
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={loading}
+              onClick={async () => {
+                if (!guardDirty()) return
+                clearPlugins()                 // unmount rows
+                await refreshPlugins()         // re-fetch plugin list → rows re-mount
+                refresh(targetConfig)          // re-fetch param values (fire-and-forget)
+              }}
+            >
+              {loading ? '刷新中…' : '刷新'}
+            </Button>
+            {dirtyCount > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setDraft({})}>
+                放弃修改
+              </Button>
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={saveParams}
+              disabled={saving || !dirtyCount || !targetConfig}
+            >
+              {saving
+                ? '保存中…'
+                : !targetConfig
+                  ? '请先选择配置'
+                  : dirtyCount
+                    ? `保存参数 (${dirtyCount})`
+                    : '保存参数'}
+            </Button>
+          </>
+        ) : undefined}
+      >
+        {pluginsList.length > 0 && (
+          <div className="plugin-toolbar">
+            <div className="plugin-toolbar__left">
+              <div className="plugin-search-wrap">
+                <span className="plugin-search__icon">
+                  <IconSearch width={14} height={14} />
+                </span>
+                <Input
+                  className="plugin-search__input"
+                  placeholder="搜索插件名称或描述..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="plugin-search__clear"
+                    title="清空搜索"
+                    onClick={() => setSearchQuery('')}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              <div className="plugin-filter-chips">
+                <button
+                  type="button"
+                  className={`plugin-filter-btn${statusFilter === 'all' ? ' is-active' : ''}`}
+                  onClick={() => setStatusFilter('all')}
+                >
+                  全部
+                  <span className="plugin-filter-badge">{totalCount}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`plugin-filter-btn${statusFilter === 'enabled' ? ' is-active' : ''}`}
+                  onClick={() => setStatusFilter('enabled')}
+                >
+                  已启用
+                  <span className="plugin-filter-badge">{enabledCount}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`plugin-filter-btn${statusFilter === 'disabled' ? ' is-active' : ''}`}
+                  onClick={() => setStatusFilter('disabled')}
+                >
+                  已停用
+                  <span className="plugin-filter-badge">{disabledCount}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="plugin-toolbar__right">
+              <div className="view-mode-toggle">
+                <button
+                  type="button"
+                  className={`view-mode-btn${viewMode === 'grid' ? ' is-active' : ''}`}
+                  title="网格卡片流视图"
+                  onClick={() => handleViewModeChange('grid')}
+                >
+                  <IconGrid width={15} height={15} />
+                </button>
+                <button
+                  type="button"
+                  className={`view-mode-btn${viewMode === 'list' ? ' is-active' : ''}`}
+                  title="紧凑列表视图"
+                  onClick={() => handleViewModeChange('list')}
+                >
+                  <IconList width={15} height={15} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {pluginsList.length ? (
+          filteredPlugins.length ? (
+            <div className={viewMode === 'grid' ? 'plugin-grid-layout' : 'plugin-list'}>
+              {filteredPlugins.map((p, i) => {
+                const pluginValues = {
+                  ...(params[p.name] ?? {}),
+                  ...(draft[p.name] ?? {}),
+                }
+                return (
+                  <PluginCard
+                    key={p.name}
+                    index={i}
+                    mode={viewMode}
+                    plugin={p}
+                    values={pluginValues}
+                    infos={infos[p.name] ?? []}
+                    onClick={() => setDetailPlugin(p)}
+                    onConfig={() => setConfigPlugin(p.name)}
+                    onReveal={() => call('shell_reveal', 'plugin', p.name)}
+                    onToggle={(nextVal) => handleTogglePlugin(p.name, nextVal)}
+                  />
+                )
+              })}
+            </div>
+          ) : (
+            <div className="plugin-empty-box">
+              <span className="plugin-empty-box__title">未找到匹配的插件</span>
+              <p className="field__desc">请尝试调整搜索关键词或重置筛选条件</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('')
+                  setStatusFilter('all')
+                }}
+              >
+                重置筛选
+              </Button>
+            </div>
+          )
+        ) : (
           <p className="field__desc">
             {loading ? '正在加载插件…' : '没有加载到插件：检查 plugins 目录下的文件'}
           </p>
-        </div>
-      )}
+        )}
+      </Card>
+
 
       <CreateConfigModal
         open={showCreateConfig}
@@ -238,43 +452,12 @@ export default function PluginsPage() {
         onSave={saveParams}
       />
 
-      <div className="section-gap" />
-
-      <div style={{ display: 'flex', gap: 8 }}>
-        <Button
-          onClick={async () => {
-            if (!guardDirty()) return
-            clearPlugins()                       // unmount cards
-            await refreshPlugins()               // re-fetch plugin list → cards re-mount
-            refresh(targetConfig)                // re-fetch param values (fire-and-forget)
-          }}
-          disabled={loading}
-        >
-          {loading ? '加载中…' : '刷新'}
-        </Button>
-        {dirtyCount > 0 && (
-          <Button
-            onClick={() => {
-              setDraft({})
-            }}
-          >
-            放弃修改
-          </Button>
-        )}
-        <Button
-          variant="primary"
-          onClick={saveParams}
-          disabled={saving || !dirtyCount || !targetConfig}
-        >
-          {saving
-            ? '保存中…'
-            : !targetConfig
-              ? '请先选择配置'
-              : dirtyCount
-                ? `保存参数 (${dirtyCount})`
-                : '保存参数'}
-        </Button>
-      </div>
+      <PluginDetailModal
+        plugin={detailPlugin}
+        infos={detailPlugin ? (infos[detailPlugin.name] ?? []) : []}
+        enabled={detailPlugin ? (params[detailPlugin.name]?._enabled ?? true) : true}
+        onClose={() => setDetailPlugin(null)}
+      />
     </div>
   )
 }

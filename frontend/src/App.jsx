@@ -3,16 +3,11 @@
 // (HashRouter) instead of a hand-rolled NAV state machine.
 
 import {NavLink, Outlet, useLocation} from 'react-router-dom'
-import {useEffect, useState, useCallback} from 'react'
+import {useEffect, useState, useRef, useCallback} from 'react'
 import {IconHome, IconSettings, IconPlugin, IconMonitor, IconLogo} from './components/icons'
 import {HeliosTitleBar, HeliosWindowControls} from './components/helios'
 import Tooltip from './components/Tooltip'
-import {applyStoredBackground} from './wallpaper'
-import {LoggerProvider} from "./context/LoggerContext.jsx";
-import {ConfigProvider, useConfig} from "./context/ConfigContext.jsx";
-import {PluginProvider} from "./context/PluginContext.jsx";
-import {SettingsProvider} from "./context/SettingsContext.jsx";
-import {ProcessProvider} from "./context/ProcessContext.jsx";
+import { AppProviders, useConfig } from './context'
 
 
 // Route metadata (label + icon). URL paths are defined in main.jsx; keep the
@@ -33,6 +28,46 @@ function SidebarStatus() {
             <span className={`status-dot${isOff ? ' is-off' : ''}`}/>
             配置：{isOff ? '关闭' : activeConfig}
         </div>
+    )
+}
+
+// Sidebar nav entry — a NavLink with an exit choreography. When an item stops
+// being the active page it keeps a short-lived is-leaving class so the fill
+// block can animate "pill → hover bar → gone" (see .is-leaving in style.css)
+// instead of the pill vanishing abruptly the instant the route changes.
+function SidebarNavItem({to, label, icon: Icon}) {
+    const {pathname} = useLocation()
+    // '/' owns only the exact index path; the others use prefix match
+    const isActive = to === '/' ? pathname === '/' : pathname.startsWith(to)
+    const [leaving, setLeaving] = useState(false)
+    const wasActive = useRef(isActive)
+    const timer = useRef(null)
+
+    useEffect(() => {
+        clearTimeout(timer.current)
+        if (wasActive.current && !isActive) {
+            setLeaving(true)
+            timer.current = setTimeout(() => setLeaving(false), 620)
+        } else {
+            setLeaving(false)
+        }
+        wasActive.current = isActive
+        return () => clearTimeout(timer.current)
+    }, [isActive])
+
+    return (
+        <NavLink
+            to={to}
+            end={to === '/'}
+            className={`sidebar-nav__item${isActive ? ' is-active' : ''}${leaving ? ' is-leaving' : ''}`}
+        >
+            <Tooltip text={label}>
+                <span className="sidebar-nav__icon">
+                    <Icon width={18} height={18}/>
+                </span>
+            </Tooltip>
+            <span className="sidebar-nav__label">{label}</span>
+        </NavLink>
     )
 }
 
@@ -64,88 +99,59 @@ export default function AppLayout() {
         return () => window.removeEventListener('wheel', handleWheel)
     }, [handleWheel])
 
-    // Load the last chosen background (falls back to the aurora gradient if
-    // none chosen / dir missing).  The design cache (accent, blur, …) was
-    // already hydrated by loadAppearance() in main.jsx before React mounted.
-    useEffect(() => {
-      applyStoredBackground()
-    }, [])
-
     return (
-        <LoggerProvider>
-            <ConfigProvider>
-                <PluginProvider>
-                    <SettingsProvider>
-                        <ProcessProvider>
-                    <div className="app">
-                    <aside className="sidebar has-noise">
-                        <div className="sidebar-brand">
-                            <div className="sidebar-brand__dot">
-                                <IconLogo width={20} height={20}/>
-                            </div>
-                            <div className="sidebar-brand__text">
-                                <div className="sidebar-brand__name">GameTrigger</div>
-                                <div className="sidebar-brand__sub">进程触发与监控</div>
-                            </div>
+        <AppProviders>
+            <div className="app">
+                <aside className="sidebar has-noise">
+                    <div className="sidebar-brand">
+                        <div className="sidebar-brand__dot">
+                            <IconLogo width={20} height={20}/>
                         </div>
-
-                        <nav className="sidebar-nav">
-                            {NAV_ITEMS.map(({to, label, icon: Icon}) => (
-                                <NavLink
-                                    key={to}
-                                    to={to}
-                                    end={to === '/'}
-                                    className={({isActive}) =>
-                                        `sidebar-nav__item${isActive ? ' is-active' : ''}`
-                                    }
-                                >
-                  <Tooltip text={label}>
-                  <span className="sidebar-nav__icon">
-                    <Icon width={18} height={18}/>
-                  </span>
-                                    </Tooltip>
-                                    <span className="sidebar-nav__label">{label}</span>
-                                </NavLink>
-                            ))}
-                        </nav>
-
-                        <div className="sidebar-foot">
-                            <SidebarStatus/>
-                            {Math.round(zoom * 100) !== 100 && (
-                                <button
-                                    type="button"
-                                    className="zoom-reset"
-                                    onClick={resetZoom}
-                                    title="重置缩放到 100%"
-                                >
-                                    {Math.round(zoom * 100)}% · 点击恢复
-                                </button>
-                            )}
-                        </div>
-                    </aside>
-
-                    <div className="app-main">
-                        <HeliosTitleBar className="header">
-                            <div className="header__title" key={current?.label ?? 'home'}>
-                                {current?.label ?? '主页'}
-                            </div>
-                            <div className="header__actions"/>
-                            <HeliosWindowControls/>
-                        </HeliosTitleBar>
-
-                        <div className="app-scroll">
-                            <main className="app-content">
-                                <div className="route-view" key={pathname}>
-                                    <Outlet/>
-                                </div>
-                            </main>
+                        <div className="sidebar-brand__text">
+                            <div className="sidebar-brand__name">GameTrigger</div>
+                            <div className="sidebar-brand__sub">进程触发与监控</div>
                         </div>
                     </div>
+
+                    <nav className="sidebar-nav">
+                        {NAV_ITEMS.map((item) => (
+                            <SidebarNavItem key={item.to} {...item}/>
+                        ))}
+                    </nav>
+
+                    <div className="sidebar-foot">
+                        <SidebarStatus/>
+                        {Math.round(zoom * 100) !== 100 && (
+                            <button
+                                type="button"
+                                className="zoom-reset"
+                                onClick={resetZoom}
+                                title="重置缩放到 100%"
+                            >
+                                {Math.round(zoom * 100)}% · 点击恢复
+                            </button>
+                        )}
                     </div>
-                        </ProcessProvider>
-                    </SettingsProvider>
-                </PluginProvider>
-            </ConfigProvider>
-        </LoggerProvider>
+                </aside>
+
+                <div className="app-main">
+                    <HeliosTitleBar className="header">
+                        <div className="header__title" key={current?.label ?? 'home'}>
+                            {current?.label ?? '主页'}
+                        </div>
+                        <div className="header__actions"/>
+                        <HeliosWindowControls/>
+                    </HeliosTitleBar>
+
+                    <div className="app-scroll">
+                        <main className="app-content">
+                            <div className="route-view" key={pathname}>
+                                <Outlet/>
+                            </div>
+                        </main>
+                    </div>
+                </div>
+            </div>
+        </AppProviders>
     )
 }

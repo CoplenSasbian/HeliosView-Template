@@ -43,7 +43,7 @@ struct AppSettings
     // by the frontend, and the status colors stay fixed (they have meaning).
     struct DesignPrefs
     {
-        int glassBlur = 6;                 // blur(px) for frosted surfaces (8..48)
+        int glassBlur = 6;                 // blur(px) for frosted surfaces (4..48)
         int cornerRadius = 6;              // base corner radius px (4..32)
         std::string accentColor = "#5ea6ff"; // primary/brand color
         std::string fontSize = "md";         // "sm" | "md" | "lg" — UI base font size

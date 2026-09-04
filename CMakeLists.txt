@@ -57,7 +57,6 @@ add_executable(${HELIOSVIEW_TEMPLATE_APP_NAME} WIN32
         src/utils/concurrentqueue.h
         src/plugin/DynamicLibraryApi_win32.cpp
         src/plugin/DynamicLibraryApi.h
-        plugins/test_plugin/test_plugin_impl.cpp
         src/utils/SingleInstanceGuard.cpp
         src/utils/SingleInstanceGuard.h
 
