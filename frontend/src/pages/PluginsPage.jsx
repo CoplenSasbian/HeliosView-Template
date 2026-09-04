@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Card, Input, Segmented } from '../components/ui'
-import { IconGrid, IconList, IconSearch } from '../components/icons'
+import { IconGrid, IconList, IconSearch, IconRefresh, IconSave, IconUndo } from '../components/icons'
 import { useChannel } from '../hooks/useChannel.js'
 import { useConfig } from '../context/ConfigContext.jsx'
 import { usePlugins } from '../context/PluginContext.jsx'
@@ -275,7 +275,9 @@ export default function PluginsPage() {
             <Button
               variant="ghost"
               size="sm"
+              icon={<IconRefresh width={14} height={14} />}
               disabled={loading}
+              title={loading ? '刷新中…' : '刷新插件与参数'}
               onClick={async () => {
                 if (!guardDirty()) return
                 clearPlugins()                 // unmount rows
@@ -283,26 +285,38 @@ export default function PluginsPage() {
                 refresh(targetConfig)          // re-fetch param values (fire-and-forget)
               }}
             >
-              {loading ? '刷新中…' : '刷新'}
+              刷新
             </Button>
             {dirtyCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => setDraft({})}>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<IconUndo width={14} height={14} />}
+                title="放弃所有未保存修改"
+                onClick={() => setDraft({})}
+              >
                 放弃修改
               </Button>
             )}
             <Button
               variant="primary"
               size="sm"
+              icon={<IconSave width={14} height={14} />}
               onClick={saveParams}
               disabled={saving || !dirtyCount || !targetConfig}
+              title={
+                !targetConfig
+                  ? '请先选择配置'
+                  : dirtyCount
+                    ? `保存 ${dirtyCount} 项修改`
+                    : '无未保存的修改'
+              }
             >
               {saving
                 ? '保存中…'
-                : !targetConfig
-                  ? '请先选择配置'
-                  : dirtyCount
-                    ? `保存参数 (${dirtyCount})`
-                    : '保存参数'}
+                : dirtyCount
+                  ? `保存 (${dirtyCount})`
+                  : '保存'}
             </Button>
           </>
         ) : undefined}
