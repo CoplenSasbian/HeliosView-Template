@@ -1562,32 +1562,22 @@ input[type='number'] {
   background: var(--c-text-on-accent);
 }
 
-/* Segmented control — translucent tray; the active option is carried by the
-   travelling .segmented__thumb bubble (see below), so the tray itself stays
-   quiet. */
+/* ============================================================
+   Segmented Control — sizes (xs / sm / md / lg) & tokens
+   ============================================================ */
 .segmented {
   position: relative; /* anchor for the travelling thumb */
   display: inline-flex;
+  align-items: center;
   background: var(--ctrl-bg);
   border: 1px solid var(--c-border-strong);
-  border-radius: var(--r-sm);
-  padding: 4px;
-  gap: 4px;
+  border-radius: var(--ctrl-r-md);
+  padding: 3px;
+  gap: 3px;
+  box-sizing: border-box;
   overflow: hidden;
 }
-.segmented--sm {
-  padding: 2px;
-  gap: 2px;
-  border-radius: var(--r-sm);
-}
-.segmented--sm button {
-  padding: 3px 10px;
-  font-size: var(--fs-xs);
-  gap: 4px;
-}
-.segmented--sm button.is-icon-only {
-  padding: 4px 6px;
-}
+
 .segmented button {
   position: relative;
   z-index: 1;
@@ -1595,20 +1585,80 @@ input[type='number'] {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 6px 16px;
+  height: calc(var(--ctrl-h-md) - 8px);
+  padding: 0 12px;
   border-radius: var(--r-xs);
   font-size: var(--fs-xs);
   color: var(--c-text);
   font-weight: var(--fw-medium);
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
   transition: background var(--transition), color var(--transition),
     box-shadow var(--transition);
 }
+.segmented button.is-icon-only {
+  padding: 0 8px;
+  width: calc(var(--ctrl-h-md) - 8px);
+}
+
 .segmented button:hover {
   color: var(--c-accent);
 }
 .segmented button:active {
   transform: scale(0.94);
   color: var(--c-accent-strong);
+}
+
+/* Segmented Size Presets */
+.segmented--xs {
+  border-radius: var(--ctrl-r-xs);
+  padding: 2px;
+  gap: 2px;
+}
+.segmented--xs button {
+  height: calc(var(--ctrl-h-xs) - 6px); /* 18px */
+  padding: 0 6px;
+  font-size: var(--fs-xs);
+  gap: 3px;
+}
+.segmented--xs button.is-icon-only {
+  padding: 0;
+  width: calc(var(--ctrl-h-xs) - 6px);
+}
+
+.segmented--sm {
+  border-radius: var(--ctrl-r-sm);
+  padding: 2px;
+  gap: 2px;
+}
+.segmented--sm button {
+  height: calc(var(--ctrl-h-sm) - 6px); /* 24px */
+  padding: 0 8px;
+  font-size: var(--fs-xs);
+  gap: 4px;
+}
+.segmented--sm button.is-icon-only {
+  padding: 0;
+  width: calc(var(--ctrl-h-sm) - 6px);
+}
+
+.segmented--lg {
+  border-radius: var(--ctrl-r-lg);
+  padding: 4px;
+  gap: 4px;
+}
+.segmented--lg button {
+  height: calc(var(--ctrl-h-lg) - 10px); /* 32px */
+  padding: 0 16px;
+  font-size: var(--fs-sm);
+  gap: 6px;
+}
+.segmented--lg button.is-icon-only {
+  padding: 0;
+  width: calc(var(--ctrl-h-lg) - 10px);
 }
 /* Active option sits on a SOLID theme-color block that travels with it: the
    thumb is z-below the labels (like the nav's active fill behind the text),

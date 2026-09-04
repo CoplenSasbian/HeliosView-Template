@@ -333,7 +333,7 @@ export default function PluginsPage() {
               </div>
 
               <Segmented
-                className="segmented--sm"
+                size="sm"
                 options={filterOptions}
                 value={statusFilter}
                 onChange={setStatusFilter}
@@ -348,7 +348,7 @@ export default function PluginsPage() {
 
             <div className="plugin-toolbar__right">
               <Segmented
-                className="segmented--sm"
+                size="sm"
                 options={viewOptions}
                 value={viewMode}
                 onChange={handleViewModeChange}

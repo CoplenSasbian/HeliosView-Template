@@ -67,48 +67,54 @@ export function Toggle({ on, onChange, title }) {
 // One travelling layer: .segmented__thumb — a tinted bubble OVER the labels;
 // always visible so the settled control keeps the raised look, and the spring
 // travel reads as the bubble carrying the highlight with it.
-export function Segmented({ options, value, onChange, renderAction, className }) {
+// Segmented — option bar with a solid/tinted bubble thumb that SLIDES between
+// options.
+// Props:
+//  - size: 'xs' | 'sm' | 'md' | 'lg' (defaults to 'md')
+//  - options: [{ value, label, icon }]
+export function Segmented({ options, value, onChange, renderAction, size, className }) {
   const wrapRef = useRef(null)
   const glassRef = useRef(null)
   const activeIdx = options?.findIndex((o) => o.value === value) ?? -1
+
+  const cls = ['segmented']
+  if (size) cls.push(`segmented--${size}`)
+  if (className) cls.push(className)
 
   useLayoutEffect(() => {
     const wrap = wrapRef.current
     const btn = wrap?.querySelectorAll('button')[activeIdx]
 
-    // Move the tinted bubble over the active option. It is ALWAYS shown (like
-    // the cards' settled glass), so the control keeps its raised look at rest,
-    // and during the spring travel the highlight visibly follows the bubble.
     const el = glassRef.current
     if (!el) return
     if (!btn) { el.style.opacity = '0'; return }
-    const padding = 2
     el.style.opacity = '1'
-    el.style.width = `${btn.offsetWidth + padding * 2}px`
-    el.style.height = `${btn.offsetHeight + padding * 2}px`
-    el.style.transform = `translate(${btn.offsetLeft - padding}px, ${btn.offsetTop - padding}px)`
-  }, [activeIdx, options, value])
+    el.style.width = `${btn.offsetWidth}px`
+    el.style.height = `${btn.offsetHeight}px`
+    el.style.transform = `translate(${btn.offsetLeft}px, ${btn.offsetTop}px)`
+  }, [activeIdx, options, value, size])
 
   return (
     <div
-      className={`segmented${className ? ` ${className}` : ''}`}
+      className={cls.join(' ')}
       ref={wrapRef}
     >
-      {/* the moving bubble: a translucent raised thumb OVER the label — tint +
-          hairline so the active option reads as a raised bubble */}
-      <span className="segmented__thumb" ref={glassRef} aria-hidden="true"  />
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          className={o.value === value ? 'is-active' : ''}
-          onClick={() => onChange(o.value)}
-        >
-          {o.icon}
-          {o.label}
-          {renderAction?.(o.value)}
-        </button>
-      ))}
+      <span className="segmented__thumb" ref={glassRef} aria-hidden="true" />
+      {options.map((o) => {
+        const isIconOnly = !!o.icon && !o.label
+        return (
+          <button
+            key={o.value}
+            type="button"
+            className={`${o.value === value ? 'is-active' : ''}${isIconOnly ? ' is-icon-only' : ''}`}
+            onClick={() => onChange(o.value)}
+          >
+            {o.icon}
+            {o.label}
+            {renderAction?.(o.value)}
+          </button>
+        )
+      })}
     </div>
   )
 }
