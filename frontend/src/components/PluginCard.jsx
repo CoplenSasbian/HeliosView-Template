@@ -143,7 +143,7 @@ export default function PluginCard({
           onKeyDown={(e) => e.stopPropagation()}
         >
           <span className={`plugin-card-item__status-tag${enabled ? ' is-on' : ' is-off'}`}>
-            {enabled ? '运行就绪' : '已停用'}
+            {enabled ? '已启用' : '已停用'}
           </span>
           <div className="plugin-card-item__actions">
             <button
