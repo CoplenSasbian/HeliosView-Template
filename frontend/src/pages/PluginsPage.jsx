@@ -4,7 +4,7 @@
 // ConfigSelector / PluginCard / CreateConfigModal / ParamConfigModal.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Card, Input } from '../components/ui'
+import { Button, Card, Input, Segmented } from '../components/ui'
 import { IconGrid, IconList, IconSearch } from '../components/icons'
 import { useChannel } from '../hooks/useChannel.js'
 import { useConfig } from '../context/ConfigContext.jsx'
@@ -209,6 +209,17 @@ export default function PluginsPage() {
   )
   const disabledCount = totalCount - enabledCount
 
+  const filterOptions = useMemo(() => [
+    { value: 'all', label: '全部' },
+    { value: 'enabled', label: '已启用' },
+    { value: 'disabled', label: '已停用' },
+  ], [])
+
+  const viewOptions = useMemo(() => [
+    { value: 'grid', label: '', icon: <IconGrid width={15} height={15} /> },
+    { value: 'list', label: '', icon: <IconList width={15} height={15} /> },
+  ], [])
+
   // 搜索和状态过滤
   const filteredPlugins = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
@@ -321,53 +332,27 @@ export default function PluginsPage() {
                 )}
               </div>
 
-              <div className="plugin-filter-chips">
-                <button
-                  type="button"
-                  className={`plugin-filter-btn${statusFilter === 'all' ? ' is-active' : ''}`}
-                  onClick={() => setStatusFilter('all')}
-                >
-                  全部
-                  <span className="plugin-filter-badge">{totalCount}</span>
-                </button>
-                <button
-                  type="button"
-                  className={`plugin-filter-btn${statusFilter === 'enabled' ? ' is-active' : ''}`}
-                  onClick={() => setStatusFilter('enabled')}
-                >
-                  已启用
-                  <span className="plugin-filter-badge">{enabledCount}</span>
-                </button>
-                <button
-                  type="button"
-                  className={`plugin-filter-btn${statusFilter === 'disabled' ? ' is-active' : ''}`}
-                  onClick={() => setStatusFilter('disabled')}
-                >
-                  已停用
-                  <span className="plugin-filter-badge">{disabledCount}</span>
-                </button>
-              </div>
+              <Segmented
+                className="segmented--sm"
+                options={filterOptions}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                renderAction={(val) => {
+                  let cnt = totalCount
+                  if (val === 'enabled') cnt = enabledCount
+                  else if (val === 'disabled') cnt = disabledCount
+                  return <span className="segmented-count-badge">{cnt}</span>
+                }}
+              />
             </div>
 
             <div className="plugin-toolbar__right">
-              <div className="view-mode-toggle">
-                <button
-                  type="button"
-                  className={`view-mode-btn${viewMode === 'grid' ? ' is-active' : ''}`}
-                  title="网格卡片流视图"
-                  onClick={() => handleViewModeChange('grid')}
-                >
-                  <IconGrid width={15} height={15} />
-                </button>
-                <button
-                  type="button"
-                  className={`view-mode-btn${viewMode === 'list' ? ' is-active' : ''}`}
-                  title="紧凑列表视图"
-                  onClick={() => handleViewModeChange('list')}
-                >
-                  <IconList width={15} height={15} />
-                </button>
-              </div>
+              <Segmented
+                className="segmented--sm"
+                options={viewOptions}
+                value={viewMode}
+                onChange={handleViewModeChange}
+              />
             </div>
           </div>
         )}

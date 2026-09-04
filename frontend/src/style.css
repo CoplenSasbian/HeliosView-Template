@@ -1575,6 +1575,19 @@ input[type='number'] {
   gap: 4px;
   overflow: hidden;
 }
+.segmented--sm {
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--r-sm);
+}
+.segmented--sm button {
+  padding: 3px 10px;
+  font-size: var(--fs-xs);
+  gap: 4px;
+}
+.segmented--sm button.is-icon-only {
+  padding: 4px 6px;
+}
 .segmented button {
   position: relative;
   z-index: 1;
@@ -3029,52 +3042,17 @@ input[type='number'] {
   color: var(--c-text);
 }
 
-.plugin-filter-chips {
-  display: inline-flex;
-  align-items: center;
-  background: var(--c-bg-elevated);
-  border: 1px solid var(--c-border);
-  border-radius: var(--r-pill);
-  padding: 2px;
-  gap: 2px;
-}
-
-.plugin-filter-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: var(--r-pill);
-  border: none;
-  background: transparent;
-  color: var(--c-text-muted);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-medium);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.plugin-filter-btn:hover {
-  color: var(--c-text);
-  background: var(--c-bg-subtle);
-}
-
-.plugin-filter-btn.is-active {
-  color: var(--c-accent);
-  background: var(--c-accent-soft);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-}
-
-.plugin-filter-badge {
+.segmented-count-badge {
   font-size: 10px;
   padding: 1px 6px;
   border-radius: var(--r-pill);
   background: var(--c-bg-subtle);
   color: var(--c-text-faint);
   line-height: 1.2;
+  transition: all var(--transition);
 }
-.plugin-filter-btn.is-active .plugin-filter-badge {
-  background: var(--c-accent);
+.segmented button.is-active .segmented-count-badge {
+  background: rgba(255, 255, 255, 0.25);
   color: #fff;
 }
 
@@ -3082,38 +3060,6 @@ input[type='number'] {
   display: flex;
   align-items: center;
   gap: var(--sp-xs);
-}
-
-.view-mode-toggle {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px;
-  border-radius: var(--r-md);
-  background: var(--c-bg-elevated);
-  border: 1px solid var(--c-border);
-}
-
-.view-mode-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--r-sm);
-  border: none;
-  background: transparent;
-  color: var(--c-text-faint);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.view-mode-btn:hover {
-  color: var(--c-text);
-}
-
-.view-mode-btn.is-active {
-  color: var(--c-accent);
-  background: var(--c-accent-soft);
 }
 
 /* Plugin Grid Layout */
