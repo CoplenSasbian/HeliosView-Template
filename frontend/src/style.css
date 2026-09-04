@@ -2793,24 +2793,12 @@ input[type='number'] {
   opacity: 0.92;
 }
 
-/* Col 1: Plugin Identity (Icon + Name + Version) */
+/* Col 1: Plugin Identity (Name + Version) */
 .plugin-row__identity {
   flex: 0 0 160px;
   display: flex;
   align-items: center;
-  gap: 8px;
   min-width: 0;
-}
-.plugin-row__icon-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: var(--r-xs);
-  background: var(--c-accent-soft);
-  color: var(--c-accent);
-  flex-shrink: 0;
 }
 .plugin-row__name-wrap {
   display: flex;
@@ -3171,32 +3159,9 @@ input[type='number'] {
 .plugin-card-item__header {
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
   gap: var(--sp-sm);
   min-width: 0;
-}
-
-.plugin-card-item__icon-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.plugin-card-item__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--r-md);
-  background: var(--c-accent-soft);
-  color: var(--c-accent);
-  border: 1px solid color-mix(in srgb, var(--c-accent) 20%, transparent);
-}
-
-.plugin-card-item__icon-wrap .plugin__dot {
-  position: absolute;
-  right: -2px;
-  bottom: -2px;
-  border: 2px solid var(--c-bg-elevated);
 }
 
 .plugin-card-item__titles {

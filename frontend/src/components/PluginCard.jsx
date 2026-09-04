@@ -11,7 +11,7 @@
 // Note: the overview intentionally excludes the per-config `_enabled` flag —
 // it is not a declared parameter and is shown only as the status dot.
 
-import { IconFolder, IconSettings, IconPlugin } from './icons'
+import { IconFolder, IconSettings } from './icons'
 import { Pill, Toggle } from './ui'
 
 // How many declared params to show as chips in the overview ("+n" for the rest).
@@ -77,16 +77,6 @@ export default function PluginCard({
         onKeyDown={handleKeyDown}
       >
         <div className="plugin-card-item__header">
-          <div className="plugin-card-item__icon-wrap">
-            <span className="plugin-card-item__icon">
-              <IconPlugin width={20} height={20} />
-            </span>
-            <span
-              className={`plugin__dot${enabled ? '' : ' is-off'}`}
-              title={enabled ? '已启用' : '已停用'}
-            />
-          </div>
-
           <div className="plugin-card-item__titles">
             <div className="plugin-card-item__title-row">
               <span className="plugin-card-item__name" title={plugin.name}>
@@ -186,9 +176,6 @@ export default function PluginCard({
     >
       {/* Col 1: Identity */}
       <div className="plugin-row__identity">
-        <span className="plugin-row__icon-badge">
-          <IconPlugin width={14} height={14} />
-        </span>
         <div className="plugin-row__name-wrap">
           <span className="plugin-row__name" title={plugin.name}>{plugin.name}</span>
           <span className="plugin-row__ver">v{plugin.version}</span>
