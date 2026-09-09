@@ -174,10 +174,12 @@ void MainWindow::loadFrontend()
     // file:// with a CORS error (file is not a supported scheme), so a
     // file:// URL would show a blank page. Instead map the built frontend
     // to the virtual host "app.local" (WebView2 restricts mappings to the
-    // .local suffix) and load it over https://, a supported scheme. The
-    // mapping is queued by the library until the WebView is initialized.
+    // .local suffix) and load it from there. localUrl() builds the engine's
+    // URL shape (https://<host>/... on Windows, a custom scheme elsewhere), so
+    // the scheme is not hard-coded here. The mapping is queued by the library
+    // until the WebView is initialized.
     mapLocalFolder("app.local", assetsDir().c_str());
-    const std::string url = "https://app.local/index.html";
+    const std::string url = localUrl("app.local", "/index.html");
     std::println("[HeliosViewApp] prod mode: loading {}", url);
 #endif
     navigate(url.c_str());
