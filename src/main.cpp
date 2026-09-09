@@ -52,11 +52,19 @@ int AppMain(int argc, char* argv[])
         return 2;
     }
 
+    // Process identity, before any window exists: Windows AppUserModelID,
+    // macOS bundle identifier, Linux application id. It is also the id the
+    // notification backend registers below (App::setAppId is its default), and
+    // on Windows it names the Start Menu shortcut that makes toasts work.
+    // Configured in app-config.cmake.
+    helios::App::setAppId(HELIOSVIEW_TEMPLATE_APP_ID);
+
     // OS toast backend: registers the AppUserModelID + Start Menu shortcut an
     // unpackaged app needs before any notificationShow() can work. Must be
     // called once at startup; the toast API is what lets us set a real custom
     // notification title (the classic tray balloon only ever shows the exe name).
-    helios::notificationInit("Game Trigger");
+    // No argument: the id comes from App::setAppId above.
+    helios::notificationInit();
 
 
 

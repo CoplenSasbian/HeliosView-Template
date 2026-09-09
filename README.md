@@ -67,12 +67,13 @@ GameTrigger 就是干这个的：配好规则后它一直在后台监控进程�
 | Node.js ≥ 20 | 前端（Vite） |
 
 HeliosView 库是 **git 子模块**（`HeliosView/`，跟踪 master 分支），含其自身依赖
-（stdexec + nlohmann/json + Boost 超级项目子模块，WebView2 SDK 在配置时从 NuGet 拉取），
-无需 vcpkg/conan。
+（stdexec + Boost 超级项目子模块 —— 桥接用 Boost.JSON；WebView2 SDK 与 OpenSSL 在配置时从
+NuGet 拉取），无需 vcpkg/conan。
 
 > **自动配置**：全新 clone 可直接构建。`CMakeLists.txt` 在 configure 时运行
-> `ensure-submodule.cmake`，自动初始化缺失的子模块（HeliosView → 其内层 stdexec + json →
-> HeliosView 需要的少数 Boost 库，各 `--depth 1`），无需手动 `git submodule update` 来回递归。
+> `ensure-submodule.cmake`，自动初始化缺失的子模块（HeliosView → 其内层 stdexec + boost →
+> HeliosView 需要的少数 Boost 库，一次 `git submodule update` 流式拉取），无需手动
+> `git submodule update` 来回递归。
 
 ### Windows
 
@@ -96,14 +97,26 @@ dist\bin\GameTrigger.exe
 CLion / IDE 开发流程：终端跑 `scripts\vite.cmd` 起前端，然后在 IDE 里运行 `GameTrigger`
 目标即可（默认 Dev 模式）。
 
-### 应用名与窗口标题
+### 应用身份、应用名与窗口标题
 
 集中在一个文件 **`app-config.cmake`**（仓库根目录，被 `CMakeLists.txt` 引入）：
 
 | 变量 | 当前值 |
 | --- | --- |
 | `HELIOSVIEW_TEMPLATE_APP_NAME` | `GameTrigger`（可执行文件 / target 名） |
+| `HELIOSVIEW_TEMPLATE_APP_ID` | `Game Trigger`（进程身份：Windows AppUserModelID / macOS bundle id / Linux app id，同时是通知的默认 id） |
 | `HELIOSVIEW_TEMPLATE_APP_TITLE` | `Game Trigger`（窗口标题） |
+
+`src/main.cpp` 在创建任何窗口之前把它交给库：
+
+```cpp
+helios::App::setAppId(HELIOSVIEW_TEMPLATE_APP_ID);   // 进程身份；notificationInit() 默认用它
+helios::notificationInit();                          // 不再传参：id 来自上面
+```
+
+配套的还有 `helios::App::setActivationPolicy(...)`：托盘/菜单栏常驻应用在 macOS 上应使用
+`helios::ActivationPolicy::Accessory` 以隐藏 Dock 图标。两者都是进程级设置，必须在第一个窗口
+之前调用（详见 HeliosView README 的 “Process identity / activation policy”）。
 
 改完重新构建即可，`scripts\dev.cmd` / `build.cmd` 会按构建输出自动找到 exe，无需其它同步。
 
@@ -156,7 +169,7 @@ HeliosView 向每个页面注入 `window.helios`。前端调用 `window.helios.c
 
 ```
 CMakeLists.txt       ensure-submodule + add_subdirectory(HeliosView) + 应用 target + dev/prod 模式
-app-config.cmake     应用身份：程序名、窗口标题（改这里）
+app-config.cmake     应用身份：程序名、进程 id、窗口标题（改这里）
 ensure-submodule.cmake  configure 时自动拉取 HeliosView（及其嵌套依赖）子模块
 HeliosView/          HeliosView 库（git 子模块，concrete commit 固定在索引里）
 PluginInterface/     插件 SDK：IPlugin / PluginParameter 接口头文件
@@ -176,4 +189,4 @@ scripts/vite.cmd     仅起 Vite dev server（供 CLion / IDE 使用）
 
 - 界面框架：HeliosView template（`/src`、`frontend/` 及构建脚本来自
   `template/react-js` 分支）。
-- 依赖：Windows 回调 / WebView2（微软）、nlohmann/json、Boost、stdexec、miniz、Vite、React。
+- 依赖：Windows 回调 / WebView2（微软）、Boost.JSON、stdexec、miniz、Vite、React。

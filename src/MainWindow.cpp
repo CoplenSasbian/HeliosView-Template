@@ -20,6 +20,7 @@
 #include <print>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace
 {
@@ -57,6 +58,38 @@ bool processRulesFromJson(const boost::json::value& v,
     }
     out = std::move(result);
     return true;
+}
+
+// Plugin file parameters declare their dialog filter in the classic Win32 form
+//   "Name (*.ext;*.ext2)|*.ext;*.ext2|Other name|*.other"
+// (name/pattern pairs separated by '|'). HeliosView's file dialogs take a list
+// of FileFilter rules instead of that packed string, so split it here: the
+// library re-appends " (pattern)" to a name that does not already carry one, so
+// the dialog shows exactly the same entries as before. An empty result means
+// "All files", the API's default.
+std::vector<helios::FileFilter> parseDialogFilter(const std::string& filter)
+{
+    std::vector<helios::FileFilter> rules;
+    size_t pos = 0;
+    while (pos < filter.size())
+    {
+        const size_t bar = filter.find('|', pos);
+        if (bar == std::string::npos)
+            break; // trailing text without a pattern: nothing to match
+        const size_t next = filter.find('|', bar + 1);
+        const size_t end = (next == std::string::npos) ? filter.size() : next;
+
+        std::string name = filter.substr(pos, bar - pos);
+        std::string pattern = filter.substr(bar + 1, end - bar - 1);
+        if (name.empty())
+            name = "All files";
+        if (pattern.empty())
+            pattern = "*";
+        rules.push_back({std::move(name), std::move(pattern)});
+
+        pos = (next == std::string::npos) ? filter.size() : next + 1;
+    }
+    return rules;
 }
 
 // Absolute path to the brand icon next to the executable (icon.ico is staged
@@ -657,13 +690,13 @@ std::execution::task<PickPathResp> MainWindow::pluginsPickPath(std::string type,
     else
     {
         // "exe" (process-monitor browse) restricts the dialog to executables;
-        // plugin `file` params pass their own filter ("" = all files).
-        const char* f = nullptr;
+        // plugin `file` params pass their own Win32-style filter ("" = all files).
+        std::vector<helios::FileFilter> filters;
         if (type == "exe")
-            f = "可执行文件 (*.exe)|*.exe";
+            filters = {{"可执行文件", "*.exe"}};
         else if (!filter.empty())
-            f = filter.c_str();
-        auto files = helios::openFiles(nativeHandle(), title.c_str(), f);
+            filters = parseDialogFilter(filter);
+        auto files = helios::openFiles(nativeHandle(), title.c_str(), filters);
         ok = !files.empty();
         if (ok) path = files.front();
     }
@@ -949,10 +982,11 @@ void MainWindow::ActivateConfig(const std::string& config, const char* reason)
 
 void MainWindow::setupTray()
 {
-    // Brand icon next to the exe (staged by CMake); "" falls back to the
-    // library's default tray icon.
+    // A Tray is standalone (no window handle needed since HeliosView's portable
+    // API update). Brand icon next to the exe (staged by CMake); "" falls back
+    // to the library's default tray icon.
     const std::string icon = appIconPath();
-    m_tray = std::make_unique<helios::Tray>(nativeHandle(), "GameTrigger",
+    m_tray = std::make_unique<helios::Tray>("GameTrigger",
                                             icon.empty() ? nullptr : icon.c_str());
     if (!m_tray->valid())
     {
@@ -975,7 +1009,9 @@ void MainWindow::ShowTrayMenu()
 
 void MainWindow::RebuildMenu()
 {
-    m_menu = std::make_unique<helios::Menu>(nativeHandle());
+    // Standalone menu (no window handle needed); the owner window is passed to
+    // show() below.
+    m_menu = std::make_unique<helios::Menu>();
     if (!m_menu->valid())
     {
         m_menu.reset();
@@ -1257,10 +1293,12 @@ void MainWindow::loadFrontend()
     // file:// with a CORS error (file is not a supported scheme), so a
     // file:// URL would show a blank page. Instead map the built frontend
     // to the virtual host "app.local" (WebView2 restricts mappings to the
-    // .local suffix) and load it over https://, a supported scheme. The
-    // mapping is queued by the library until the WebView is initialized.
+    // .local suffix) and load it from there. localUrl() builds the engine's
+    // URL shape (https://<host>/... on Windows; a custom scheme elsewhere), so
+    // no scheme is hard-coded here. The mapping is queued by the library until
+    // the WebView is initialized.
     mapLocalFolder("app.local", assetsDir().c_str());
-    const std::string url = "https://app.local/index.html";
+    const std::string url = localUrl("app.local", "/index.html");
     std::println("[GameTrigger] prod mode: loading {}", url);
 #endif
     navigate(url.c_str());
