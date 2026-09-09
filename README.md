@@ -114,7 +114,8 @@ The scripts run the official `npm create vite` scaffold. Without
 
 The built page is served from the `assets\` folder at the software root — a
 sibling of `bin\`, which holds the exe — through a WebView2 virtual-host
-mapping (`https://app.local/`, see `mapLocalFolder` in `src/MainWindow.cpp`):
+mapping (`https://app.local/`, see `mapLocalFolder` + `localUrl` in
+`src/MainWindow.cpp` — the URL shape is engine-defined, so it is not hard-coded):
 file:// cannot serve the Vite ES-module output, so `app.local` is the
 supported scheme the prod build navigates to. All DLLs (`HeliosView.dll`,
 `WebView2Loader.dll`, the OpenSSL dlls) and `cacert.pem` sit in `bin\` next to
