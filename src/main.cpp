@@ -73,6 +73,15 @@ int AppMain(int argc, char* argv[])
     (void)argc;
     (void)argv;
 
+    // 0) Process identity, before any window exists: Windows AppUserModelID,
+    //    macOS bundle identifier, Linux application id. It is also the default
+    //    id for helios::notificationInit(), and the OS uses it to group the
+    //    taskbar entry and the app's toasts. Configured in app-config.cmake.
+    //    (helios::App::setActivationPolicy() is the companion call — a tray-only
+    //    app wants ActivationPolicy::Accessory on macOS to drop the Dock icon.)
+    helios::App::setAppId(HELIOSVIEW_TEMPLATE_APP_ID);
+    std::println("[HeliosViewApp] app id: {}", helios::App::appId());
+
     // 1) The context: the UI loop + the app-scoped background pool
     //    (AppContext::async(), see AppContext.h).
     AppContext ctx;

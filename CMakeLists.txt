@@ -28,8 +28,8 @@ add_subdirectory(HeliosView)
 # main.cpp, which holds the actual app logic.
 # ---------------------------------------------------------------------------
 
-# App identity: program name, window title, ... — edit app-config.cmake
-# (the single place to configure these).
+# App identity: program name, process id, window title, ... — edit
+# app-config.cmake (the single place to configure these).
 include(app-config.cmake)
 
 add_executable(${HELIOSVIEW_TEMPLATE_APP_NAME} WIN32
@@ -44,6 +44,7 @@ target_link_libraries(${HELIOSVIEW_TEMPLATE_APP_NAME} PRIVATE HeliosView::Core)
 target_compile_definitions(${HELIOSVIEW_TEMPLATE_APP_NAME} PRIVATE
     HELIOSVIEW_TEMPLATE_VERSION="${PROJECT_VERSION}"
     HELIOSVIEW_TEMPLATE_APP_NAME="${HELIOSVIEW_TEMPLATE_APP_NAME}"
+    HELIOSVIEW_TEMPLATE_APP_ID="${HELIOSVIEW_TEMPLATE_APP_ID}"
     HELIOSVIEW_TEMPLATE_APP_TITLE="${HELIOSVIEW_TEMPLATE_APP_TITLE}"
 )
 
