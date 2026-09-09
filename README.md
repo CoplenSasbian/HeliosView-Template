@@ -41,27 +41,25 @@ Fork it and start building — the plumbing is already wired up:
 | Node.js ≥ 20 | the frontend (Vite)      |
 
 The HeliosView library is a **git submodule** (`HeliosView/`) tracking the
-**master** branch (no release tag is published yet — the v1.0.0 tag is one
-commit behind master, and that commit only touches the CMake submodule
-bootstrap, so the code is identical), including its own dependencies (stdexec
-+ nlohmann/json + the Boost superproject as nested submodules, WebView2 SDK
-pulled from NuGet at configure time) — no vcpkg/conan. `git clone --recursive`
-fetches it all.
+**master** branch, including its own dependencies (stdexec + the Boost
+superproject — Boost.JSON backs the WebView bridge — as nested submodules, and
+the WebView2 SDK + OpenSSL pulled from NuGet at configure time) — no
+vcpkg/conan. `git clone --recursive` fetches it all.
 
 > **Auto-configure:** a fresh clone builds out of the box. `CMakeLists.txt`
 > runs `ensure-submodule.cmake`, which initializes any missing submodules at
-> configure time — the HeliosView submodule and then its own nested ones
-> (stdexec + json). You don't have to run `git submodule update` by hand:
+> configure time — the HeliosView submodule and then its own nested ones.
+> You don't have to run `git submodule update` by hand:
 >
 > ```bat
 > git submodule update --init -- HeliosView              REM HeliosView/
-> git -C HeliosView submodule update --init              REM stdexec + json
+> git -C HeliosView submodule update --init              REM stdexec + boost
 > ```
 >
 > This stays one level deep (it never recurses into the Boost superproject's
 > ~160 libraries). HeliosView's own `cmake/ensure-submodule.cmake` then
-> initializes just the Boost libs it needs (each `--depth 1`) at configure
-> time.
+> initializes stdexec + just the Boost libs it needs in one streamed
+> `git submodule update` call at configure time.
 
 ## Platforms
 
@@ -146,7 +144,7 @@ If an existing build dir was configured before the default flip, it still
 holds the old cached value — reconfigure it explicitly (`-DHELIOSVIEW_TEMPLATE_DEV=ON`)
 or clear the cache.
 
-### App name & window title
+### App identity, name & window title
 
 Configured in **one file**: `app-config.cmake` at the repo root (included by
 `CMakeLists.txt`). Edit the values there and rebuild — nothing else needs to
@@ -155,11 +153,24 @@ change:
 | Variable in `app-config.cmake` | Default | Used for |
 | --- | --- | --- |
 | `HELIOSVIEW_TEMPLATE_APP_NAME` | `HeliosViewApp` | executable/target name (the `.exe` file name); also the app name reported by the `appInfo` bridge call |
+| `HELIOSVIEW_TEMPLATE_APP_ID` | `com.example.heliosview.app` | process identity: Windows AppUserModelID, macOS bundle identifier, Linux application id; also the default id for `helios::notificationInit()` |
 | `HELIOSVIEW_TEMPLATE_APP_TITLE` | `HeliosView App` | window title |
 
 The C++ side and the build pick the values up automatically, and
 `scripts\dev.cmd` / `scripts\build.cmd` find the executable by scanning the
 build output — no other place to keep in sync.
+
+`src/main.cpp` hands the id to the library before any window is created:
+
+```cpp
+helios::App::setAppId(HELIOSVIEW_TEMPLATE_APP_ID);   // Win AUMID / macOS bundle id / Linux app id
+```
+
+Its companion is `helios::App::setActivationPolicy(...)`: a tray-only (or
+menu-bar-only) app wants `helios::ActivationPolicy::Accessory` so macOS drops
+the otherwise useless Dock icon. Both are process-wide and must run before the
+first window — see the HeliosView README ("Process identity / activation
+policy").
 
 ### CLion workflow (IDE builds/runs the C++ app)
 
@@ -240,7 +251,7 @@ More from the library README (DTO `Req` types, bidirectional
 
 ```
 CMakeLists.txt       ensure-submodule + add_subdirectory(HeliosView) + the app target + dev/prod mode
-app-config.cmake     app identity: program name, window title (edit these)
+app-config.cmake     app identity: program name, process id, window title (edit these)
 ensure-submodule.cmake  auto-fetch the HeliosView submodule (and its nested deps) at configure time
 HeliosView/          HeliosView library as a git submodule (tracks master; concrete commit in the index)
 src/AppContext.h     the context: UI loop (helios::App)
