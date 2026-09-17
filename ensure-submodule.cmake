@@ -38,6 +38,7 @@ set(HELIOSVIEW_TEMPLATE_FRONTEND_DIST "${CMAKE_CURRENT_SOURCE_DIR}/frontend/dist
 # only HeliosView itself is fetched. Nested submodules are not handled here.
 # ---------------------------------------------------------------------------
 set(HELIOSVIEW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)  # skip the library's own demos
+set(HELIOSVIEW_BUILD_TESTS OFF CACHE BOOL "" FORCE)     # skip the library's own tests
 
 find_package(Git REQUIRED)
 
