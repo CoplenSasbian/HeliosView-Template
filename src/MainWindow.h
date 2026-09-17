@@ -12,7 +12,7 @@
 
 class AppContext;
 
-class MainWindow : public helios::WebViewWindow {
+class MainWindow : public helios::Window {
 public:
     // ctx: the application context (UI loop) that this window's native logic
     //      runs against. The context must outlive the window. The title is

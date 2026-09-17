@@ -35,7 +35,7 @@ T jget(const boost::json::value& j, std::string_view key, T fallback)
 } // namespace
 
 MainWindow::MainWindow(AppContext& ctx, int width, int height, const char* title)
-    : WebViewWindow(width, height, title)
+    : helios::Window(width, height, title)
     , m_ctx(ctx)
 {
     // Note: the bridge bindings are NOT registered here - bind requires a
