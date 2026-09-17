@@ -48,7 +48,7 @@ struct ProcessRule {
 };
 BOOST_DESCRIBE_STRUCT(ProcessRule, (), (exe, config))
 
-class MainWindow : public helios::WebViewWindow {
+class MainWindow : public helios::Window {
 public:
     // Title is UTF-8 (HeliosView v1.0.0 switched the C API to UTF-8 strings).
     // Uses AppContext::instance() internally — no context reference needed.

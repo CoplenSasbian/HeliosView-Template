@@ -115,7 +115,7 @@ std::string appIconPath()
 } // namespace
 
 MainWindow::MainWindow(int width, int height, const char* title, bool silent)
-    : WebViewWindow(width, height, title,helios::WindowStyle::Frameless)
+    : helios::Window(width, height, title, helios::WindowStyle::Frameless)
     , m_pluginManager(AppContext::instance()->logger())
     , m_processMonitor(AppContext::instance()->app())
     , m_silent(silent)
