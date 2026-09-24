@@ -50,8 +50,17 @@ REM ---- toolchain: MSVC env + cmake/ninja discovery ---------------------------
 call "%~dp0_toolchain.cmd"
 if errorlevel 1 exit /b 1
 
+REM ---- C++ dependencies (HeliosView submodule + everything HeliosView needs) --------
+REM Pre-flight: runs scripts\setup-dependencies.cmd on the first run (or after a
+REM reset), so CMake configure never hits HeliosView's "submodules missing" /
+REM "OpenSSL not found" FATAL_ERROR. No-op once everything is in place.
+call "%~dp0_deps.cmd"
+if errorlevel 1 exit /b 1
+
 REM ---- frontend dependencies --------------------------------------------------
-if not exist "%FRONTEND%\node_modules" (
+REM node_modules\.package-lock.json is npm's "install finished" marker - a bare
+REM node_modules\ directory can be left behind by an aborted install.
+if not exist "%FRONTEND%\node_modules\.package-lock.json" (
     echo [dev] Installing frontend dependencies...
     pushd "%FRONTEND%"
     call npm install

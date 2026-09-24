@@ -15,11 +15,14 @@
 //
 // Threading: every window/WebView API must run on the message-loop thread
 // (the thread running app().exec()). The exceptions — safe from any thread —
-// are app().postTask(...) (deliver work to the UI thread), App::quit, and the
-// WebView resolve/reject/broadcast calls. Long-running work goes on the
+// are app().postTask(...) (deliver work to the UI thread) and App::quit;
+// WebView calls (broadcast, resolve/reject) are UI-thread calls — the C layer
+// no longer marshals off-thread calls. Long-running work goes on the
 // background pool: `co_await schedule(async().get_scheduler())` hops a bridge
-// handler off the UI thread (see the ping handler in MainWindow.cpp). The
-// pool is owned here, app-scoped, so it outlives every window and binding.
+// handler off the UI thread, and `co_await schedule(app().get_scheduler())`
+// brings it back before it touches the WebView or completes (see the ping
+// handler in MainWindow.cpp). The pool is owned here, app-scoped, so it
+// outlives every window and binding.
 
 #include <HeliosViewCore/HeliosView.h>
 

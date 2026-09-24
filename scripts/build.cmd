@@ -33,12 +33,32 @@ if not exist "%FRONTEND%\package.json" (
     echo [build] ERROR: frontend/ is not scaffolded yet. Run scripts\setup.cmd first. 1>&2
     exit /b 1
 )
+where node >nul 2>&1 || ( echo [build] ERROR: Node.js is required ^(https://nodejs.org^). 1>&2 & exit /b 1 )
+where npm  >nul 2>&1 || ( echo [build] ERROR: npm not found ^(it ships with Node.js^). 1>&2 & exit /b 1 )
 
 REM ---- toolchain: MSVC env + cmake/ninja discovery ----------------------------------
 call "%~dp0_toolchain.cmd"
 if errorlevel 1 exit /b 1
 
+REM ---- C++ dependencies (HeliosView submodule + everything HeliosView needs) --------
+REM Pre-flight: runs scripts\setup-dependencies.cmd on the first run (or after a
+REM reset), so CMake configure never hits HeliosView's "submodules missing" /
+REM "OpenSSL not found" FATAL_ERROR. No-op once everything is in place.
+call "%~dp0_deps.cmd"
+if errorlevel 1 exit /b 1
+
 REM ---- frontend --------------------------------------------------------------------
+REM node_modules\.package-lock.json is npm's "install finished" marker - a bare
+REM node_modules\ directory can be left behind by an aborted install.
+if not exist "%FRONTEND%\node_modules\.package-lock.json" (
+    echo [build] Installing frontend dependencies...
+    pushd "%FRONTEND%"
+    call npm install
+    set "FE_RC=%ERRORLEVEL%"
+    popd
+    if not "%FE_RC%"=="0" ( echo [build] ERROR: npm install failed. 1>&2 & exit /b 1 )
+)
+
 echo [build] Building frontend (vite build)...
 pushd "%FRONTEND%"
 call npm run build
