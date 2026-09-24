@@ -39,17 +39,27 @@ git clone --recursive -b template/vue-js https://github.com/CoplenSasbian/Helios
 
 (or `-b template/react-js` / `-b template/vanilla-js`). `--recursive` fetches
 the **HeliosView** library (a git submodule tracking the **master** branch),
-which each template checks in as a git submodule (`HeliosView/`, with stdexec
-+ nlohmann/json as nested submodules, WebView2 SDK pulled from NuGet at
-configure time). (Or
-`git clone`, then `git checkout template/vue-js` + `git submodule update
---init` + `git -C HeliosView submodule update --init`.)
+which each template checks in as `HeliosView/`. That is only the first level:
+HeliosView needs its own `third_party/` tree (stdexec, the Boost superproject
+with the libraries it uses, blend2d, asmjit) plus the WebView2 SDK and OpenSSL
+from NuGet — none of which `--recursive` fetches.
 
-The templates **auto-configure**: their `CMakeLists.txt` runs
-`ensure-submodule.cmake`, which initializes any missing submodules (HeliosView
-and then its nested stdexec/json) at configure time — so `git clone` (even
-without `--recursive`) followed by a build works out of the box. Init is one
-level deep only, so it never pulls a recursive Boost superproject.
+Each template pulls everything with one idempotent script:
+
+```bat
+scripts\setup-dependencies.cmd
+```
+
+and runs it automatically when it is needed: `scripts\dev.cmd` and
+`scripts\build.cmd` first call an internal pre-flight (`scripts\_deps.cmd`) that
+probes the dependency markers and fetches only what is missing. So a fresh clone
+builds on the first `scripts\dev.cmd` — with or without `--recursive` — and
+**nothing is fetched at CMake configure time**. `scripts\reset-dependencies.cmd`
+goes back to the pristine post-clone state.
+
+The flags (`-Force`, `-SkipDownloads`, `-SkipFrontend`, `-Proxy <url>`), the
+exact marker list and the reset options are documented in each template's
+README.
 
 ## How this repo is organized
 
