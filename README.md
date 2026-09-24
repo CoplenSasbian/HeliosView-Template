@@ -41,25 +41,68 @@ Fork it and start building — the plumbing is already wired up:
 | Node.js ≥ 20 | the frontend (Vite)      |
 
 The HeliosView library is a **git submodule** (`HeliosView/`) tracking the
-**master** branch, including its own dependencies (stdexec + the Boost
-superproject — Boost.JSON backs the WebView bridge — as nested submodules, and
-the WebView2 SDK + OpenSSL pulled from NuGet at configure time) — no
-vcpkg/conan. `git clone --recursive` fetches it all.
+**master** branch. It is not standalone: it needs its own `third_party/` tree
+(stdexec, the Boost superproject with the ~30 Boost libraries it uses, blend2d
+and asmjit as nested submodules, plus the WebView2 SDK and OpenSSL 3.5.2 from
+NuGet and a CA bundle) — no vcpkg/conan. `git clone --recursive` fetches the
+submodule itself, but **not** those nested dependencies.
 
-> **Auto-configure:** a fresh clone builds out of the box. `CMakeLists.txt`
-> runs `ensure-submodule.cmake`, which initializes any missing submodules at
-> configure time — the HeliosView submodule and then its own nested ones.
-> You don't have to run `git submodule update` by hand:
->
-> ```bat
-> git submodule update --init -- HeliosView              REM HeliosView/
-> git -C HeliosView submodule update --init              REM stdexec + boost
-> ```
->
-> This stays one level deep (it never recurses into the Boost superproject's
-> ~160 libraries). HeliosView's own `cmake/ensure-submodule.cmake` then
-> initializes stdexec + just the Boost libs it needs in one streamed
-> `git submodule update` call at configure time.
+## Dependencies
+
+One script owns the whole dependency graph — `scripts\setup-dependencies.cmd`
+(the `.ps1` / `.py` it wraps hold the logic):
+
+| step | what it fetches | where it lands |
+| --- | --- | --- |
+| `[1/4]` | the `HeliosView` submodule | `HeliosView/` |
+| `[2/4]` | **HeliosView's own dependencies**, delegated to HeliosView's own `scripts/setup-dependencies.*` | `HeliosView/third_party/` |
+| `[3/4]` | frontend npm packages (`npm install`) | `frontend/node_modules/` |
+| `[4/4]` | verification of every artifact the CMake configure step requires | — |
+
+Step `[2/4]` is a delegation on purpose: HeliosView owns its dependency list
+(stdexec, Boost + the libraries it uses, blend2d, asmjit, OpenSSL 3.5.2,
+`cacert.pem`, WebView2 SDK) and its CMake **hard-fails** instead of fetching at
+configure time — so the list is never duplicated in this repo, and a configure
+that succeeds is a build that can proceed.
+
+**You normally never run it by hand.** `scripts\dev.cmd` and
+`scripts\build.cmd` first call the internal pre-flight `scripts\_deps.cmd`,
+which probes the markers below and runs the setup script only when something is
+missing — so a fresh clone builds on the first `scripts\dev.cmd`:
+
+```
+HeliosView/.git                                              the submodule itself
+HeliosView/third_party/stdexec/.git                          HeliosView's own
+HeliosView/third_party/boost/.git                            nested submodules
+HeliosView/third_party/blend2d/.git
+HeliosView/third_party/asmjit/.git
+HeliosView/third_party/boost/libs/json/.git                  one Boost library as a marker
+HeliosView/third_party/openssl/build/native/include/openssl/ssl.h
+HeliosView/third_party/cacert.pem
+HeliosView/third_party/webview2-sdk/build/native/include/WebView2.h
+```
+
+Run it explicitly when you want to control it (it is idempotent — every step
+probes first and only fetches what is missing):
+
+```bat
+scripts\setup-dependencies.cmd                  REM fetch whatever is missing
+scripts\setup-dependencies.cmd -Force           REM re-fetch everything
+scripts\setup-dependencies.cmd -SkipDownloads   REM git submodules only
+scripts\setup-dependencies.cmd -SkipFrontend    REM C++ dependencies only
+scripts\setup-dependencies.cmd -Proxy http://127.0.0.1:7890
+                                                REM behind a proxy (routes through the .py variant)
+```
+
+And to get back to the pristine post-clone state — submodule working trees, the
+downloaded packages and `node_modules` go away; tracked files, your branch and
+uncommitted code are never touched:
+
+```bat
+scripts\reset-dependencies.cmd
+scripts\reset-dependencies.cmd -OnlySubmodules   REM keep the downloaded packages
+scripts\reset-dependencies.cmd -KeepGitCache     REM keep the git object cache
+```
 
 ## Platforms
 
@@ -74,10 +117,11 @@ gains non-Windows backends — the `*.sh` variants will come back then.
 
 ## Getting started
 
-A vanilla JS frontend (and the HeliosView submodule) is checked in, so the very
-first run needs nothing but the two commands below. Configure-time
-`ensure-submodule.cmake` fetches the library automatically. `npm install` only
-runs the first time (the scripts do it automatically).
+A vanilla JS frontend is checked in, so the very first run needs nothing but the
+commands below: the scripts fetch any missing C++ dependency (the HeliosView
+submodule *and* everything HeliosView itself needs) and run `npm install` for
+you — see **Dependencies** above. `git clone --recursive` is not enough on its
+own, and nothing is fetched at CMake configure time.
 
 ```bat
 REM Windows:
@@ -264,6 +308,10 @@ scripts/setup.cmd            (re)scaffold the frontend (framework picker, -Force
 scripts/vite.cmd             run the Vite dev server only (for CLion/IDE workflows)
 scripts/dev.cmd              dev loop: Vite dev server + C++ app
 scripts/build.cmd            release: vite build + C++ prod build
+scripts/_deps.cmd            internal pre-flight: fetch missing C++ dependencies (used by dev/build)
+scripts/setup-dependencies.* the dependency pipeline: HeliosView + its own deps + frontend
+scripts/reset-dependencies.* undo it, back to the pristine post-clone state
+scripts/_toolchain.cmd       internal: MSVC environment + cmake/ninja discovery
 ```
 
 ## Customizing

@@ -37,7 +37,9 @@ if not exist "%FRONTEND%\package.json" (
 )
 where node >nul 2>&1 || ( echo [vite] ERROR: Node.js is required ^(https://nodejs.org^). 1>&2 & exit /b 1 )
 
-if not exist "%FRONTEND%\node_modules" (
+REM node_modules\.package-lock.json is npm's "install finished" marker - a bare
+REM node_modules\ directory can be left behind by an aborted install.
+if not exist "%FRONTEND%\node_modules\.package-lock.json" (
     echo [vite] Installing frontend dependencies...
     pushd "%FRONTEND%"
     call npm install
